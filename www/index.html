@@ -1,0 +1,57 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+	#databrowser {
+		border:  0;
+		margin:  0;
+		padding: 0;
+		width: 100%;
+		height: 80vh;
+	}
+</style>
+<h1>JSONTag browser</h1>
+<textarea id="databrowser" data-simply-field="data"></textarea>
+<script src="https://unpkg.com/@muze-nl/jsontag@0.4.2/dist/browser.js"></script>
+<script src="https://cdn.simplyedit.io/1/simply-edit.js"></script>
+<script src="https://unpkg.com/simplyview@2.0.2/dist/simply.everything.js"></script>
+<script>
+	const databrowser = simply.app({
+		container: document.getElementById('databrowser'),
+		routes: {
+			'/:*': (params) => {
+				api.get(window.location.pathname).then(data => {
+					databrowser.view.data = JSONTag.stringify(data, null, 4)
+				})
+				.catch(err => {
+					databrowser.view.data = JSONTag.stringify(err, null, 4)
+				})
+			}
+		}
+	})
+
+	const apiBase = window.location.protocol+'//'+window.location.host;
+	const api = {
+		get: function(path, params) {
+			let url = apiBase+path;
+			if (!params && window.location.search) {
+				url += window.location.search
+			}
+			if (params) {
+				var args = Object.keys(params).map(param => encodeURIComponent(param)+'='+encodeURIComponent(params[param])).join('&')
+				url += '?' + args
+			}
+			return fetch(url, {
+				headers: {
+					'Accept': 'application/jsontag'
+				}
+			})
+			.then(response => {
+				let jsontag = response.text().then(JSONTag.parse)
+				if (response.ok) {
+					return jsontag
+				}
+				return jsontag.then(Promise.reject.bind(Promise))
+			})
+		}
+	}
+</script>

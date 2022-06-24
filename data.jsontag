@@ -1,0 +1,12 @@
+{
+	"persons": [
+		<object class="Person">{
+			"name": "John",
+			"dob": <date>"1972-09-20"
+		},
+		<object class="Person">{
+			"name": "Jane",
+			"dob": <date>"1986-01-01"
+		}
+	]
+}
