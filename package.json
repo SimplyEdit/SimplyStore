@@ -1,5 +1,8 @@
 {
 	"name": "JSONTag REST Server",
+	"scripts": {
+		"start": "node src/main.mjs"
+	},
 	"dependencies": {
 		"@muze-nl/jsontag": "^0.4.2",
 		"express": "^4.18.1",
