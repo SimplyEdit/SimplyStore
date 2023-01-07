@@ -69,7 +69,7 @@ server.get('*', (req, res, next) =>
 /**
  * handle queries, query is the post body
  */
-server.post('/',  (req, res) => {
+server.post('*',  (req, res) => {
 	let accept = req.accepts(['application/jsontag','application/json','text/html','text/javascript','image/*'])
 	if (!accept) {
 		res.status(406)

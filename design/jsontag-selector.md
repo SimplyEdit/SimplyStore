@@ -162,4 +162,106 @@ And the result should be:
 
 The interesting part here is, whether the graphql query/filter syntax is the best fit, or perhaps can we replace that with the CSS selector or JSON Path? GraphQL is not quite designed for the purpose here, but I like the way you can select which data to return. The filter options are limited and non-standardized. Each graphql server has its own filter syntax and options. I also don't like the way the filter syntax is articifially limited to something that looks like JSON. I do like the focus on words instead of symbols to denote filter options and functions.
 
- 
+GraphQL also allows you to specify aliases for resulting data, so instead of assigned you could write:
+
+```
+Task(filter:{start:{greaterThen:"2023-01-01"}) {
+	title
+	start
+	owner:assigned {
+		name
+	}
+}
+```
+
+```
+[
+	<object class="Task">{
+		"title": "This is a task",
+		"start": <date>"2023-01-18",
+		"owner": [
+			<object class="Person">{
+				"name": "John"
+			}
+		]
+	}	
+]
+```
+
+There is more you can do with aliases, but I'm not sure that this is an approach to copy. The main use for aliases is to prevent conflicts in result names.
+
+The main problem I see with the query syntax is that if I just want all the assigned persons, I'd query this way:
+
+```
+Task(filter:{start:{greaterThen:"2023-01-01"}) {
+	title
+	start
+	assigned
+}
+```
+
+But as it stands this would result in:
+
+```
+[
+	<object class="Task">{
+		"title": "This is a task",
+		"start": <date>"2023-01-18",
+		"assigned": [
+			<link>"/0/"
+		]
+	}	
+]
+```
+
+This requires extra queries again, which is precisely what we want to avoid.
+For this reason, the JSONTag Rest server always resolves arrays and literal values (strings, numbers and booleans). So the result should be:
+
+```
+[
+	<object class="Task">{
+		"title": "This is a task",
+		"start": <date>"2023-01-18",
+		"assigned": [
+			<object class="Person">{
+				"name": "John",
+				"dob": <date>"1972-09-20"
+			}
+		]
+	}	
+]
+```
+
+This does break the GrapQL paradigm where you will only ever get the exact properties that you request.
+
+## Current approach
+
+For now I'm using [jsonpath-plus](https://github.com/JSONPath-Plus/JSONPath) which extends the default [JSONPath]() with among others a parent selector. This codebase looks relatively simple to add tagname and attribute selection support.
+
+You can query the dataset by POSTing to a path, with the JSON Path query in the body. e.g.:
+
+```
+POST /persons/
+
+$[?(@.name==='Jane')]
+```
+
+This will result in:
+
+```jsontag
+[
+    <object class="Person">{
+        "name":"Jane",
+        "dob":<date>"1986-01-01"
+    }
+]
+```
+
+The next step is to add a bit of GraphQL syntax to describe which properties you want returned. e.g.
+
+```
+$.[?(@.name==='Jane')] {
+	name
+}
+```
+

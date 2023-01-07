@@ -78,12 +78,13 @@ This should make the whole system ACID compliant. The atomic switching of the da
 
 - improved web client with type-specific views and form elements
 
-- Graphql query support (query only)
-- JSONTag-selector implementation and design
-- merging JSONTag-selector with Graphql queries
+- JSONPath/Graphql query support (query only)
+  [v] JSON Path plus implementation works, 
+  - extend JSON Path syntax to list resulting properties like graphql
+  - extend JSON Path syntax to query for types (tag names) and attributes
+  - add (lazy) indexing to improve query speed
 
 - add support for metadata on each JSON pointer path (or better: each object)
 - allow custom templates, instead of the default index.html
 - add support for access control, based on webid / openid connect
 
-- add (lazy) indexing to improve query speed
