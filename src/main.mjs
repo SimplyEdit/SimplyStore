@@ -73,7 +73,7 @@ server.post('/query/*',  (req, res) => {
 	function parseParams(paramsString) {
 		let result = {}
 		let lineRe = /^(.*)$/m
-		let parseRe = /^\s*([a-z][a-z0-9_]*)?\s*(\{)?\s*$/i
+		let parseRe = /^\s*([a-z].*?)?\s*(\{)?\s*$/i
 		let line = lineRe.exec(paramsString).pop()
 		let full, prop, recurse
 		do {
@@ -102,15 +102,23 @@ server.post('/query/*',  (req, res) => {
 			JSONTag.setType(result, obType)
 			JSONTag.setAttributes(result, JSONTag.getAttributes(object))
 			Object.entries(paramsOb).forEach(([key,value]) =>{
-				//@TODO: check whether there is a jsonpath added to the key, e.g.
-				// foo:$..title => key is 'foo', the value will be the result array of $..title
-				// if result array contains objects, these can be filtered like normal
+				let alias, queryResult
+				[alias,key] = key.split(':',2).map(p => p.trim())
+				if (!key) {
+					key = alias
+				}
+				if (key[0]==='$') {
+					queryResult = JSONPath({path:key, json:object, flatten: true})
+				} else {
+					console.log(alias, key, value)
+					queryResult = object[key]
+				}
 				if (!value) {
 					// @TODO: just set the entire value for now, should run linkReplacer here
 					// this is better solved after forcing all objects to have an id attribute with a unique id
-					result[key] = object[key]
+					result[alias] = queryResult
 				} else {
-					result[key] = filterProperties(value)(object[key])
+					result[alias] = filterProperties(value)(queryResult)
 				}
 			})
 			return result;
@@ -159,9 +167,8 @@ server.post('/query/*',  (req, res) => {
 			query = query.substring(0, found.index)
 		}
 		if (params) {
-			params = 'result '+params
+			[ params, remainder ] = parseParams('result '+params)
 		}
-		[ params, remainder ] = parseParams(params)
 		try {
 			result = JSONPath({path:query, json:result, flatten: true})
 			if (params) {
