@@ -102,8 +102,12 @@ server.post('/query/*',  (req, res) => {
 			JSONTag.setType(result, obType)
 			JSONTag.setAttributes(result, JSONTag.getAttributes(object))
 			Object.entries(paramsOb).forEach(([key,value]) =>{
+				//@TODO: check whether there is a jsonpath added to the key, e.g.
+				// foo:$..title => key is 'foo', the value will be the result array of $..title
+				// if result array contains objects, these can be filtered like normal
 				if (!value) {
 					// @TODO: just set the entire value for now, should run linkReplacer here
+					// this is better solved after forcing all objects to have an id attribute with a unique id
 					result[key] = object[key]
 				} else {
 					result[key] = filterProperties(value)(object[key])

@@ -80,7 +80,7 @@ This should make the whole system ACID compliant. The atomic switching of the da
 
 - JSONPath/Graphql query support (query only)
   [v] JSON Path plus implementation works, 
-  - extend JSON Path syntax to list resulting properties like graphql
+  [v] extend JSON Path syntax to list resulting properties like graphql
   - extend JSON Path syntax to query for types (tag names) and attributes
   - add (lazy) indexing to improve query speed
 
