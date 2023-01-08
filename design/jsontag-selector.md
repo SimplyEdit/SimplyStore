@@ -236,7 +236,7 @@ This does break the GrapQL paradigm where you will only ever get the exact prope
 
 ## Current approach
 
-For now I'm using [jsonpath-plus](https://github.com/JSONPath-Plus/JSONPath) which extends the default [JSONPath]() with among others a parent selector. This codebase looks relatively simple to add tagname and attribute selection support.
+For now I'm using [jsonpath-plus](https://github.com/JSONPath-Plus/JSONPath) which extends the default [JSONPath]() with among others a parent selector. This codebase looks relatively simple to add tagname and attribute selection support. This implementation allows for javascript methods to be called in filters, applied only to available data. The expressions are evaluated in a seperate 'vm', but security needs to be checked carefully.
 
 You can query the dataset by POSTing to a path, with the JSON Path query in the body. e.g.:
 
@@ -264,4 +264,41 @@ $.[?(@.name==='Jane')] {
 	name
 }
 ```
+
+Add alias support, so you can rename properties:
+
+```
+$.[?(@.name==='Jane')] {
+	foo:name
+}
+```
+
+And finally add subqueries, where you can assign JSON Path search results to a property:
+
+```
+$.[?(@.name==='Jane')] {
+	name
+	tasks:$$..tasks[?(@.assigned==='Jane')]
+}
+```
+
+A problem here is whether the subquery should start at the global root, or the current object. The global root allows for much more features, but also adds complexity. It would be nice to be able to specify in the query, e.g. make the global root something like $$.
+
+JSON Path has no knowledge of JSONTag, so it has no support for tag names (types) or attributes. JSON Path uses these special characters already: `$.@?&=!<>*`. Lets use `#` for attributes, like `@` for properties. You could then do this:
+
+```
+$.[?(#.class==='Person')] {
+	name
+}
+```
+
+And we can add a tag name, like this:
+
+```
+$.[?(#.class==='Person' && #.tag-name==='object')] {
+	name
+}
+```
+
+By using 'tag-name' we are sure it will never conflict with an attribute name, since they can't contain `-`.
 
