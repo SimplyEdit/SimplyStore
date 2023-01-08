@@ -18,3 +18,9 @@ We can do this while parsing the JSONTag data, just make a weakmap for all objec
 ### which acl grants apply to objects that are linked more than once?
 
 The simplest solution seems to just use the acl metadata gathered while following the path used.
+
+## existing solutions
+
+- immutable.js
+- immer
+- redux
