@@ -234,7 +234,7 @@ For this reason, the JSONTag Rest server always resolves arrays and literal valu
 
 This does break the GrapQL paradigm where you will only ever get the exact properties that you request.
 
-## Current approach
+## -Current approach- past approach
 
 For now I'm using [jsonpath-plus](https://github.com/JSONPath-Plus/JSONPath) which extends the default [JSONPath]() with among others a parent selector. This codebase looks relatively simple to add tagname and attribute selection support. This implementation allows for javascript methods to be called in filters, applied only to available data. The expressions are evaluated in a seperate 'vm', but security needs to be checked carefully.
 
@@ -302,3 +302,58 @@ $.[?(#.class==='Person' && #.tag-name==='object')] {
 
 By using 'tag-name' we are sure it will never conflict with an attribute name, since they can't contain `-`.
 
+## New Current Approach
+
+After reading [Datalog in Javascript](https://www.instantdb.com/essays/datalogjs) I've switched the query engine to Datalog. In fact the query engine is a javascript interpreter running in [VM2](https://github.com/patriksimek/vm2), with access to the query function of the triple store compiled from the jsontag input data.
+
+So you can now POST to the /query endpoint with just a simple query:
+
+```javascript
+query({
+	find: ["?name"],
+	where: [
+		["?person", "dob", "1972-09-20"]
+		["?person", "name", "?name"]
+	]
+})
+```
+
+And the result will be:
+```
+[
+	["John"]
+]
+```
+
+Or you can add your own function to match values:
+
+```javascript
+function lessThan(pattern) {
+	return function(match) {
+		if (match<pattern) {
+			return match
+		}
+		return null
+	}
+}
+
+query({
+	find: ["?name"],
+	where: [
+		["?person", "dob", lessThan("1980")]
+		["?person", "name", "?name"]
+	]
+})
+```
+
+You can also return complete objects:
+```javascript
+query({
+	find: ["?person"],
+	where: [
+		["?person", "dob", lessThan("1980")]
+	]
+})
+```
+
+There is as yet no way to transform the result, other than adding your own bespoke javascript to do that.

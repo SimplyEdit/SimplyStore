@@ -78,13 +78,21 @@ This should make the whole system ACID compliant. The atomic switching of the da
 
 - improved web client with type-specific views and form elements
 
-- JSONPath/Graphql query support (query only)
+X - scratched - JSONPath/Graphql query support (query only)
   [v] JSON Path plus implementation works, 
   [v] extend JSON Path syntax to list resulting properties like graphql
   [v] alias support
   [v] subquery support
   - extend JSON Path syntax to query for types (tag names) and attributes
   - add (lazy) indexing to improve query speed
+
+- Datalog query support
+  [v] compile triple store from jsontag data
+  [v] add query method
+  [v] extend datalog query to allow for custom match functions
+  [v] run /query post body in VM2 sandbox
+  - add indexing and other optimizations
+  - add standard library of matching functions
 
 - add support for metadata on each JSON pointer path (or better: each object)
 - allow custom templates, instead of the default index.html
