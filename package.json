@@ -5,9 +5,11 @@
 		"start": "node src/main.mjs"
 	},
 	"dependencies": {
+		"@discoveryjs/json-ext": "^0.5.7",
 		"@muze-nl/jsontag": "^0.6.1",
 		"express": "^4.18.1",
 		"json-pointer": "^0.6.2",
-		"jsonpath-plus": "^7.2.0"
+		"jsonpath-plus": "^7.2.0",
+		"vm2": "^3.9.13"
 	}
 }
