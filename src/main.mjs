@@ -182,6 +182,7 @@ async function main() {
 				},
 				wasm: false
 			})
+			vm.freeze(result, 'data') // adds immutable result dataspace to sandbox as data
 			try {
 				result = vm.run(query)
 			} catch(err) {
