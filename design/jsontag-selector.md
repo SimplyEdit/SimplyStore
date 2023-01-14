@@ -312,7 +312,7 @@ So you can now POST to the /query endpoint with just a simple query:
 query({
 	find: ["?name"],
 	where: [
-		["?person", "dob", "1972-09-20"]
+		["?person", "dob", "1972-09-20"],
 		["?person", "name", "?name"]
 	]
 })
@@ -340,7 +340,7 @@ function lessThan(pattern) {
 query({
 	find: ["?name"],
 	where: [
-		["?person", "dob", lessThan("1980")]
+		["?person", "dob", lessThan("1980")],
 		["?person", "name", "?name"]
 	]
 })
