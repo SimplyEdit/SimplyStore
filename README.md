@@ -91,8 +91,10 @@ X - scratched - JSONPath/Graphql query support (query only)
   [v] add query method
   [v] extend datalog query to allow for custom match functions
   [v] run /query post body in VM2 sandbox
+  [v] immutable dataset in query vm
   - add indexing and other optimizations
   - add standard library of matching functions
+  - allow vanilla javascript array map/reduce/filter approach
 
 - add support for metadata on each JSON pointer path (or better: each object)
 - allow custom templates, instead of the default index.html
