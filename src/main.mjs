@@ -10,6 +10,7 @@ import {VM} from 'vm2'
 
 const server    = express()
 const port      = process.env.NODE_PORT || 3000;
+
 const datafile  = process.env.DATAFILE || 'data.jsontag'
 const stream    = fs.createReadStream(datafile)
 
@@ -20,6 +21,7 @@ async function main() {
 
 	console.log('loading data...')
 	let dataspace = await parseChunked(stream)
+	console.log('indexing data...')
 	let tripleStore = new TripleStore(dataspace)
 
 	let used = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
@@ -32,6 +34,7 @@ async function main() {
 
 	server.get('/query/*', (req, res, next) => 
 	{
+		let start = Date.now()
 		let accept = req.accepts(['application/jsontag','application/json','text/html','text/javascript','image/*'])
 		if (!accept) {
 			res.status(406)
@@ -73,19 +76,23 @@ async function main() {
 		if (JSONTag.getAttribute(result, 'class')==='Error') {
 			res.status(result.code)
 		}
+		result = linkReplacer(result, path+'/')
 		if (req.accepts('application/jsontag')) {
 			res.setHeader('content-type','application/jsontag+json')
-			res.send(JSONTag.stringify(result, linkReplacer, 4)+"\n")
+			res.send(JSONTag.stringify(result, null, 4)+"\n")
 		} else {
 			res.setHeader('content-type','application/json')
 			res.send(originalJSON.stringify(result, null, 4)+"\n")
 		}
+		let end = Date.now()
+		console.log(path, (end-start))
 	})
 
 	/**
 	 * handle queries, query is the post body
 	 */
 	server.post('/query/*',  (req, res) => {
+		let start = Date.now()
 		function parseParams(paramsString) {
 			let result = {}
 			let lineRe = /^(.*)$/m
@@ -172,8 +179,12 @@ async function main() {
 		if (result) {
 			// do the query here
 			let query = req.body.toString() // raw body through express.raw()
+			console.log(query)
+			// @todo add text search: https://github.com/nextapps-de/flexsearch
+			// @todo add tree walk map/reduce/find/filter style functions
+			// @todo add arc tree dive function?
 			const vm = new VM({
-				timeout: 1000,
+//				timeout: 1000,
 				allowAsync: false,
 				sandbox: {
 					query: function(params) {
@@ -185,6 +196,8 @@ async function main() {
 			vm.freeze(result, 'data') // adds immutable result dataspace to sandbox as data
 			try {
 				result = vm.run(query)
+				let used = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
+				console.log(`(${used} MB)`);
 			} catch(err) {
 				console.log(err)
 				error = JSONTag.parse('<object class="Error">{"message":'+originalJSON.stringify(''+err)+',"code":422}')
@@ -197,11 +210,13 @@ async function main() {
 		}
 		if (req.accepts('application/jsontag')) {
 			res.setHeader('content-type','application/jsontag+json')
-			res.send(JSONTag.stringify(result, null, 4)+"\n") //linkReplacer, 4)+"\n")
+			res.send(JSONTag.stringify(result, null, 4)+"\n")
 		} else {
 			res.setHeader('content-type','application/json')
 			res.send(originalJSON.stringify(result, null, 4)+"\n")
 		}
+		let end = Date.now()
+		console.log(path, (end-start))
 	})
 
 	server.get('/', (req,res) => {
@@ -229,13 +244,20 @@ async function main() {
 		}
 	}
 
-	function linkReplacer(key, value) 
-	{
-		if (!Array.isArray(this) && typeof value === 'object' && !isString(value)) {
-			return JSONTag.parse('<link>'+originalJSON.stringify(key+'/'))
-		} else {
-			return value;
+	function linkReplacer(data, baseURL) {
+		if (Array.isArray(data)) {
+			data = data.map((entry,index) => {
+				return linkReplacer(data[index], baseURL+index+'/')
+			})
+		} else if (typeof data === 'object') {
+			data = Object.assign({}, data); // create shallow copy
+			Object.keys(data).forEach(key => {
+				if (typeof data[key] === 'object') {
+					data[key] = new JSONTag.Link(baseURL+key+'/')
+				}
+			})
 		}
+		return data
 	}
 
 	function isString(s)
