@@ -1,0 +1,44 @@
+---
+name: Build Docker Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: [ main ]
+  # Allow manually triggering the workflow.
+  workflow_dispatch:
+
+# Cancels all previous workflow runs for the same branch that have not yet completed.
+concurrency:
+  # The concurrency group contains the workflow name and the branch name.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create docker tag (from git reference)
+        # A tag name may only contain lower- and uppercase letters, digits, underscores, periods and dashes.
+        run: |
+          echo "TAG=$(echo -n "${{ github.ref_name }}" \
+            | tr --complement --squeeze-repeats '[:alnum:]._-' '_')" \
+            >> "${GITHUB_ENV}"
+
+      - uses: actions/checkout@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            --tag "ghcr.io/potherca-contrib/jsontag-rest-server:${{ env.TAG }}" \
+          .
+          docker push "ghcr.io/potherca-contrib/jsontag-rest-server:${{ env.TAG }}"
