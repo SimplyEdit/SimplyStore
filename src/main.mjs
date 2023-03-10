@@ -14,6 +14,8 @@ const port      = process.env.NODE_PORT || 3000;
 const datafile  = process.env.DATAFILE || 'data.jsontag'
 const stream    = fs.createReadStream(datafile)
 
+server.use(express.static(process.cwd()+'/www'))
+
 async function main() {
 
 	const originalJSON = JSON
@@ -245,15 +247,36 @@ async function main() {
 	}
 
 	function linkReplacer(data, baseURL) {
+		let type = JSONTag.getType(data)
+		let attributes = JSONTag.getAttributes(data)
 		if (Array.isArray(data)) {
 			data = data.map((entry,index) => {
 				return linkReplacer(data[index], baseURL+index+'/')
 			})
-		} else if (typeof data === 'object') {
-			data = Object.assign({}, data); // create shallow copy
+		} else if (data && typeof data === 'object') {
+			data = JSONTag.clone(data)
 			Object.keys(data).forEach(key => {
-				if (typeof data[key] === 'object') {
-					data[key] = new JSONTag.Link(baseURL+key+'/')
+				if (Array.isArray(data[key])) {
+					data[key] = data[key].map(e => {
+						if (e && typeof e === 'object') {
+							let id=JSONTag.getAttribute(e, 'id')
+							if (!id) {
+								id = baseURL+key+'/'
+							} else {
+								id = '#'+id
+							}
+							return new JSONTag.Link(id)
+						}
+						return e
+					})
+				} else if (typeof data[key] === 'object') {
+					let id=JSONTag.getAttribute(data[key], 'id')
+					if (!id) {
+						id = baseURL+key+'/'
+					} else {
+						id = '#'+id
+					}
+					data[key] = new JSONTag.Link(id)
 				}
 			})
 		}
