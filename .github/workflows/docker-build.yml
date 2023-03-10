@@ -40,6 +40,6 @@ jobs:
       - name: Build Docker Image
         run: |
           docker build \
-            --tag "ghcr.io/potherca-contrib/jsontag-rest-server:${{ env.TAG }}" \
+            --tag "ghcr.io/poef/jsontag-rest-server:${{ env.TAG }}" \
           .
-          docker push "ghcr.io/potherca-contrib/jsontag-rest-server:${{ env.TAG }}"
+          docker push "ghcr.io/poef/jsontag-rest-server:${{ env.TAG }}"
