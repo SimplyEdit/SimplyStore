@@ -2,13 +2,27 @@
 
 A minimal Docker image is available for the `jsontag-rest-server`.
 
-The docker image can be created from the [`Dockerfile`](../Dockerfile) in the root of the repository.
+<!-- toc -->
+
+- [Installation](#installation)
+  - [Building the image](#building-the-image)
+  - [Pulling the image](#pulling-the-image)
+- [Usage](#usage)
+  - [Docker User](#docker-user)
+  - [Environment Variables](#environment-variables)
+  - [Extending the image](#extending-the-image)
+
+<!-- tocstop -->
+
+The docker image is created from the [`Dockerfile`](../Dockerfile) in the root of the repository.
 
 The image is based on [alpine][1] with [NodeJS installed][2], rather than using the official NodeJS image. This is done to keep the image size down (from more than 200MB to less than 100MB).
 
+If more functionality is needed, the image can be extended by creating a new `Dockerfile` that uses the `jsontag-rest-server` image as a base.
+
 ## Installation
 
-The image can be build from the Dockerfile provide by this project.
+The image can be build from the Dockerfile provide by this project or pulled from the GitHub Container Registry.
 
 ### Building the image
 
@@ -16,6 +30,14 @@ The image can be built using the following command:
 
 ```bash
 docker build --tag jsontag-rest-server .
+```
+
+### Pulling the image
+
+The image can be pulled from the GitHub Container Registry using the following command:
+
+```bash
+docker pull ghcr.io/poef/jsontag-rest-server
 ```
 
 ## Usage
@@ -79,6 +101,28 @@ docker run \
     --volume "$PWD/my-data.json:/app/my-data.jsontag"    
     jsontag-rest-server
 ```
+### Extending the image
+
+The image can be extended by creating a new `Dockerfile` that uses the `jsontag-rest-server` image as a base.
+
+For example, to add a custom data file to the image:
+
+```dockerfile
+FROM node:lts-buster-slim
+
+# ... (other instructions)
+
+COPY --from=ghcr.io/poef/jsontag-rest-server /app/ /usr/src/app/jsontag-rest-server/
+COPY my-data.jsontag /usr/src/app/jsontag-rest-server/data.jsontag
+
+# ... (other instructions)
+
+# The jsontag-rest-server is assumed to be started from entrypoint.sh
+CMD ["entrypoint.sh"]
+``` 
+
+
+
 
 [1]: https://hub.docker.com/_/alpine
 [2]: https://pkgs.alpinelinux.org/package/edge/main/x86/nodejs
