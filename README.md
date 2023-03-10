@@ -52,6 +52,21 @@ By following the link to `http://localhost:3000/persons/` you get:
 
 JSONTag is an experiment, this server is part of that. The idea is to see if we can create a more defined and usable REST like service, out of the box. One where all you need to do is change the data and add some access rights and get a self-describing, browseable, working API.
 
+The jsontag-rest-server design is predicated on the following realisations:
+1 - Most data today will fit comfortably in memory in a commodity server.
+2 - REST today is usually JSON-over-HTTP, but JSON crucially misses a <link> type.
+3 - JSON is never just JSON. You need additional things like JSON-LD or JSON-Schema, to make sense of it. 
+4 - There is no clear onramp from JSON to Linked Data.
+5 - Linked Data is very good for data / information exchange, but very costly for data manipulation and querying.
+
+So the scope for jsontag-rest-server is:
+- datasets that will fit comfortably in memory, for now I've set a test goal of about 1GB of data.
+- usecases that are mostly-read, with sparse updates.
+- scale-in-depth, so scale up is limited to the limits of a single computer system
+- linked data (RDF et al) is not an immediate concern, but there must be a plausible onramp / conversion to and from linked data.
+
+In addition, the jsontag-rest-server is meant to be a real-world testcase for JSONTag.
+
 ## Design
 
 The current version is just a readonly API. The next version will allow you to update the data. It will use a CQRS (Command-Query-Responsibility-Segragation) approach. 
@@ -77,14 +92,6 @@ This should make the whole system ACID compliant. The atomic switching of the da
 - on startup check if any commands in the log haven't been resolved, if so run them
 
 - improved web client with type-specific views and form elements
-
-X - scratched - JSONPath/Graphql query support (query only)
-  [v] JSON Path plus implementation works, 
-  [v] extend JSON Path syntax to list resulting properties like graphql
-  [v] alias support
-  [v] subquery support
-  - extend JSON Path syntax to query for types (tag names) and attributes
-  - add (lazy) indexing to improve query speed
 
 - Datalog query support
   [v] compile triple store from jsontag data
