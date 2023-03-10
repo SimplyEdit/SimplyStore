@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - ci/docker-build # @FIXME: Remove this line before opening an MR
   pull_request:
     branches: [ main ]
   # Allow manually triggering the workflow.
