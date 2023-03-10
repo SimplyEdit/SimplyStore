@@ -4,10 +4,10 @@ name: Build Docker Image
 on:
   push:
     branches:
+      - master
       - main
-      - ci/docker-build # @FIXME: Remove this line before opening an MR
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
   # Allow manually triggering the workflow.
   workflow_dispatch:
 
