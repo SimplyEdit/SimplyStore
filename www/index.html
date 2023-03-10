@@ -5,25 +5,79 @@
 		border:  0;
 		margin:  0;
 		padding: 0;
-		width: 100%;
+		width: 50%;
+		height: 80vh;
+	}
+	form.Query {
+		width: 49%;
+		float: left;
+		height: 80vh;		
+	}
+	form.Query .QueryFoot {
+		position: absolute;
+		margin-top: 0.5em;
+	}
+	.CodeMirror {
+		height: 100% !important;
+	}
+	.dataBrowser {
 		height: 80vh;
 	}
 </style>
 <h1>JSONTag browser</h1>
-<textarea id="databrowser" data-simply-field="data"></textarea>
+<form data-simply-command="query" class="Query">
+<textarea name="query" id="codeEditor" class="CodeMirror"></textarea>
+<div class="QueryFoot">
+<button type="submit">Run Query</button>
+</div>
+</form>
+<div class="dataBrowser">
+	<textarea id="databrowser" class="CodeMirror" data-simply-field="data"></textarea>
+</div>
+
+<script src="/codemirror/lib/codemirror.js"></script>
+<link rel="stylesheet" href="/codemirror/lib/codemirror.css">
+<script src="/codemirror/mode/javascript/javascript.js"></script>
+<link rel="stylesheet" href="/codemirror/theme/material-ocean.css">
 <script src="https://unpkg.com/@muze-nl/jsontag@0.6.0/dist/browser.js"></script>
 <script src="https://cdn.simplyedit.io/1/simply-edit.js"></script>
 <script src="https://unpkg.com/simplyview@2.0.2/dist/simply.everything.js"></script>
 <script>
+	var codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+		lineNumbers: true,
+		styleActiveLine: true,
+		matchBrackets: true,
+		theme: 'material-ocean'
+	})
+	codeEditor.focus()
+	var browser = CodeMirror.fromTextArea(document.getElementById('databrowser'), {
+		theme: 'material-ocean',
+		readOnly: true
+	})
+</script>
+<script>
 	const databrowser = simply.app({
-		container: document.getElementById('databrowser'),
 		routes: {
 			'/:*': (params) => {
 				api.get(window.location.pathname).then(data => {
-					databrowser.view.data = JSONTag.stringify(data, null, 4)
+					databrowser.view.data = data //JSONTag.stringify(data, null, 4)
+					browser.setValue(data)
 				})
 				.catch(err => {
-					databrowser.view.data = JSONTag.stringify(err, null, 4)
+					databrowser.view.data = data //JSONTag.stringify(err, null, 4)
+					browser.setValue(data)
+				})
+			}
+		},
+		commands: {
+			query: async function(form, values) {
+				api.post(window.location.pathname, values.query).then(data => {
+					databrowser.view.data = data //JSONTag.stringify(data, null, 4)
+					browser.setValue(data)
+				})
+				.catch(err => {
+					databrowser.view.data = data //JSONTag.stringify(err, null, 4)
+					browser.setValue(data)
 				})
 			}
 		}
@@ -46,12 +100,37 @@
 				}
 			})
 			.then(response => {
-				let jsontag = response.text().then(JSONTag.parse)
+				let jsontag = response.text() //.then(JSONTag.parse)
 				if (response.ok) {
 					return jsontag
 				}
 				return jsontag.then(Promise.reject.bind(Promise))
 			})
+		},
+		post: function(path, query, params) {
+			let url = apiBase+path;
+			if (!params && window.location.search) {
+				url += window.location.search
+			}
+			if (params) {
+				var args = Object.keys(params).map(param => encodeURIComponent(param)+'='+encodeURIComponent(params[param])).join('&')
+				url += '?' + args
+			}
+			
+			return fetch(url, {
+				method: 'POST',
+				headers: {
+					'Accept': 'application/jsontag'
+				},
+				body: query
+			})
+			.then(response => {
+				let jsontag = response.text() //.then(JSONTag.parse)
+				if (response.ok) {
+					return jsontag
+				}
+				return jsontag.then(Promise.reject.bind(Promise))
+			})	
 		}
 	}
 </script>

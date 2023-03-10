@@ -5,11 +5,21 @@
 		"start": "node src/main.mjs"
 	},
 	"dependencies": {
+		"@codemirror/basic-setup": "^0.20.0",
+		"@codemirror/lang-javascript": "^6.1.2",
+		"@codemirror/view": "^6.7.3",
 		"@discoveryjs/json-ext": "^0.5.7",
-		"@muze-nl/jsontag": "^0.6.1",
+		"@muze-nl/jsontag": "file:../jsontag/",
+		"@rollup/plugin-node-resolve": "^15.0.1",
+		"cm6-theme-solarized-dark": "^0.2.0",
+		"codemirror": "^6.0.1",
 		"express": "^4.18.1",
 		"json-pointer": "^0.6.2",
 		"jsonpath-plus": "^7.2.0",
+		"rollup": "^3.11.0",
 		"vm2": "^3.9.13"
+	},
+	"devDependencies": {
+		"process": "^0.11.10"
 	}
 }
