@@ -39,7 +39,7 @@
 <link rel="stylesheet" href="/codemirror/lib/codemirror.css">
 <script src="/codemirror/mode/javascript/javascript.js"></script>
 <link rel="stylesheet" href="/codemirror/theme/material-ocean.css">
-<script src="https://unpkg.com/@muze-nl/jsontag@0.6.0/dist/browser.js"></script>
+<script src="https://unpkg.com/@muze-nl/jsontag@0.7.0/dist/browser.js"></script>
 <script src="https://cdn.simplyedit.io/1/simply-edit.js"></script>
 <script src="https://unpkg.com/simplyview@2.0.2/dist/simply.everything.js"></script>
 <script>
@@ -60,24 +60,24 @@
 		routes: {
 			'/:*': (params) => {
 				api.get(window.location.pathname).then(data => {
-					databrowser.view.data = data //JSONTag.stringify(data, null, 4)
-					browser.setValue(data)
+					databrowser.view.data = JSONTag.stringify(data, null, 4)
+					browser.setValue(databrowser.view.data)
 				})
 				.catch(err => {
-					databrowser.view.data = data //JSONTag.stringify(err, null, 4)
-					browser.setValue(data)
+					databrowser.view.data = JSONTag.stringify(err, null, 4)
+					browser.setValue(databrowser.view.data)
 				})
 			}
 		},
 		commands: {
 			query: async function(form, values) {
 				api.post(window.location.pathname, values.query).then(data => {
-					databrowser.view.data = data //JSONTag.stringify(data, null, 4)
-					browser.setValue(data)
+					databrowser.view.data = JSONTag.stringify(data, null, 4)
+					browser.setValue(databrowser.view.data)
 				})
 				.catch(err => {
-					databrowser.view.data = data //JSONTag.stringify(err, null, 4)
-					browser.setValue(data)
+					databrowser.view.data = JSONTag.stringify(err, null, 4)
+					browser.setValue(databrowser.view.data)
 				})
 			}
 		}
@@ -100,7 +100,7 @@
 				}
 			})
 			.then(response => {
-				let jsontag = response.text() //.then(JSONTag.parse)
+				let jsontag = response.text().then(JSONTag.parse)
 				if (response.ok) {
 					return jsontag
 				}
@@ -125,7 +125,7 @@
 				body: query
 			})
 			.then(response => {
-				let jsontag = response.text() //.then(JSONTag.parse)
+				let jsontag = response.text().then(JSONTag.parse)
 				if (response.ok) {
 					return jsontag
 				}
