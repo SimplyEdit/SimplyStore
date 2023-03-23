@@ -1,15 +1,13 @@
 JSONTag
 
 - streaming parser (handrolled for performance)
-- option: useIndex
-	automatically replace <link>tags/values with values in the index that match on id
-	the index has a Map index.id as well as index.unresolved, the latter contains all <link> objects not yet replaced.
-	- think: do I need to store/index source document url per object as well?
 - option: documentURL
 	automatically enhance id's as urls with baseURL the documentURL
 	do this for <link> as well as id attributes
 - option: parent index
 	when parsing, keep track of the parent for each value, and add it to a WeakMap index.parents, this contains all objects with a reference to the object used as key.
+- object id and link value should always be URI's, and should be identical. If the link value starts with a '#', then the id should also start with a '#'. 
+- fast-parse doesn't enforce parsing rules for specific tags yet
 
 JSONTag REST Server
 

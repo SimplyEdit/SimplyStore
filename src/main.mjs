@@ -4,15 +4,13 @@ import pointer from 'json-pointer'
 import JSONTag from '@muze-nl/jsontag'
 import {JSONPath} from 'jsonpath-plus'
 import jsonExt from '@discoveryjs/json-ext'
-const {parseChunked} = jsonExt
-import TripleStore from './triplestore.mjs'
+//import TripleStore from './triplestore.mjs'
 import {VM} from 'vm2'
 
 const server    = express()
 const port      = process.env.NODE_PORT || 3000;
 
 const datafile  = process.env.DATAFILE || 'data.jsontag'
-const stream    = fs.createReadStream(datafile)
 
 server.use(express.static(process.cwd()+'/www'))
 
@@ -22,9 +20,10 @@ async function main() {
 	JSON = JSONTag // monkeypatching
 
 	console.log('loading data...')
-	let dataspace = await parseChunked(stream)
+	let file = fs.readFileSync(datafile);
+	let dataspace = JSONTag.parse(file.toString());
 	console.log('indexing data...')
-	let tripleStore = new TripleStore(dataspace)
+//	let tripleStore = new TripleStore(dataspace)
 
 	let used = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
 	console.log(`data loaded (${used} MB)`);
@@ -87,7 +86,7 @@ async function main() {
 			res.send(originalJSON.stringify(result, null, 4)+"\n")
 		}
 		let end = Date.now()
-		console.log(path, (end-start))
+		console.log(path, (end-start), process.memoryUsage())
 	})
 
 	/**
@@ -189,9 +188,9 @@ async function main() {
 //				timeout: 1000,
 				allowAsync: false,
 				sandbox: {
-					query: function(params) {
-						return tripleStore.query(params)
-					}
+//					query: function(params) {
+//						return tripleStore.query(params)
+//					}
 				},
 				wasm: false
 			})
@@ -218,7 +217,7 @@ async function main() {
 			res.send(originalJSON.stringify(result, null, 4)+"\n")
 		}
 		let end = Date.now()
-		console.log(path, (end-start))
+		console.log(path, (end-start), process.memoryUsage())
 	})
 
 	server.get('/', (req,res) => {
@@ -253,15 +252,17 @@ async function main() {
 			data = data.map((entry,index) => {
 				return linkReplacer(data[index], baseURL+index+'/')
 			})
+		} else if (type === 'link') {
+			// do nothing
 		} else if (data && typeof data === 'object') {
 			data = JSONTag.clone(data)
 			Object.keys(data).forEach(key => {
 				if (Array.isArray(data[key])) {
-					data[key] = data[key].map(e => {
+					data[key] = data[key].map((e,i) => {
 						if (e && typeof e === 'object') {
 							let id=JSONTag.getAttribute(e, 'id')
 							if (!id) {
-								id = baseURL+key+'/'
+								id = baseURL+key+'/'+i+'/'
 							} else {
 								id = '#'+id
 							}
