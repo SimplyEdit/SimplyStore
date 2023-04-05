@@ -9,7 +9,7 @@
 		"@codemirror/lang-javascript": "^6.1.2",
 		"@codemirror/view": "^6.7.3",
 		"@discoveryjs/json-ext": "^0.5.7",
-		"@muze-nl/jsontag": "^0.6.3",
+		"@muze-nl/jsontag": "^0.8.2",
 		"@rollup/plugin-node-resolve": "^15.0.1",
 		"cm6-theme-solarized-dark": "^0.2.0",
 		"codemirror": "^6.0.1",
