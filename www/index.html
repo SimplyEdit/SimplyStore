@@ -25,7 +25,7 @@
 	}
 </style>
 <h1>JSONTag browser</h1>
-<form data-simply-command="query" class="Query">
+<form data-simply-command="query" class="Query" data-simply-keyboard="query">
 <textarea name="query" id="codeEditor" class="CodeMirror"></textarea>
 <div class="QueryFoot">
 <button type="submit">Run Query</button>
@@ -39,9 +39,9 @@
 <link rel="stylesheet" href="/codemirror/lib/codemirror.css">
 <script src="/codemirror/mode/javascript/javascript.js"></script>
 <link rel="stylesheet" href="/codemirror/theme/material-ocean.css">
-<script src="https://unpkg.com/@muze-nl/jsontag@0.7.0/dist/browser.js"></script>
+<script src="https://unpkg.com/@muze-nl/jsontag@0.8.3/dist/browser.js"></script>
 <script src="https://cdn.simplyedit.io/1/simply-edit.js"></script>
-<script src="https://unpkg.com/simplyview@2.0.2/dist/simply.everything.js"></script>
+<script src="https://unpkg.com/simplyview@2.0.3/dist/simply.everything.js"></script>
 <script>
 	var codeEditor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
 		lineNumbers: true,
@@ -58,27 +58,40 @@
 <script>
 	const databrowser = simply.app({
 		routes: {
-			'/:*': (params) => {
-				api.get(window.location.pathname).then(data => {
-					databrowser.view.data = JSONTag.stringify(data, null, 4)
-					browser.setValue(databrowser.view.data)
-				})
-				.catch(err => {
-					databrowser.view.data = JSONTag.stringify(err, null, 4)
-					browser.setValue(databrowser.view.data)
-				})
+			'/:*': async (params) => {
+				await databrowser.actions.query(window.location.pathname)
+				browser.setValue(databrowser.view.data)
 			}
 		},
 		commands: {
 			query: async function(form, values) {
-				api.post(window.location.pathname, values.query).then(data => {
+				await this.app.actions.query(window.location.pathname, values.query)
+				browser.setValue(databrowser.view.data)
+			}
+		},
+		actions: {
+			query: async function(path, query) {		
+				try {
+					let data;
+					if (query) {
+						data = await api.post(path, query)
+					} else {
+						data = await api.get(path)
+					}
 					databrowser.view.data = JSONTag.stringify(data, null, 4)
-					browser.setValue(databrowser.view.data)
-				})
-				.catch(err => {
+					return data
+				} catch(err) {
 					databrowser.view.data = JSONTag.stringify(err, null, 4)
+					throw err
+				}
+			}
+		},
+		keyboard: {
+			query: {
+				'Control+Enter': async function() {
+					await databrowser.actions.query(window.location.pathname, codeEditor.getValue())
 					browser.setValue(databrowser.view.data)
-				})
+				}
 			}
 		}
 	})
