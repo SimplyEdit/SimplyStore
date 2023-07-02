@@ -4,6 +4,7 @@ export default class TripleStore {
 
 	triples=[]
 	#index
+	#availablePredicates
 
 	constructor(jsontag) {
 		this.#index = {
@@ -12,50 +13,66 @@ export default class TripleStore {
 			object: new WeakMap(),
 			value: {}
 		}
+		this.#availablePredicates = new Set()
 		this.makeTripleStore(jsontag)
 		this.createIndex()
+		console.log(this.#availablePredicates)
 	}
 
     makeTripleStore(jsontag, parent=null, predicate=null) {
-		if (Array.isArray(jsontag)) {
-			jsontag.forEach(e => {
-				this.makeTripleStore(e, parent, predicate)
-			})
-		} else if (typeof jsontag === 'object') {
-			if (parent) {
-				this.triples.push([parent, predicate, jsontag ])
-			}
-			let tagname = JSONTag.getType(jsontag)
-			this.triples.push([jsontag, '@tag', tagname])
-			let attributes = JSONTag.getAttributes(jsontag)
-			Object.keys(attributes).forEach(a => {
-				this.triples.push([jsontag, '@attr/'+a, attributes[a]])
-			})
-			// handle String, Number, Boolean seperately.. don't forEach there
-			if (jsontag && JSONTag.getType(jsontag)==='object') {
-				Object.keys(jsontag).forEach(p => {
-					this.makeTripleStore(jsontag[p], jsontag, p);
+    	let seen = new Map()
+    	let addTriples = (jsontag, parent=null, predicate=null) => {
+    		if (jsontag && typeof jsontag === 'object' && typeof jsontag.id !== 'undefined') {
+	    		if (seen[jsontag.id]) {
+	    			return
+	    		}
+	    		seen[jsontag.id] = true
+	    	}
+			if (Array.isArray(jsontag)) {
+				jsontag.forEach(e => {
+					addTriples(e, parent, predicate)
 				})
+			} else if (typeof jsontag === 'object') {
+				if (parent) {
+					this.triples.push([parent, predicate, jsontag ])
+					this.#availablePredicates.add(predicate)
+				}
+				let tagname = JSONTag.getType(jsontag)
+				this.triples.push([jsontag, '@tag', tagname])
+				this.#availablePredicates.add('@tag')
+				let attributes = JSONTag.getAttributes(jsontag)
+				Object.keys(attributes).forEach(a => {
+					this.triples.push([jsontag, '@attr/'+a, attributes[a]])
+					this.#availablePredicates.add('@attr/'+a)
+				})
+				// handle String, Number, Boolean seperately.. don't forEach there
+				if (jsontag && JSONTag.getType(jsontag)==='object') {
+					Object.keys(jsontag).forEach(p => {
+						addTriples(jsontag[p], jsontag, p);
+					})
+				}
+			} else {
+	/*
+				switch(typeof jsontag) {
+					case 'number':
+						jsontag = new Number(jsontag)
+					break
+					case 'boolean':
+						jsontag = new Boolean(jsontag)
+					break
+					case 'string':
+						jsontag = new String(jsontag)
+					break
+					default:
+						return
+					break
+				}
+	*/
+				this.triples.push([parent, predicate, jsontag]) 
+				this.#availablePredicates.add(predicate)
 			}
-		} else {
-/*
-			switch(typeof jsontag) {
-				case 'number':
-					jsontag = new Number(jsontag)
-				break
-				case 'boolean':
-					jsontag = new Boolean(jsontag)
-				break
-				case 'string':
-					jsontag = new String(jsontag)
-				break
-				default:
-					return
-				break
-			}
-*/
-			this.triples.push([parent, predicate, jsontag]) 
 		}
+		addTriples(jsontag)
 	}
 
 	query({ find, where }) {
@@ -114,17 +131,20 @@ export default class TripleStore {
 
 	relevantTriples(pattern) {
 		const [subject, predicate, object] = pattern
+		if (!this.#availablePredicates.has(predicate)) {
+			throw new Error('TripleStore does not contain predicate '+predicate)
+		}
 		if (!this.isVariable(subject)) {
-		    return this.#index.subject[subject]
+		    return this.#index.subject[subject] || []
 		}
 		if (!this.isVariable(predicate)) {
-		    return this.#index.predicate[predicate]
+		    return this.#index.predicate[predicate] || []
 		}
 		if (!this.isVariable(object)) {
 			if (typeof object === 'object') {
-			    return this.#index.object[object]
+			    return this.#index.object[object] || []
 			} else {
-				return this.#index.value[object]
+				return this.#index.value[object] || []
 			}
 		}
 		return this.triples
