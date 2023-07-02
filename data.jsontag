@@ -1,12 +1,18 @@
 {
 	"persons": [
-		<object class="Person">{
+		<object id="john" class="Person">{
 			"name": "John",
-			"dob": <date>"1972-09-20"
+			"dob": <date>"1972-09-20",
+			"foaf": [
+				<link>"jane"
+			]
 		},
-		<object class="Person">{
+		<object id="jane" class="Person">{
 			"name": "Jane",
-			"dob": <date>"1986-01-01"
+			"dob": <date>"1986-01-01",
+			"foaf": [
+				<link>"john"
+			]
 		}
 	]
 }
