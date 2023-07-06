@@ -73,7 +73,7 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 
 ## Roadmap
 
-[v] immutable dataset
+- [v] immutable dataset
 - allow changes to dataset by creating a new root
 - command handling with crud commands and command log
 - backup current dataset to JSONTag file
@@ -82,11 +82,11 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 - improved web client with type-specific views and form elements
 
 - Datalog query support
-  [v] compile triple store from jsontag data
-  [v] add query method
-  [v] extend datalog query to allow for custom match functions
-  [v] run /query post body in VM2 sandbox
-  [v] immutable dataset in query vm
+  - [v] compile triple store from jsontag data
+  - [v] add query method
+  - [v] extend datalog query to allow for custom match functions
+  - [v] run /query post body in VM2 sandbox
+  - [v] immutable dataset in query vm
   - add indexing and other optimizations
   - add standard library of matching functions
   - allow vanilla javascript array map/reduce/filter approach
