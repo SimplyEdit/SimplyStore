@@ -57,13 +57,15 @@ By following the link to `http://localhost:3000/persons/` you get:
 SimplyStore is an attemp to see if we can create a more defined and usable REST like service, out of the box. One where all you need to do is change the data and add some access rights and get a self-describing, browseable, working API.
 
 The SimplyStore design is predicated on the following realisations:
-1 - Most data today will fit comfortably in memory in a commodity server.
-2 - REST today is usually JSON-over-HTTP, but JSON crucially misses a <link> type.
-3 - JSON is never just JSON. You need additional things like JSON-LD or JSON-Schema, to make sense of it. 
-4 - There is no clear onramp from JSON to Linked Data.
-5 - Linked Data is very good for data / information exchange, but very costly for data manipulation and querying.
+
+  1. Most data today will fit comfortably in memory in a commodity server.
+  2. REST today is usually JSON-over-HTTP, but JSON crucially misses a <link> type.
+  3. JSON is never just JSON. You need additional things like JSON-LD or JSON-Schema, to make sense of it. 
+  4. There is no clear onramp from JSON to Linked Data.
+  5. Linked Data is very good for data / information exchange, but very costly for data manipulation and querying.
 
 So the scope for jsontag-rest-server is:
+
 - datasets that will fit comfortably in memory, for now I've set a test goal of about 1GB of data.
 - usecases that are mostly-read, with sparse updates.
 - scale-in-depth, so scale up is limited to the limits of a single computer system
