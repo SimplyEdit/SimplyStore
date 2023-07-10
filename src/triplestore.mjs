@@ -22,11 +22,11 @@ export default class TripleStore {
     makeTripleStore(jsontag, parent=null, predicate=null) {
     	let seen = new Map()
     	let addTriples = (jsontag, parent=null, predicate=null) => {
-    		if (jsontag && typeof jsontag === 'object' && typeof jsontag.id !== 'undefined') {
-	    		if (seen[jsontag.id]) {
+    		if (jsontag && typeof jsontag === 'object') {
+	    		if (seen.has(jsontag)) {
 	    			return
 	    		}
-	    		seen[jsontag.id] = true
+	    		seen.set(jsontag, true)
 	    	}
 			if (Array.isArray(jsontag)) {
 				jsontag.forEach(e => {
