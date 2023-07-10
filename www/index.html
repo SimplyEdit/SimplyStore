@@ -1,6 +1,13 @@
 <!doctype html>
 <meta charset="utf-8">
+<link rel="stylesheet" href="/assets/css/style.css">
 <style>
+	:root {
+		--ds-primary: var(--ds-simplystore);
+		--ds-primary-contrast: var(--ds-simplystore-contrast);
+		--ds-primary-gradient: var(--ds-simplystore-gradient);
+		--ds-primary-gradient-bump: var(--ds-simplystore-gradient-bump);
+	}
 	#databrowser {
 		border:  0;
 		margin:  0;
@@ -11,26 +18,48 @@
 	form.Query {
 		width: 49%;
 		float: left;
-		height: 80vh;		
-	}
-	form.Query .QueryFoot {
-		position: absolute;
-		margin-top: 0.5em;
+		height: calc(100vh - 65px);		
+		margin-right: 1%;
+		margin-top: 65px;
 	}
 	.CodeMirror {
 		height: 100% !important;
 	}
 	.dataBrowser {
-		height: 80vh;
+		height: calc(100vh - 65px);
+		margin-top: 65px;
+	}
+	body {
+		position: fixed;
+		width: 100%;
 	}
 </style>
-<h1>JSONTag browser</h1>
+<body class="ds-nightmode">
+<header>
+    <nav class="ds-toolbar">
+        <div class="simply-title">
+            <img src="/assets/img/simplystore-narrow.svg" alt="SimplyStore">
+        </div>
+        <button data-simply-command="run-query" class="ds-button ds-button-icon">
+            <svg class="ds-icon ds-icon-feather">
+                <use xlink:href="/assets/feather-sprite.svg#search">
+            </use></svg>
+            Run Query
+        </button>
+        <span class="ds-push-right"></span>
+        <button class="ds-button ds-button-icon">
+            <svg class="ds-icon ds-icon-feather">
+                <use xlink:href="/assets/feather-sprite.svg#help-circle">
+            </use></svg>
+            Help
+        </button>
+    </nav>
+</header>
+
 <form data-simply-command="query" class="Query" data-simply-keyboard="query">
 <textarea name="query" id="codeEditor" class="CodeMirror"></textarea>
-<div class="QueryFoot">
-<button type="submit">Run Query</button>
-</div>
 </form>
+
 <div class="dataBrowser">
 	<textarea id="databrowser" class="CodeMirror" data-simply-field="data"></textarea>
 </div>
@@ -64,6 +93,10 @@
 			}
 		},
 		commands: {
+			'run-query': async function(button, value) {
+				await this.app.actions.query(window.location.pathname, codeEditor.getValue())
+				browser.setValue(databrowser.view.data)
+			},
 			query: async function(form, values) {
 				await this.app.actions.query(window.location.pathname, values.query)
 				browser.setValue(databrowser.view.data)
@@ -82,7 +115,7 @@
 					return data
 				} catch(err) {
 					databrowser.view.data = JSONTag.stringify(err, null, 4)
-					throw err
+					return err
 				}
 			}
 		},
