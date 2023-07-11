@@ -1,5 +1,11 @@
 # JSONTag-selector or query
 
+This document is now here for historical reference only. SimplyStore now uses the [npm package array-where-select](https://www.npmjs.com/package/array-where-select) as its default query or selector algorithm. In addition work is ongoing on a triplestore implementation with a datalog query engine, but this needs a lot of work to improve performance.
+
+Historical design document follows:
+
+<hr>
+
 The aim is to define a way to represent a selection of the JSONTag dataspace in a string. For JSON there are JSON Path and JSON Pointer. For HTML there is the CSS selector. JSONTag has properties of both HTML and JSON, so a mix of these is a logical solution.
 
 What must the JSONTag selector be capable of?
