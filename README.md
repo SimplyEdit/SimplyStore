@@ -4,53 +4,100 @@ SimplyStore is an attempt to create a radically simpler backend storage server. 
 
 [JSONTag](https://github.com/poef/jsontag) is an enhancement over JSON that allows you to tag JSON data with metadata using HTML-like tags.
 Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox.
+You can query data using the [array-where-select](https://www.npmjs.com/package/array-where-select) extension.
 
+## Table of Contents
 
-## Installation
+## Background
 
-SimplyStore is a Node application. Start it by downloading this git repository:
+## Install
 
-```shell
-git clone git@github.com:simplyedit/simplystore
-```
-
-Then install its dependencies:
+SimplyStore is a Node library. You can install it in your application like this:
 
 ```shell
-cd simplystore
-npm install
+npm install @muze-nl/simplystore
 ```
 
-And start it up:
+## Usage
+
+Import the server in your main file like this:
+
+```javascript
+import simplystore from '@muze-nl/simplystore'
+```
+
+Then configure and start the server, like this:
+
+```javascript
+simplystore.run({
+    datafile: process.cwd().'data.json'
+})
+````
+
+Other options are:
+
+- port: The port number to use, defaults to 3000
+- dataspace: an object or array with all the data that SimplyStore will serve. Optional, replaces the datafile.
+
+If you start your server:
 
 ```shell
-npm start 
+node myApp.js
 ```
 
-The server comes with a small demo dataset, which you can take a look at here `http://localhost:3000/`:
+You should be able to go http://localhost:3000/query/ and see something like this:
 
-This page will show this:
+(image comes here)
+
+## Example query
+
+Given a dataset like this (jsontag):
 
 ```
 {
-    "persons":<link>"persons/"
+    "persons": [
+        <object id="john" class="Person">{
+            "name": "John",
+            "lastName": "Doe",
+            "dob": <date>"1972-09-20",
+            "foaf": [
+                <link>"jane"
+            ]
+        },
+        <object id="jane" class="Person">{
+            "name": "Jane",
+            "lastName": "Doe",
+            "dob": <date>"1986-01-01",
+            "foaf": [
+                <link>"john"
+            ]
+        }
+    ]
 }
 ```
 
-By following the link to `http://localhost:3000/persons/` you get:
+You can post to the /query/ endpoint with javascript queries like these:
 
 ```
-[
-    <object class="Person">{
-        "name":"John",
-        "dob":<date>"1972-09-20"
-    },
-    <object class="Person">{
-        "name":"Jane",
-        "dob":<date>"1986-01-01"
+data.persons
+.where({
+    name: 'John'
+})
+.select({
+    name: _,
+    foaf: {
+        name: _
     }
-]
+})
 ```
+
+See the [array-where-select](https://www.npmjs.com/package/array-where-select) package for more information about the query possibilities.
+
+Remember: it is just javascript, so you can also use filter(), map() and reduce() on arrays. You can use all the default javascript API's, like Math, Array, Object, etc. You can not use any webbrowser API's, and you can't access any NodeJS API's. You do not have network access in your query.
+
+Most important: queries cannot change the dataset, it is immutable.
+
+
 
 ## Goals of this project
 
@@ -75,23 +122,12 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 
 ## Roadmap
 
-- [v] immutable dataset
 - allow changes to dataset by creating a new root
 - command handling with crud commands and command log
 - backup current dataset to JSONTag file
 - on startup check if any commands in the log haven't been resolved, if so run them
 
 - improved web client with type-specific views and form elements
-
-- Datalog query support
-  - [v] compile triple store from jsontag data
-  - [v] add query method
-  - [v] extend datalog query to allow for custom match functions
-  - [v] run /query post body in VM2 sandbox
-  - [v] immutable dataset in query vm
-  - add indexing and other optimizations
-  - add standard library of matching functions
-  - allow vanilla javascript array map/reduce/filter approach
 
 - add support for metadata on each JSON pointer path (or better: each object)
 - allow custom templates, instead of the default index.html
