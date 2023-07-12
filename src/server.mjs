@@ -81,7 +81,7 @@ async function main(options) {
 
 	server.get('/', (req,res) => {
 		res.send('<h1SimplyStore</h1>') //TODO: implement something nice
-	})
+	})a
 
 	server.use(express.static(wwwroot))
 
@@ -130,6 +130,44 @@ async function main(options) {
 		return [result,path]
 	}
 	
+	let seen = new Map();
+	function countObjects(obj) {
+		if (seen.has(obj)) {
+			return 0
+		}
+		seen.set(obj, true)
+		let count = 0
+		let values = []
+		if (Array.isArray(obj)) {
+			values = obj
+			count++
+		} else if (typeof obj === 'object') {
+			if (obj instanceof String || obj instanceof Number || obj instanceof Boolean) {
+				// console.log('skipped', obj, typeof obj)
+			} else {
+				values = Object.values(obj)
+				count++
+			}
+		} else {
+			// console.log('skipped', obj, typeof obj)
+		}
+		return values
+			.filter((o) => typeof o === 'object')
+			.reduce((count, o) => count + countObjects(o), count)
+	}
+
+	server.get('/status/', (req, res, next) => 
+	{
+		seen = new Map()
+		let result = {
+			memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)+'MB',
+			datasets: Object.keys(dataspace),
+			objects: countObjects(dataspace)
+		}
+		res.setHeader('content-type','application/json')
+		res.send(originalJSON.stringify(result, null, 4)+"\n")
+	})
+
 	server.get('/query/*', (req, res, next) => 
 	{
 		let start = Date.now()
