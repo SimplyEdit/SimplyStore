@@ -81,7 +81,7 @@ async function main(options) {
 
 	server.get('/', (req,res) => {
 		res.send('<h1SimplyStore</h1>') //TODO: implement something nice
-	})a
+	})
 
 	server.use(express.static(wwwroot))
 
@@ -234,7 +234,8 @@ async function main(options) {
 					_: _,
 					console: connectConsole(res),
 					JSONTag: JSONTag,
-					request: req
+					request: req,
+					Array: Array
 				},
 				wasm: false
 			})
@@ -263,7 +264,7 @@ async function main(options) {
 		console.log(path, (end-start), process.memoryUsage())
 	})
 
-	function handleWebRequest(req,res,options) 
+	function handleWebRequest(req,res,options)
 	{
 		let path = req.path;
 		path = path.replace(/[^a-z0-9_\.\-\/]*/gi, '') // whitelist acceptable file paths
@@ -312,8 +313,7 @@ async function main(options) {
 		return data
 	}
 
-	server.listen(port, () => 
-	{
+	server.listen(port, () => {
 		console.log('SimplyStore listening on port '+port)
 	})
 
