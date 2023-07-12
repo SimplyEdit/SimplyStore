@@ -1,8 +1,8 @@
 {
 	"name": "JSONTag REST Server",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"scripts": {
-		"start": "node src/main.mjs"
+		"start": "node src/run.mjs"
 	},
 	"dependencies": {
 		"@codemirror/basic-setup": "^0.20.0",
@@ -10,7 +10,7 @@
 		"@codemirror/view": "^6.7.3",
 		"@discoveryjs/json-ext": "^0.5.7",
 		"@muze-nl/jsontag": "file:../jsontag",
-		"array-where-select": "^0.1.0",
+		"array-where-select": "file:../../muze/array-where-select",
 		"@rollup/plugin-node-resolve": "^15.0.1",
 		"cm6-theme-solarized-dark": "^0.2.0",
 		"codemirror": "^6.0.1",

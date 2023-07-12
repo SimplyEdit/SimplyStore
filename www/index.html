@@ -46,6 +46,25 @@
             </use></svg>
             Run Query
         </button>
+        <button data-simply-command="load-query-dropdown" class="ds-button ds-button-icon">
+            <svg class="ds-icon ds-icon-feather">
+                <use xlink:href="/assets/feather-sprite.svg#download">
+            </use></svg>
+            Load Query
+		    <nav class="ds-dropdown-nav">
+		        <ul class="ds-dropdown-list" data-simply-list="queries">
+		        	<template>
+			            <li class="ds-dropdown-item" data-simply-command="load-query"><span data-simply-field="query">Query</span></li>
+		            </template>
+		        </ul>
+		    </nav>
+        </button>
+        <button data-simply-command="save-query" class="ds-button ds-button-icon">
+            <svg class="ds-icon ds-icon-feather">
+                <use xlink:href="/assets/feather-sprite.svg#bookmark">
+            </use></svg>
+            Save Query
+        </button>
         <span class="ds-push-right"></span>
         <button class="ds-button ds-button-icon">
             <svg class="ds-icon ds-icon-feather">
@@ -66,8 +85,12 @@
 
 <script src="/codemirror/lib/codemirror.js"></script>
 <link rel="stylesheet" href="/codemirror/lib/codemirror.css">
+<link rel="stylesheet" href="/codemirror/addon/lint/lint.css">
 <script src="/codemirror/mode/javascript/javascript.js"></script>
 <link rel="stylesheet" href="/codemirror/theme/material-ocean.css">
+<script src="https://unpkg.com/jshint@2.13.6/dist/jshint.js"></script>
+<script src="/codemirror/addon/lint/lint.js"></script>
+<script src="/codemirror/addon/lint/javascript-lint.js"></script>
 <script src="https://unpkg.com/@muze-nl/jsontag@0.8.3/dist/browser.js"></script>
 <script src="https://cdn.simplyedit.io/1/simply-edit.js"></script>
 <script src="https://unpkg.com/simplyview@2.0.3/dist/simply.everything.js"></script>
@@ -76,7 +99,8 @@
 		lineNumbers: true,
 		styleActiveLine: true,
 		matchBrackets: true,
-		theme: 'material-ocean'
+		theme: 'material-ocean',
+		mode: 'javascript'
 	})
 	codeEditor.focus()
 	var browser = CodeMirror.fromTextArea(document.getElementById('databrowser'), {
@@ -100,6 +124,9 @@
 			query: async function(form, values) {
 				await this.app.actions.query(window.location.pathname, values.query)
 				browser.setValue(databrowser.view.data)
+			},
+			'load-query-dropdown': async function(button) {
+				button.querySelector('nav.ds-dropdown-nav').style='display:block'
 			}
 		},
 		actions: {
@@ -126,6 +153,13 @@
 					browser.setValue(databrowser.view.data)
 				}
 			}
+		},
+		view: {
+			queries: [
+				{
+					query: 'Test Query'
+				}
+			]
 		}
 	})
 
