@@ -2,6 +2,7 @@
 	"persons": [
 		<object id="john" class="Person">{
 			"name": "John",
+			"lastName": "Doe",
 			"dob": <date>"1972-09-20",
 			"foaf": [
 				<link>"jane"
@@ -9,6 +10,7 @@
 		},
 		<object id="jane" class="Person">{
 			"name": "Jane",
+			"lastName": "Doe",
 			"dob": <date>"1986-01-01",
 			"foaf": [
 				<link>"john"
