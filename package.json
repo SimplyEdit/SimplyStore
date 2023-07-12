@@ -1,25 +1,27 @@
 {
-	"name": "JSONTag REST Server",
+	"name": "SimplyStore",
 	"version": "0.1.2",
+	"main": "src/server.mjs",
+	"type": "module",
 	"scripts": {
 		"start": "node src/run.mjs"
 	},
+	"author": "auke@muze.nl",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/simplyedit/simplystore.git"
+	},
+	"bugs": "https://github.com/simplyedit/simplystore/issues",
+	"homepage": "https://github.com/simplyedit/simplystore#readme",
 	"dependencies": {
-		"@codemirror/basic-setup": "^0.20.0",
-		"@codemirror/lang-javascript": "^6.1.2",
-		"@codemirror/view": "^6.7.3",
-		"@discoveryjs/json-ext": "^0.5.7",
-		"@muze-nl/jsontag": "file:../jsontag",
-		"array-where-select": "file:../../muze/array-where-select",
-		"@rollup/plugin-node-resolve": "^15.0.1",
-		"cm6-theme-solarized-dark": "^0.2.0",
+		"@muze-nl/jsontag": "^0.8.3",
+		"array-where-select": "^0.1.0",
 		"codemirror": "^6.0.1",
 		"express": "^4.18.1",
 		"json-pointer": "^0.6.2",
 		"jsonpath-plus": "^7.2.0",
-		"rollup": "^3.11.0",
-		"vm2": "^3.9.13",
-		"web-streams-polyfill": "^3.2.1"
+		"vm2": "^3.9.13"
 	},
 	"devDependencies": {
 		"process": "^0.11.10"
