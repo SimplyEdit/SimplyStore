@@ -149,4 +149,3 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 ## License
 
 [MIT](LICENSE) © Muze.nl
-[MIT](LICENSE) © Muze.nl
