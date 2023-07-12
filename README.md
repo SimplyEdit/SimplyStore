@@ -122,7 +122,7 @@ The SimplyStore design is predicated on the following realisations:
   4. There is no clear onramp from JSON to Linked Data.
   5. Linked Data is very good for data / information exchange, but very costly for data manipulation and querying.
 
-So the scope for jsontag-rest-server is:
+So the scope for SimplyStore is:
 
 - datasets that will fit comfortably in memory, for now I've set a test goal of about 1GB of data.
 - usecases that are mostly-read, with sparse updates.
