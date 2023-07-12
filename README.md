@@ -8,8 +8,18 @@ You can query data using the [array-where-select](https://www.npmjs.com/package/
 
 ## Table of Contents
 
+- [Background](#background)
+- [Install](#install)
+- [Usage](#usage)
+- [Example Query](#examples)
+- [Goals](#goals)
+- [Roadmap](#roadmap)
+- [License](#license)
+
+<a name="background"></a>
 ## Background
 
+<a name="install"></a>
 ## Install
 
 SimplyStore is a Node library. You can install it in your application like this:
@@ -18,6 +28,7 @@ SimplyStore is a Node library. You can install it in your application like this:
 npm install @muze-nl/simplystore
 ```
 
+<a name="usage"></a>
 ## Usage
 
 Import the server in your main file like this:
@@ -47,8 +58,9 @@ node myApp.js
 
 You should be able to go http://localhost:3000/query/ and see something like this:
 
-(image comes here)
+![image](https://github.com/SimplyEdit/SimplyStore/assets/1006453/3bec6b97-ffa1-4114-9ed4-51a68f73476e)
 
+<a name="examples"></a>
 ## Example query
 
 Given a dataset like this (jsontag):
@@ -97,8 +109,7 @@ Remember: it is just javascript, so you can also use filter(), map() and reduce(
 
 Most important: queries cannot change the dataset, it is immutable.
 
-
-
+<a name="goals"></a>
 ## Goals of this project
 
 SimplyStore is an attemp to see if we can create a more defined and usable REST like service, out of the box. One where all you need to do is change the data and add some access rights and get a self-describing, browseable, working API.
@@ -120,6 +131,7 @@ So the scope for jsontag-rest-server is:
 
 In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 
+<a name="roadmap"></a>
 ## Roadmap
 
 - allow changes to dataset by creating a new root
@@ -133,3 +145,8 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 - allow custom templates, instead of the default index.html
 - add support for access control, based on webid / openid connect
 
+<a name="license"></a>
+## License
+
+[MIT](LICENSE) © Muze.nl
+[MIT](LICENSE) © Muze.nl
