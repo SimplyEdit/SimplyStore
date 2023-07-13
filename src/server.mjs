@@ -196,7 +196,11 @@ async function main(options) {
                     _: _,
                     console: connectConsole(res),
                     JSONTag: JSONTag,
-                    request: req,
+                    request: {
+                        method: req.method,
+                        url: req.originalUrl,
+                        query: req.query
+                    },
                     Array: Array
                 },
                 wasm: false
