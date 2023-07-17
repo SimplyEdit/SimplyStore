@@ -91,7 +91,7 @@ Given a dataset like this (jsontag):
 You can post to the /query/ endpoint with javascript queries like these:
 
 ```
-data.persons
+from(data.persons)
 .where({
     name: 'John'
 })
