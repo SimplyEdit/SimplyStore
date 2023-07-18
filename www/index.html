@@ -33,6 +33,9 @@
 		position: fixed;
 		width: 100%;
 	}
+	.ds-visible {
+		display: block;
+	}
 </style>
 <body class="ds-nightmode">
 <header>
@@ -44,17 +47,17 @@
             <svg class="ds-icon ds-icon-feather">
                 <use xlink:href="/assets/feather-sprite.svg#search">
             </use></svg>
-            Run Query
+            Run
         </button>
         <button data-simply-command="load-query-dropdown" class="ds-button ds-button-icon">
             <svg class="ds-icon ds-icon-feather">
                 <use xlink:href="/assets/feather-sprite.svg#download">
             </use></svg>
-            Load Query
+            Load
 		    <nav class="ds-dropdown-nav">
 		        <ul class="ds-dropdown-list" data-simply-list="queries">
 		        	<template>
-			            <li class="ds-dropdown-item" data-simply-command="load-query"><span data-simply-field="query">Query</span></li>
+			            <li class="ds-dropdown-item" data-simply-command="load-query"><span data-simply-field="name">Query</span></li>
 		            </template>
 		        </ul>
 		    </nav>
@@ -63,9 +66,21 @@
             <svg class="ds-icon ds-icon-feather">
                 <use xlink:href="/assets/feather-sprite.svg#bookmark">
             </use></svg>
-            Save Query
+            Save
+        </button>
+        <button data-simply-command="load-fixtures" class="ds-button ds-button-icon">
+            <svg class="ds-icon ds-icon-feather">
+                <use xlink:href="/assets/feather-sprite.svg#briefcase">
+            </use></svg>
+            Fixtures        	
         </button>
         <span class="ds-push-right"></span>
+        <button class="ds-button ds-button-icon">
+            <svg class="ds-icon ds-icon-feather">
+                <use xlink:href="/assets/feather-sprite.svg#download">
+            </use></svg>
+            Download
+        </button>
         <button class="ds-button ds-button-icon">
             <svg class="ds-icon ds-icon-feather">
                 <use xlink:href="/assets/feather-sprite.svg#help-circle">
@@ -126,11 +141,53 @@
 				browser.setValue(databrowser.view.data)
 			},
 			'load-query-dropdown': async function(button) {
-				button.querySelector('nav.ds-dropdown-nav').style='display:block'
+				button.querySelector('nav.ds-dropdown-nav').classList.toggle('ds-visible')
+			},
+			'load-query': async function(el, value) {
+				let query = await this.app.actions.loadQuery(el.innerText)
+				codeEditor.setValue(query)
+				let button = el.closest('.ds-button')
+				button.querySelector('nav.ds-dropdown-nav').classList.remove('ds-visible')
+				codeEditor.focus()
+			},
+			'save-query': async function() {
+				let name = prompt('Enter the query name:',this.app.view.queryName || 'query')
+				this.app.actions.saveQuery(name, codeEditor.getValue())
+			},
+			'load-fixtures': async function() {
+				let fixtures = await this.app.actions.loadFixtures()
+				codeEditor.setValue(fixtures)
+				codeEditor.focus()
 			}
 		},
 		actions: {
-			query: async function(path, query) {		
+			start: async function() {
+				this.app.view.queries = JSON.parse(localStorage.getItem('queries') || '[]')
+			},
+			loadQuery: async function(name) {
+				this.app.view.queryName = name
+				return this.app.actions.getQuery(name)
+			},
+			saveQuery: async function(name, query) {
+				this.app.view.queries = this.app.view.queries.filter(q => q.name!=name)
+				this.app.view.queries.push({
+					name: name,
+					query: codeEditor.getValue()
+				})
+				localStorage.setItem('queries',JSON.stringify(this.app.view.queries))
+			},
+			loadFixtures: async function() {
+				return this.app.actions.loadQuery('Fixtures')
+			},
+			getQuery: async function(name) {
+				let query = this.app.view.queries.filter(q => q.name===name)
+				if (query && query[0]) {
+					return query[0].query 
+				}
+				return ''	
+			},
+			query: async function(path, query) {
+				query = await this.app.actions.getQuery('Fixtures')+';'+query
 				try {
 					let data;
 					if (query) {
@@ -157,7 +214,8 @@
 		view: {
 			queries: [
 				{
-					query: 'Test Query'
+					name: 'Test Query',
+					query: 'from(data.persons).select({name:_})'
 				}
 			]
 		}
@@ -213,4 +271,6 @@
 			})	
 		}
 	}
+
+	databrowser.actions.start()
 </script>
