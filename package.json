@@ -1,6 +1,6 @@
 {
 	"name": "@muze-nl/simplystore",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"main": "src/server.mjs",
 	"type": "module",
 	"scripts": {
