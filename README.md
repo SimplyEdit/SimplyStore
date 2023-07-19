@@ -112,7 +112,7 @@ Most important: queries cannot change the dataset, it is immutable.
 <a name="goals"></a>
 ## Goals of this project
 
-SimplyStore will create a more defined and usable REST like service, out of the box. One where all you need to do is change the data and add some access rights and get a self-describing, browseable, working API.
+SimplyStore is a more defined and usable REST like service, out of the box. One where all you need to do is change the data and add some access rights and get a self-describing, browseable, working API.
 
 The SimplyStore design is predicated on the following realisations:
 
