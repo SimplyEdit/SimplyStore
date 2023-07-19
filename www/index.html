@@ -219,10 +219,10 @@
 				return ''	
 			},
 			query: async function(path, query) {
-				query = await this.app.actions.getQuery('Fixtures')+';'+query
 				try {
 					let data;
 					if (query) {
+						query = await this.app.actions.getQuery('Fixtures')+';'+query
 						data = await api.post(path, query)
 					} else {
 						data = await api.get(path)
