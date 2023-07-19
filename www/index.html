@@ -68,6 +68,12 @@
             </use></svg>
             Save
         </button>
+        <button data-simply-command="delete-query" class="ds-button ds-button-icon" disabled>
+            <svg class="ds-icon ds-icon-feather">
+                <use xlink:href="/assets/feather-sprite.svg#trash-2">
+            </use></svg>
+            Delete
+        </button>
         <button data-simply-command="load-fixtures" class="ds-button ds-button-icon">
             <svg class="ds-icon ds-icon-feather">
                 <use xlink:href="/assets/feather-sprite.svg#briefcase">
@@ -148,11 +154,22 @@
 				codeEditor.setValue(query)
 				let button = el.closest('.ds-button')
 				button.querySelector('nav.ds-dropdown-nav').classList.remove('ds-visible')
+				this.app.actions.toggleDelete('on')
 				codeEditor.focus()
 			},
 			'save-query': async function() {
 				let name = prompt('Enter the query name:',this.app.view.queryName || 'query')
-				this.app.actions.saveQuery(name, codeEditor.getValue())
+				if (name) {
+					this.app.actions.saveQuery(name, codeEditor.getValue())
+					this.app.actions.toggleDelete('on')
+				}
+			},
+			'delete-query': async function() {
+				if (confirm('Delete this query: '+this.app.view.queryName+'?')) {
+					this.app.actions.deleteQuery(this.app.view.queryName)
+					this.app.view.queryName = ''
+					this.app.actions.toggleDelete('off')
+				}
 			},
 			'load-fixtures': async function() {
 				let fixtures = await this.app.actions.loadFixtures()
@@ -169,12 +186,27 @@
 				return this.app.actions.getQuery(name)
 			},
 			saveQuery: async function(name, query) {
+				this.app.view.queryName = name
 				this.app.view.queries = this.app.view.queries.filter(q => q.name!=name)
 				this.app.view.queries.push({
 					name: name,
 					query: codeEditor.getValue()
 				})
 				localStorage.setItem('queries',JSON.stringify(this.app.view.queries))
+			},
+			deleteQuery: async function(name) {
+				this.app.view.queries = this.app.view.queries.filter(q => q.name!=name)
+				localStorage.setItem('queries',JSON.stringify(this.app.view.queris))
+			},
+			toggleDelete: async function(state) {
+				let deleteButtons = document.querySelectorAll('.ds-button[data-simply-command="delete-query"]')
+				if (deleteButtons) {
+					if (state==='on') {
+						deleteButtons.forEach(b => b.removeAttribute('disabled'))
+					} else if (state==='off') {
+						deleteButtons.forEach(b => b.setAttribute('disabled','disabled'))
+					}
+				}
 			},
 			loadFixtures: async function() {
 				return this.app.actions.loadQuery('Fixtures')
