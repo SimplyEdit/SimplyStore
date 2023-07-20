@@ -1,6 +1,6 @@
 # SimplyStore
 
-SimplyStore is an attempt to create a radically simpler backend storage server. It does not have a database, certainly no SQL or GraphQL, it is not REST. In return it has a well defined API that is automatically derived from your dataset. It supports JSONTag to allow for semantically meaningful data, without having to do the full switch to Linked Data and triple stores. The query format is javascript, you can post javascript queries that will run on the server. All data is read into memory and is available to these javascript queries without needing (or allowing) disk access or indexes.
+SimplyStore is a radically simpler backend storage server. It does not have a database, certainly no SQL or GraphQL, it is not REST. In return it has a well defined API that is automatically derived from your dataset. It supports JSONTag to allow for semantically meaningful data, without having to do the full switch to Linked Data and triple stores. The query format is javascript, you can post javascript queries that will run on the server. All data is read into memory and is available to these javascript queries without needing (or allowing) disk access or indexes.
 
 [JSONTag](https://github.com/poef/jsontag) is an enhancement over JSON that allows you to tag JSON data with metadata using HTML-like tags.
 Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox.
@@ -112,7 +112,7 @@ Most important: queries cannot change the dataset, it is immutable.
 <a name="goals"></a>
 ## Goals of this project
 
-SimplyStore is an attemp to see if we can create a more defined and usable REST like service, out of the box. One where all you need to do is change the data and add some access rights and get a self-describing, browseable, working API.
+SimplyStore is a more defined and usable REST like service, out of the box. One where all you need to do is change the data and add some access rights and get a self-describing, browseable, working API.
 
 The SimplyStore design is predicated on the following realisations:
 
