@@ -1,8 +1,0 @@
-.git/
-design/
-node_modules/
-
-.dockerignore
-Dockerfile
-LICENSE
-README.md
