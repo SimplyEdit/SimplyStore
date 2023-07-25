@@ -4,7 +4,7 @@ import pointer from 'json-pointer'
 import JSONTag from '@muze-nl/jsontag'
 import {JSONPath} from 'jsonpath-plus'
 import {VM} from 'vm2'
-import {_,from} from 'array-where-select'
+import {_,from,not,anyOf,allOf} from 'array-where-select'
 import { fileURLToPath } from 'url'
 import path from 'path'
 
@@ -195,6 +195,9 @@ async function main(options) {
                     meta: meta,
                     _: _,
                     from: from,
+                    not: not,
+                    anyOf: anyOf,
+                    allOf: allOf,
                     console: connectConsole(res),
                     JSONTag: JSONTag,
                     request: {
