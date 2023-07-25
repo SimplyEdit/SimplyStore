@@ -23,10 +23,12 @@
 	}
 	form.Query {
 		grid-area: code;
+		overflow: auto;
 	}
 	.dataBrowser {
 		position: relative;
 		grid-area: data;
+		overflow: auto;
 	}
 	.CodeMirror {
 		height: 100% !important;
@@ -45,6 +47,7 @@
 		color: var(--ds-white);
 		margin:0;
 		padding:0;
+		overflow: hidden;
 	}
 	iframe.full {
 		border: 0;
@@ -60,6 +63,7 @@
 	}
 	dialog {
 		border: 0;
+		margin: 0;
 	}
 </style>
 <body class="ds-nightmode">
