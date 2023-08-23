@@ -23,6 +23,10 @@ import {clone} from '@muze-nl/jsontag/src/lib/functions.mjs'
  */
 let references = new WeakMap()
 
+/**
+ * Keeps track of objects to make sure addReference doesn't go into an infinite loop
+ * @type {WeakMap}
+ */
 let seen       = new WeakMap()
 
 /**
@@ -98,8 +102,22 @@ export function findReferences(value) {
  * @return {object}             new immutable datastructure which incorporates the changes
  */
 export default function produce(baseState, updateFn) {
+	/**
+	 * Keeps track of objects that need to be frozen before returning
+	 * @type {Array}
+	 */
 	let changes = []
+
+	/**
+	 * This contains a reference from a Proxy to the original object being proxied
+	 * @type {Map}
+	 */
 	let values  = new Map()
+
+	/**
+	 * This contains a reference from an original, immutable object, to its mutable clone
+	 * @type {Map}
+	 */
 	let clones  = new Map()
 
 	function shallowClone(o) {
