@@ -4,7 +4,8 @@
 	"main": "src/server.mjs",
 	"type": "module",
 	"scripts": {
-		"start": "node src/run.mjs"
+		"start": "node src/run.mjs",
+		"test": "tap test/*.mjs"
 	},
 	"author": "auke@muze.nl",
 	"license": "MIT",
@@ -24,6 +25,7 @@
 		"vm2": "^3.9.13"
 	},
 	"devDependencies": {
+		"tap": "^16.3.8",
 		"process": "^0.11.10"
 	}
 }
