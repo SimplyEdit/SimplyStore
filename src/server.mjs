@@ -7,6 +7,8 @@ import {VM} from 'vm2'
 import {_,from,not,anyOf,allOf} from 'array-where-select'
 import { fileURLToPath } from 'url'
 import path from 'path'
+import produce from './produce.mjs'
+import commands from './commands.mjs'
 
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 
@@ -55,11 +57,11 @@ async function main(options) {
     if (!options) {
         options = {}
     }  
-	  const port     = options.port || 3000
-	  const datafile = options.datafile || 'data.jsontag'
-	  const wwwroot  = options.wwwroot || __dirname+'/www'
-	  let meta       = options.meta || {}
-	  let dataspace  = options.dataspace || null
+    const port     = options.port || 3000
+    const datafile = options.datafile || 'data.jsontag'
+    const wwwroot  = options.wwwroot || __dirname+'/www'
+    let meta       = options.meta || {}
+    let dataspace  = options.dataspace || null
 
     const originalJSON = JSON
     JSON = JSONTag // monkeypatching
@@ -68,13 +70,14 @@ async function main(options) {
         console.log('loading data...')
         let file = fs.readFileSync(datafile)
         try {
-        dataspace = JSONTag.parse(file.toString(), null, meta)
+            dataspace = JSONTag.parse(file.toString(), null, meta)
         } catch(e) {
             console.error(e)
             process.exit()
         }
     }
     deepFreeze(dataspace)
+    console.log('Frozen?', Object.isFrozen(dataspace))
 
     let used = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
     console.log(`data loaded (${used} MB)`);
@@ -234,6 +237,49 @@ async function main(options) {
     })
 
 
+    server.post('/command', (req, res) => {
+        console.log('command')
+        let start = Date.now()
+        if ( !accept(req,res,
+            ['application/jsontag','application/json']) 
+        ) {
+            return
+        }
+        let error, result
+
+        let command = JSONTag.parse(req.body.toString()) // raw body through express.raw()
+        
+        if (command && command.name && commands[command.name]) {
+            console.log(command.name)
+            try {
+                let commandFn = dataspace => {
+                    return commands[command.name](dataspace, command)
+                }
+                dataspace = produce(dataspace, commandFn)
+                console.log('command done')
+            } catch(err) {
+                console.log('Error')
+                console.error(err)
+                error = JSONTag.parse('<object class="Error">{"message":'+err.message+',"code":422}')
+            }
+        } else {
+            error = JSONTag.parse('<object class="Error">{"message":"Command '+command.name+' not found","code":404}')
+        }
+
+        if (error) {
+            res.status(error.code)
+            result = error
+        }
+        if (req.accepts('application/jsontag')) {
+            res.setHeader('content-type','application/jsontag+json')
+            res.send(JSONTag.stringify(result, null, 4)+"\n")
+        } else {
+            res.setHeader('content-type','application/json')
+            res.send(originalJSON.stringify(result, null, 4)+"\n")
+        }
+        let end = Date.now()
+        console.log(command.name, (end-start), process.memoryUsage())        
+    })
 
     function handleWebRequest(req,res,options)
     {
