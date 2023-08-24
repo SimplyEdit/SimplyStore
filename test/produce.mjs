@@ -48,3 +48,12 @@ tap.test('produce handles array functions', t => {
 	t.same(data.persons[2],null)
 	t.end()
 })
+
+tap.test('produce can use array.indexOf inside', t => {
+	let newData = produce(data, (draft) => {
+		let p = draft.persons[1] // this returns a proxy
+		let i = draft.persons.indexOf(p) // this is passed on to the baseState/clone, which has values without proxy
+		t.equal(i,1) // so this no longer fails, as indexOf automatically calls getRealValue on all params
+	})
+	t.end()
+})

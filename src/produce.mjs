@@ -5,6 +5,27 @@ import {clone} from '@muze-nl/jsontag/src/lib/functions.mjs'
  * @TODO: when freezing changes, add them to the index
  * @TODO: remove old entries (replaced) from the index, when creating a clone
  * @TODO: don't add entries to the index that are already there
+ * @TODO: changes map may not be needed, looping over all clones should be enough
+ */
+
+/**
+ * This library implements a version of [immer](https://immerjs.github.io/immer/)
+ * with one important difference: it works on graphs instead of just trees.
+ * This does mean we take a performance hit, the first time produce is called it creates
+ * a complete index of which object references which other object (and in which property)
+ * Additionally it uses the JSONTag clone method to also copy type/attributes from JSONTag
+ *
+ * --------------------------------------------------------
+ *
+ * Implementation details:
+ *
+ * produce starts an update function, where the baseState is replaced with a proxy. This proxy
+ * automatically creates mutable clones whenever you set/delete or otherwise update something
+ * on the proxy. Each change creates a clone, and each reference to the original base object is 
+ * replaced with the clone, which triggers creating clones of the objects containing that
+ * reference. This means that any change will always create a new clone of the root baseState
+ * object. This object represents the changed nextState, where baseState is not changed as it 
+ * is immutable. Before finishing, all clones are made immutable again.
  */
 
 /**
@@ -101,7 +122,7 @@ export function findReferences(value) {
  * @param  {function} updateFn  function that makes changes in the datastructure
  * @return {object}             new immutable datastructure which incorporates the changes
  */
-export default function produce(baseState, updateFn) {
+export function produce(baseState, updateFn) {
 	/**
 	 * Keeps track of objects that need to be frozen before returning
 	 * @type {Array}
@@ -173,23 +194,36 @@ export default function produce(baseState, updateFn) {
 		return baseState // baseState is already a clone, since it is mutable
 	}
 
-	function createProxy(baseState) 
-	{
-		const proxy = new Proxy({baseState}, updateHandler)
-		values.set(proxy, baseState)
-		return proxy
-	}
-
+	/**
+	 * Given a baseState (frozen) object, this will return a Proxy for it.
+	 * given a literal, it will just return the literal
+	 * given a proxy, it will just return the proxy
+	 * given a mutable object, it will return the object as it needs no proxy
+	 * @param  {any}       value The baseState immutable value to proxy
+	 * @return {any|Proxy}       The proxy, if given an immutable object
+	 */
 	function getProxyValue(value) {
 		if (types.isProxy(value)) {
 			return value
 		}
-		if (value && typeof value === 'object') {
-			return createProxy(value)
+		//@FIXME: it would be nice if there is only ever one proxy of a given value
+		if (value && typeof value === 'object' && Object.isFrozen(value)) {
+			const proxy = new Proxy({baseState:value}, updateHandler)
+			values.set(proxy, value)
+			return proxy
 		}
 		return value
 	}
 
+	/**
+	 * Given a Proxy object, it will return the original value (baseState) the Proxy
+	 * was started with. If a clone of that original value is available, it will
+	 * return that.
+	 * Given a frozen baseState object, it will return a clone, if available, since that
+	 * contains the most current state of the object.
+	 * @param  {object} value The potential proxy object or frozen object
+	 * @return {object}       The current state object for this value
+	 */
 	function getRealValue(value) {
 		if (types.isProxy(value)) {
 			value = values.get(value)
@@ -200,6 +234,8 @@ export default function produce(baseState, updateFn) {
 		return value
 	}
 
+	//@FIXME: changes map shouldn't be needed
+	//@FIXME: just call addReference instead of registerChange - it should only accept frozen objects
 	function registerChange(clone, prop, value) {
 		if (value && typeof value === 'object') {
 			if (Object.isFrozen(value)) {
@@ -213,25 +249,45 @@ export default function produce(baseState, updateFn) {
 	const updateHandler = {
 		get(target, prop, receiver) {
 			if (Array.isArray(target.baseState) && target.baseState[prop] instanceof Function) {
-				return (...args) => {
-					let clone = getClone(target.baseState)
-					let before = shallowClone(clone)
-					let result = Array.prototype[prop].apply(clone, args)
-					// find differences
-					if (before.length>clone.length) {
-						for(let i=0,l=before.length-1;i++;i<=l) {
-							if (before[i]!==clone[i]) {
-								registerChange(clone, i, clone[i])
+				switch(prop) {
+					case 'copyWithin':
+					case 'fill':
+					case 'pop':
+					case 'push':
+					case 'reverse':
+					case 'shift':
+					case 'sort':
+					case 'splice':
+					case 'unshift':
+						return (...args) => {
+							args = args.map(arg => getRealValue(arg))
+							let clone = getClone(target.baseState)
+							let before = shallowClone(clone)
+							let result = Array.prototype[prop].apply(clone, args)
+							// find differences
+							if (before.length>clone.length) {
+								for(let i=0,l=before.length-1;i++;i<=l) {
+									if (before[i]!==clone[i]) {
+										registerChange(clone, i, clone[i])
+									}
+								}
+							} else {
+								for(let i=0,l=clone.length;i++;i<=l) {
+									if (before[i]!==clone[i]) {
+										registerChange(clone, i, clone[i])
+									}
+								}
 							}
+							return result
 						}
-					} else {
-						for(let i=0,l=clone.length;i++;i<=l) {
-							if (before[i]!==clone[i]) {
-								registerChange(clone, i, clone[i])
-							}
+					break
+					default:
+						return (...args) => {
+							args = args.map(arg => getRealValue(arg))
+							return Array.prototype[prop].apply(getRealValue(target.baseState), args)
 						}
-					}
-					return result
+
+					break
 				}
 			} else if (Array.isArray(target.baseState)) {
 				switch(prop) {
@@ -271,12 +327,7 @@ export default function produce(baseState, updateFn) {
 	}
 
 	function innerProduce(baseState, updateFn) {
-		let proxy;
-		if (types.isProxy(baseState)) {
-			proxy = baseState
-		} else {
-			proxy = createProxy(baseState)
-		}
+		let proxy = getProxyValue(baseState)
 		updateFn(proxy)
 		if (clones.has(baseState)) {
 			return clones.get(baseState)
