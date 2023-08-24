@@ -5,7 +5,6 @@ import {clone} from '@muze-nl/jsontag/src/lib/functions.mjs'
  * @TODO: when freezing changes, add them to the index
  * @TODO: remove old entries (replaced) from the index, when creating a clone
  * @TODO: don't add entries to the index that are already there
- * @TODO: changes map may not be needed, looping over all clones should be enough
  */
 
 /**
@@ -56,6 +55,7 @@ let seen       = new WeakMap()
  * @param {object} source        The source or parent object
  * @param {string|number} key    The property that refers the child or value object
  * @param {object} value         The value or child object
+ * @return {void}
  */
 function addReference(source,key,value) {
 	if (value && typeof value === 'object' && Object.isFrozen(value)) {
@@ -72,6 +72,27 @@ function addReference(source,key,value) {
 			seen.set(value,true)
 			index(value)
 		}
+	}
+}
+
+/**
+ * Removes a reference from the references index, for the given value
+ * and source and key
+ * @param {object} source        The source or parent object
+ * @param {string|number} key    The property that refers the child or value object
+ * @param {object} value         The value or child object
+ * @return {void}
+ */
+function removeReference(source, key, value) {
+	if (value && references.has(value)) {
+		let list = references.get(value)
+		list = list.filter(r => {
+			if (r.source.deref()===source && r.prop===key) {
+				return false
+			}
+			return true
+		})
+		references.set(value, list)
 	}
 }
 
@@ -124,12 +145,6 @@ export function findReferences(value) {
  */
 export function produce(baseState, updateFn) {
 	/**
-	 * Keeps track of objects that need to be frozen before returning
-	 * @type {Array}
-	 */
-	let changes = []
-
-	/**
 	 * This contains a reference from a Proxy to the original object being proxied
 	 * @type {Map}
 	 */
@@ -170,7 +185,6 @@ export function produce(baseState, updateFn) {
 		}
 		if (Object.isFrozen(baseState)) {
 			const c = clone(baseState)
-			changes.push(c)
 			clones.set(baseState, c)
 			// add c to references index for any property value that is immutable
 			index(c)
@@ -234,18 +248,13 @@ export function produce(baseState, updateFn) {
 		return value
 	}
 
-	//@FIXME: changes map shouldn't be needed
-	//@FIXME: just call addReference instead of registerChange - it should only accept frozen objects
-	function registerChange(clone, prop, value) {
-		if (value && typeof value === 'object') {
-			if (Object.isFrozen(value)) {
-				addReference(clone, prop, value)
-			} else {
-				changes.push(value) // makes sure it will get frozen
-			}
-		}
-	}
-
+	/**
+	 * This handler automatically returns proxies for all get accesses that result in an object
+	 * It wraps array functions so that results get proxied, parameters get de-proxied and the
+	 * actual function is called on the current state of the target object, or for functions that
+	 * change the actual array, on the clone.
+	 * @type {Object}
+	 */
 	const updateHandler = {
 		get(target, prop, receiver) {
 			if (Array.isArray(target.baseState) && target.baseState[prop] instanceof Function) {
@@ -259,6 +268,9 @@ export function produce(baseState, updateFn) {
 					case 'sort':
 					case 'splice':
 					case 'unshift':
+						// these are all functions that alter the array itself, so it
+						// needs to be cloned, if not done so already
+						// 
 						return (...args) => {
 							args = args.map(arg => getRealValue(arg))
 							let clone = getClone(target.baseState)
@@ -268,13 +280,15 @@ export function produce(baseState, updateFn) {
 							if (before.length>clone.length) {
 								for(let i=0,l=before.length-1;i++;i<=l) {
 									if (before[i]!==clone[i]) {
-										registerChange(clone, i, clone[i])
+										removeReference(clone, i, before[i])
+										addReference(clone, i, clone[i])
 									}
 								}
 							} else {
 								for(let i=0,l=clone.length;i++;i<=l) {
 									if (before[i]!==clone[i]) {
-										registerChange(clone, i, clone[i])
+										removeReference(clone, i, before[i])
+										addReference(clone, i, clone[i])
 									}
 								}
 							}
@@ -302,30 +316,23 @@ export function produce(baseState, updateFn) {
 			let clone = getClone(target.baseState)
 			value = getRealValue(value)
 			clone[prop] = value
-			registerChange(clone, prop, value)
+			addReference(clone, prop, value)
 			return true
 		},
 		deleteProperty(target, prop) {
 			let clone = getClone(target.baseState)
 			delete clone[prop]
-		},
-		getOwnPropertyDescriptor(target, prop) {
-			baseState = target.baseState
-			if (clones.has(baseState)) {
-				baseState = clones.get(baseState)
-			}
-			// make sure properties are enumerable, configurable,
-			if (baseState.hasOwnProperty(prop)) {
-				return {
-					configurable: true,
-					enumerable: true,
-					value: getProxyValue(baseState[prop])
-				}
-			}
-			//return undefined
 		}
 	}
 
+	/**
+	 * Runs the update function on the proxy (draft) of the baseState
+	 * This function is recursively called to update parent objects that
+	 * reference the baseState object when a clone is made.
+	 * @param  {object} baseState  The base immutable object to alter
+	 * @param  {function} updateFn The update function that alters it
+	 * @return {object}            The nextState, mutable clone
+	 */
 	function innerProduce(baseState, updateFn) {
 		let proxy = getProxyValue(baseState)
 		updateFn(proxy)
@@ -340,7 +347,7 @@ export function produce(baseState, updateFn) {
 	}
 
 	let nextState = innerProduce(baseState, updateFn)
-	changes.forEach(entry => {
+	clones.forEach(entry => {
 		Object.freeze(entry)
 	})
 	return nextState

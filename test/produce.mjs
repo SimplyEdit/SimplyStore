@@ -57,3 +57,13 @@ tap.test('produce can use array.indexOf inside', t => {
 	})
 	t.end()
 })
+
+tap.test('produce does not alter unaccessed objects', t => {
+	let newData = produce(data, (draft) => {
+		draft.persons.foo = 'bar'
+	})
+	t.equal(data.persons[0],newData.persons[0])
+	t.equal(data.persons[1],newData.persons[1])
+	t.notEqual(data.persons,newData.persons)
+	t.end()
+})
