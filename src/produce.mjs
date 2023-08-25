@@ -2,12 +2,6 @@ import {types} from 'node:util'
 import {clone} from '@muze-nl/jsontag/src/lib/functions.mjs'
 
 /**
- * @TODO: when freezing changes, add them to the index
- * @TODO: remove old entries (replaced) from the index, when creating a clone
- * @TODO: don't add entries to the index that are already there
- */
-
-/**
  * This library implements a version of [immer](https://immerjs.github.io/immer/)
  * with one important difference: it works on graphs instead of just trees.
  * This does mean we take a performance hit, the first time produce is called it creates
@@ -63,7 +57,6 @@ function addReference(source,key,value) {
 			references.set(value, [])
 		}
 		let list = references.get(value)
-		//@TODO: should filter out other references to source+key
 		list.push({
 			source: new WeakRef(source),
 			prop: key
@@ -84,7 +77,8 @@ function addReference(source,key,value) {
  * @return {void}
  */
 function removeReference(source, key, value) {
-	if (value && references.has(value)) {
+	if (value && typeof value === 'object' && Object.isFrozen(value) && references.has(value)) {
+		// only do the expensive work if needed, references only keeps track of frozen objects
 		let list = references.get(value)
 		list = list.filter(r => {
 			if (r.source.deref()===source && r.prop===key) {
@@ -315,12 +309,14 @@ export function produce(baseState, updateFn) {
 		set(target, prop, value) {
 			let clone = getClone(target.baseState)
 			value = getRealValue(value)
+			removeReference(clone, prop, clone[prop])
 			clone[prop] = value
 			addReference(clone, prop, value)
 			return true
 		},
 		deleteProperty(target, prop) {
 			let clone = getClone(target.baseState)
+			removeReference(clone, prop, clone[prop])
 			delete clone[prop]
 		}
 	}
@@ -343,12 +339,16 @@ export function produce(baseState, updateFn) {
 	}
 
 	if (!references.size) {
+		// automatically initialize the references index
 		index(baseState)
 	}
 
 	let nextState = innerProduce(baseState, updateFn)
+
 	clones.forEach(entry => {
 		Object.freeze(entry)
+		index(entry) // so the references match for the next produce call
 	})
+
 	return nextState
 }

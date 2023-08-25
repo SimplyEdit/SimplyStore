@@ -24,6 +24,7 @@ tap.test('produce can create new data', t => {
 
 tap.test('produce does not change base data', t => {
 	let newData = produce(data, (draft) => {
+		console.log('Persons draft',draft.persons, Object.isFrozen(draft.persons))
 		draft.persons.foo = 'bar'
 	})
 	t.notHas(data.persons, {foo:'bar'})
@@ -65,5 +66,14 @@ tap.test('produce does not alter unaccessed objects', t => {
 	t.equal(data.persons[0],newData.persons[0])
 	t.equal(data.persons[1],newData.persons[1])
 	t.notEqual(data.persons,newData.persons)
+	t.end()
+})
+
+tap.test('proxies get re-used', t => {
+	let newData = produce(data, (draft) => {
+		let p1 = draft.persons[0]
+		let p2 = draft.persons[0]
+		t.equal(p1,p2)
+	})
 	t.end()
 })
