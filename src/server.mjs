@@ -1,86 +1,40 @@
 import express from 'express'
 import fs from 'fs'
-import pointer from 'json-pointer'
 import JSONTag from '@muze-nl/jsontag'
-import {JSONPath} from 'jsonpath-plus'
-import {VM} from 'vm2'
-import {_,from,not,anyOf,allOf} from 'array-where-select'
 import { fileURLToPath } from 'url'
 import path from 'path'
-import produce from './produce.mjs'
+import { spawn, Pool, Worker } from 'threads'
 import commands from './commands.mjs'
+import {appendFile} from './util.mjs'
 
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 
 const server    = express()
 
-function deepFreeze(obj) {
-		Object.freeze(obj)
-		Object.keys(obj).forEach(prop => {
-				if (typeof obj[prop] === 'object' && !Object.isFrozen(obj[prop])) {
-						deepFreeze(obj[prop])
-				}
-		})
-		return obj
-}
-
-function isString(s)
-{
-    return typeof s === 'string' || s instanceof String
-}
-
-function joinArgs(args) {
-    return args = args.map(arg => {
-        if (isString(arg)) {
-            return arg
-        } else {
-            return JSONTag.stringify(arg)
-        }
-    }).join(' ')
-}
-
-function connectConsole(res) {
-    return {
-        log: function(...args) {
-            res.append('X-Console-Log', joinArgs(args))
-        },
-        warning: function(...args) {
-            res.append('X-Console-Warning', joinArgs(args))
-        },
-        error: function(...args) {
-            res.append('X-Console-Error', joinArgs(args))            
-        }
-    }
-}
-
 async function main(options) {
     if (!options) {
         options = {}
     }  
-    const port     = options.port || 3000
-    const datafile = options.datafile || 'data.jsontag'
-    const wwwroot  = options.wwwroot || __dirname+'/www'
-    let meta       = options.meta || {}
-    let dataspace  = options.dataspace || null
+    const port       = options.port     || 3000
+    const datafile   = options.datafile || 'data.jsontag'
+    const wwwroot    = options.wwwroot  || __dirname+'/www'
+    const commandLog = options.commandlog || 'commandlog.jsontag'
+    let meta         = options.meta     || {}
 
-    const originalJSON = JSON
-    JSON = JSONTag // monkeypatching
+    let jsontag      = fs.readFileSync(datafile, 'utf-8')
 
-    if (!dataspace) {
-        console.log('loading data...')
-        let file = fs.readFileSync(datafile)
-        try {
-            dataspace = JSONTag.parse(file.toString(), null, meta)
-        } catch(e) {
-            console.error(e)
-            process.exit()
-        }
+    function initWorkerPool(workerName, size=null) {
+        return Pool(() => {
+            return spawn(new Worker(workerName)).then(worker => {
+                worker.initialize(jsontag)
+                return worker
+            })
+        }, size)
     }
-    deepFreeze(dataspace)
-    console.log('Frozen?', Object.isFrozen(dataspace))
 
-    let used = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-    console.log(`data loaded (${used} MB)`);
+    let queryWorkerpool = initWorkerPool('./worker-query')
+
+    const commandWorkerpool = initWorkerPool('./worker-command',1) // only one update worker so no changes can get lost
 
     server.get('/', (req,res) => {
         res.send('<h1>SimplyStore</h1>') //TODO: implement something nice
@@ -106,35 +60,34 @@ async function main(options) {
         return true
     }
 
-    function getDataSpace(req, res, dataspace) {
-        let path = req.path.substr(6); // cut '/query'
-        if (!path) {
-            path = '';
+    function sendResponse(response, res) {
+        if (response.code) {
+            res.status(response.code)
         }
-        if (path.substring(path.length-1)==='/') {
-            //jsonpointer doesn't allow a trailing '/'
-            path = path.substring(0, path.length-1)
-        }
-        let result
-        if (path) {
-            //jsonpointer doesn't allow an empty pointer
-            try {
-                if (pointer.has(dataspace, path)) {
-                    result = pointer.get(dataspace, path)
-                } else {
-                    result = JSONTag.parse('<object class="Error">{"message":"Not found", "code":404}')
-                }
-            } catch(err) {
-                result = JSONTag.parse('<object class="Error">{"message":'+originalJSON.stringify(err.message)+', "code":500}')
-            }
+        if (response.jsontag) {
+            res.setHeader('content-type','application/jsontag')
         } else {
-            result = dataspace
+            res.setHeader('content-type','application/json')
         }
-        return [result,path]
+        res.send(response.body)+"\n"
     }
-    
+
+    function sendCommandResponse(result, req, res) {
+        if (result.code) {
+            res.status(result.code)
+        }
+        if (req.accepts('application/jsontag')) {
+            res.setHeader('content-type','application/jsontag')
+            res.send(JSONTag.stringify(result, null, 4)+"\n")
+        } else {
+            res.setHeader('content-type','application/json')
+            res.send(JSON.stringify(result, null, 4)+"\n")
+        }
+    }
+
     server.get('/query/*', (req, res, next) => 
     {
+        console.log('express query')
         let start = Date.now()
 
         if ( !accept(req,res,
@@ -154,21 +107,20 @@ async function main(options) {
             // done
             return
         }
-
-        let [result,path] = getDataSpace(req, res, dataspace)
-        if (JSONTag.getAttribute(result, 'class')==='Error') {
-            res.status(result.code)
+        let path = req.path.substr(6); // cut '/query'
+        let request = {
+            method: req.method,
+            url: req.originalUrl,
+            query: req.query,
+            jsontag: req.accepts('application/jsontag')
         }
-        result = linkReplacer(result, path+'/')
-        if (req.accepts('application/jsontag')) {
-            res.setHeader('content-type','application/jsontag+json')
-            res.send(JSONTag.stringify(result, null, 4)+"\n")
-        } else {
-            res.setHeader('content-type','application/json')
-            res.send(originalJSON.stringify(result, null, 4)+"\n")
-        }
-        let end = Date.now()
-        console.log(path, (end-start), process.memoryUsage())
+        queryWorkerpool.queue(queryWorker => {
+            return queryWorker.runQuery(path, request)
+        }).then(response => {
+            sendResponse(response, res)
+            let end = Date.now()
+            console.log(path, (end-start), process.memoryUsage())
+        })
     })
 
     /**
@@ -181,64 +133,44 @@ async function main(options) {
         ) {
             return
         }
-        let error
-        let [result,path] = getDataSpace(req, res, dataspace)
-        if (result) {
-            // do the query here
-            let query = req.body.toString() // raw body through express.raw()
-            // @todo add text search: https://github.com/nextapps-de/flexsearch
-            // @todo add tree walk map/reduce/find/filter style functions
-            // @todo add arc tree dive function?
-            const vm = new VM({
-//                timeout: 1000,
-                allowAsync: false,
-                sandbox: {
-                    root: dataspace,
-                    data: result,
-                    meta: meta,
-                    _: _,
-                    from: from,
-                    not: not,
-                    anyOf: anyOf,
-                    allOf: allOf,
-                    console: connectConsole(res),
-                    JSONTag: JSONTag,
-                    request: {
-                        method: req.method,
-                        url: req.originalUrl,
-                        query: req.query
-                    }
-                },
-                wasm: false
-            })
-            try {
-                result = vm.run(query)
-                let used = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
-                console.log(`(${used} MB)`);
-            } catch(err) {
-                console.log(err)
-                error = JSONTag.parse('<object class="Error">{"message":'+originalJSON.stringify(''+err)+',"code":422}')
-            }
+        let query = req.body.toString() // raw body through express.raw()
+        let path = req.path.substr(6); // cut '/query'
+        let request = {
+            method: req.method,
+            url: req.originalUrl,
+            query: req.query,
+            jsontag: req.accepts('application/jsontag')
         }
-
-        if (error) {
-            res.status(error.code)
-            result = error
-        }
-        if (req.accepts('application/jsontag')) {
-            res.setHeader('content-type','application/jsontag+json')
-            res.send(JSONTag.stringify(result, null, 4)+"\n")
-        } else {
-            res.setHeader('content-type','application/json')
-            res.send(originalJSON.stringify(result, null, 4)+"\n")
-        }
-        let end = Date.now()
-        console.log(path, (end-start), process.memoryUsage())
+        queryWorkerpool.queue(queryWorker => {
+            return queryWorker.runQuery(path, request, query)
+        }).then(response => {
+            sendResponse(response, res)
+            let end = Date.now()
+            console.log(path, (end-start), process.memoryUsage())
+        })
     })
 
+    let status = new Map()
 
-    server.post('/command', (req, res) => {
-        console.log('command')
+    server.get('/command/:id', (req, res) => {
+        //@TODO: find the status of command with :id
+        //return that
+        if (status.has(req.params.id)) {
+            let result = status.get(req.params.id)
+            sendResponse({
+                jsontag: false,
+                body: JSON.stringify(result)
+            },res)
+        } else {
+            sendResponse({
+                code: 404,
+                jsontag: false,
+                body: JSON.stringify({"code":404,"message":"Command not found"})
+            }, res)
+        }
+    })
+
+    server.post('/command', async (req, res) => {
         let start = Date.now()
         if ( !accept(req,res,
             ['application/jsontag','application/json']) 
@@ -247,38 +179,65 @@ async function main(options) {
         }
         let error, result
 
-        let command = JSONTag.parse(req.body.toString()) // raw body through express.raw()
-        
-        if (command && command.name && commands[command.name]) {
-            console.log(command.name)
-            try {
-                let commandFn = dataspace => {
-                    return commands[command.name](dataspace, command)
-                }
-                dataspace = produce(dataspace, commandFn)
-                console.log('command done')
-            } catch(err) {
-                console.log('Error')
-                console.error(err)
-                error = JSONTag.parse('<object class="Error">{"message":'+err.message+',"code":422}')
+        let commandStr = req.body.toString() // raw body through express.raw()
+        let command = JSONTag.parse(commandStr)
+        if (!command.id) {
+            error = {
+                code: 422,
+                message: "Command has no id"
             }
-        } else {
-            error = JSONTag.parse('<object class="Error">{"message":"Command '+command.name+' not found","code":404}')
+            sendCommandResponse(error, req, res)
+            return
+        } else if (status.has(command.id)) {
+            result = "OK"
+            sendCommandResponse(result, req, res)
+            return
+        } else if (!command.name || !commands[command.name]) {
+            error = {
+                code: 422,
+                message: "Command has no name or is unknown"
+            }
+            sendCommandResponse(error, req, res)
+            return            
+        }
+        await appendFile(commandLog, JSONTag.stringify(command))
+
+        status.set(command.id, 'queued')
+        console.log('command',command)
+
+        result = "OK"
+        sendCommandResponse(result, req, res)
+        let request = {
+            method: req.method,
+            url: req.originalUrl,
+            query: req.query,
+            jsontag: req.accepts('application/jsontag')
         }
 
-        if (error) {
-            res.status(error.code)
-            result = error
-        }
-        if (req.accepts('application/jsontag')) {
-            res.setHeader('content-type','application/jsontag+json')
-            res.send(JSONTag.stringify(result, null, 4)+"\n")
-        } else {
-            res.setHeader('content-type','application/json')
-            res.send(originalJSON.stringify(result, null, 4)+"\n")
-        }
-        let end = Date.now()
-        console.log(command.name, (end-start), process.memoryUsage())        
+        commandWorkerpool
+        .queue(commandWorker => commandWorker.runCommand(request, commandStr))
+        .then(response => {
+            //@TODO store response status, if response.code => error
+            if (!response.code) {
+                jsontag = response.body // global jsontag
+                let dataspace = JSONTag.parse(jsontag)
+                //@TODO: make sure queryWorkerpool is only replaced after
+                //workers are initialized, to prevent hickups if initialization takes a long time
+                let newQueryWorkerpool = initWorkerPool('./worker-query')
+                queryWorkerpool.terminate() // gracefully
+                queryWorkerpool = newQueryWorkerpool
+                //@TODO: write dataspace to disk
+                status.set(command.id, 'done')
+                let end = Date.now()
+                console.log(command.name, (end-start), process.memoryUsage())        
+            }
+        })
+        .catch(err => {
+            console.error(err)
+            //@TODO: set status for this command to error with this err
+            status.set(command.id, err)
+        })
+
     })
 
     function handleWebRequest(req,res,options)
