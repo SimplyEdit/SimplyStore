@@ -3,9 +3,9 @@ import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
 import { fileURLToPath } from 'url'
 import path from 'path'
-import { spawn, Pool, Worker } from 'threads'
 import commands from './commands.mjs'
 import {appendFile} from './util.mjs'
+import {Piscina} from 'piscina'
 
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 
@@ -15,29 +15,32 @@ async function main(options) {
     if (!options) {
         options = {}
     }  
-    const port       = options.port     || 3000
-    const datafile   = options.datafile || 'data.jsontag'
-    const wwwroot    = options.wwwroot  || __dirname+'/www'
-    const commandLog = options.commandlog || 'commandlog.jsontag'
-    let meta         = options.meta     || {}
+    const port          = options.port          || 3000
+    const datafile      = options.datafile      || './data.jsontag'
+    const wwwroot       = options.wwwroot       || __dirname+'/www'
+    const commandLog    = options.commandlog    || './commandlog.jsontag'
+    const queryWorker   = options.queryWorker   || __dirname+'/src/worker-query-init.mjs'
+    const commandWorker = options.commandWorker || __dirname+'/src/worker-command-init.mjs'
 
-    let jsontag      = fs.readFileSync(datafile, 'utf-8')
+    let jsontag         = fs.readFileSync(datafile, 'utf-8')
 
     function initWorkerPool(workerName, size=null) {
-        return Pool(() => {
-            return spawn(new Worker(workerName)).then(worker => {
-                worker.initialize(jsontag)
-                return worker
-            })
-        }, size)
+        let options = {
+            filename: workerName,
+            workerData: jsontag
+        }
+        if (size) {
+            options.maxThreads = size
+        }
+        return new Piscina(options)
     }
 
-    let queryWorkerpool = initWorkerPool('./worker-query')
+    let queryWorkerpool = initWorkerPool(queryWorker)
 
-    const commandWorkerpool = initWorkerPool('./worker-command',1) // only one update worker so no changes can get lost
+//    const commandWorkerpool = initWorkerPool(commandWorker,1) // only one update worker so no changes can get lost
 
     server.get('/', (req,res) => {
-        res.send('<h1>SimplyStore</h1>') //TODO: implement something nice
+        res.send('<h1>SimplyStore</h1>') //@TODO: implement something nice
     })
 
     server.use(express.static(wwwroot))
@@ -114,9 +117,8 @@ async function main(options) {
             query: req.query,
             jsontag: req.accepts('application/jsontag')
         }
-        queryWorkerpool.queue(queryWorker => {
-            return queryWorker.runQuery(path, request)
-        }).then(response => {
+        queryWorkerpool.run({pointer:path, request})
+        .then(response => {
             sendResponse(response, res)
             let end = Date.now()
             console.log(path, (end-start), process.memoryUsage())
@@ -141,9 +143,8 @@ async function main(options) {
             query: req.query,
             jsontag: req.accepts('application/jsontag')
         }
-        queryWorkerpool.queue(queryWorker => {
-            return queryWorker.runQuery(path, request, query)
-        }).then(response => {
+        queryWorkerpool.run({pointer:path, request, query})
+        .then(response => {
             sendResponse(response, res)
             let end = Date.now()
             console.log(path, (end-start), process.memoryUsage())
@@ -215,7 +216,7 @@ async function main(options) {
         }
 
         commandWorkerpool
-        .queue(commandWorker => commandWorker.runCommand(request, commandStr))
+        .run({request, commandStr})
         .then(response => {
             //@TODO store response status, if response.code => error
             if (!response.code) {
