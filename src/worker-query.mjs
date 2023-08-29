@@ -28,7 +28,7 @@ export function getDataSpace(path, dataspace) {
                 result = JSONTag.parse('<object class="Error">{"message":"Not found", "code":404}')
             }
         } catch(err) {
-            result = JSONTag.parse('<object class="Error">{"message":'+originalJSON.stringify(err.message)+', "code":500}')
+            result = JSONTag.parse('<object class="Error">{"message":'+JSON.stringify(err.message)+', "code":500}')
         }
     } else {
         result = dataspace
@@ -79,14 +79,11 @@ function connectConsole(res) {
     }
 }
 
-export async function initialize(jsontag) {
-//    console.log('hier dan')
+export async function initialize(jsontag, m) {
     if (!jsontag) { throw new Error('missing jsontag parameter')}
-//    console.log('starting initialize')
 	dataspace = jsontag
-//    console.log('so far')
+    meta = m
     deepFreeze(dataspace)
-//    console.log('initialized query worker thread')
     return true
 }
 
@@ -110,15 +107,15 @@ export function runQuery({pointer, request, query}) {
             sandbox: {
                 root: dataspace, //@TODO: if we don't pass the root, we can later shard
                 data: result,
-                meta: meta,
-                _: _,
-                from: from,
-                not: not,
-                anyOf: anyOf,
-                allOf: allOf,
+                meta,
+                _,
+                from,
+                not,
+                anyOf,
+                allOf,
 //                    console: connectConsole(res),
-                JSONTag: JSONTag,
-                request: request
+                JSONTag,
+                request
             },
             wasm: false
         })
@@ -130,7 +127,7 @@ export function runQuery({pointer, request, query}) {
             console.log(err)
             response.code = 422;
             if (request.jsontag) {
-            	response.body = '<object class="Error">{"message":'+originalJSON.stringify(''+err)+',"code":422}'
+            	response.body = '<object class="Error">{"message":'+JSON.stringify(''+err)+',"code":422}'
             } else {
             	response.body = JSON.stringify({message:err, code: 422})
             }
