@@ -7,7 +7,7 @@ import commands from './commands.mjs'
  * and type+attribute data gets lost
  */
 
-let dataspace
+let dataspace, meta
 
 export function setDataspace(d) {
 	dataspace = d
@@ -19,10 +19,10 @@ export function setDataspace(d) {
  * @TODO: setTimeout or do above checks in server.mjs before queueing
  */
 
-export function async initialize(jsontag) {
+export async function initialize(jsontag, m) {
     if (!jsontag) { throw new Error('missing jsontag parameter')}
 	dataspace = jsontag
-	console.log('initialized command worker thread')
+	meta = m
 	return true
 }
 

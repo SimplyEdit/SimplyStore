@@ -224,8 +224,8 @@ async function main(options) {
                 let dataspace = JSONTag.parse(jsontag)
                 //@TODO: make sure queryWorkerpool is only replaced after
                 //workers are initialized, to prevent hickups if initialization takes a long time
-                let newQueryWorkerpool = initWorkerPool('./worker-query')
-                queryWorkerpool.terminate() // gracefully
+                let newQueryWorkerpool = initWorkerPool(queryWorker)
+                queryWorkerpool.destroy() // gracefully
                 queryWorkerpool = newQueryWorkerpool
                 //@TODO: write dataspace to disk
                 status.set(command.id, 'done')
