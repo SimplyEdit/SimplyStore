@@ -23,7 +23,6 @@
 		"json-pointer": "^0.6.2",
 		"jsonpath-plus": "^7.2.0",
 		"piscina": "^4.1.0",
-		"threads": "^1.7.0",
 		"vm2": "^3.9.13"
 	},
 	"devDependencies": {
