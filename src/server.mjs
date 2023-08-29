@@ -37,7 +37,7 @@ async function main(options) {
 
     let queryWorkerpool = initWorkerPool(queryWorker)
 
-//    const commandWorkerpool = initWorkerPool(commandWorker,1) // only one update worker so no changes can get lost
+    const commandWorkerpool = initWorkerPool(commandWorker,1) // only one update worker so no changes can get lost
 
     server.get('/', (req,res) => {
         res.send('<h1>SimplyStore</h1>') //@TODO: implement something nice
