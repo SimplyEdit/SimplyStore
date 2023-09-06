@@ -90,7 +90,6 @@ async function main(options) {
 
     server.get('/query/*', (req, res, next) => 
     {
-        console.log('express query')
         let start = Date.now()
 
         if ( !accept(req,res,
@@ -172,73 +171,81 @@ async function main(options) {
     })
 
     server.post('/command', async (req, res) => {
-        let start = Date.now()
-        if ( !accept(req,res,
-            ['application/jsontag','application/json']) 
-        ) {
-            return
-        }
-        let error, result
-
-        let commandStr = req.body.toString() // raw body through express.raw()
-        let command = JSONTag.parse(commandStr)
-        if (!command.id) {
-            error = {
-                code: 422,
-                message: "Command has no id"
+        try {
+            let start = Date.now()
+            if ( !accept(req,res,
+                ['application/jsontag','application/json']) 
+            ) {
+                return
             }
-            sendCommandResponse(error, req, res)
-            return
-        } else if (status.has(command.id)) {
+            let error, result
+
+            let commandStr = req.body.toString() // raw body through express.raw()
+            let command = JSONTag.parse(commandStr)
+            console.log('command',command)
+            if (!command || !command.id) {
+                error = {
+                    code: 422,
+                    message: "Command has no id"
+                }
+                sendCommandResponse(error, req, res)
+                return
+            } else if (status.has(command.id)) {
+                result = "OK"
+                sendCommandResponse(result, req, res)
+                return
+            } else if (!command.name || !commands[command.name]) {
+                error = {
+                    code: 422,
+                    message: "Command has no name or is unknown"
+                }
+                sendCommandResponse(error, req, res)
+                return            
+            }
+            // catch appendFile errors?
+            await appendFile(commandLog, JSONTag.stringify(command))
+
+            status.set(command.id, 'queued')
+            console.log('command',command)
+
             result = "OK"
             sendCommandResponse(result, req, res)
-            return
-        } else if (!command.name || !commands[command.name]) {
-            error = {
-                code: 422,
-                message: "Command has no name or is unknown"
+            let request = {
+                method: req.method,
+                url: req.originalUrl,
+                query: req.query,
+                jsontag: req.accepts('application/jsontag')
             }
-            sendCommandResponse(error, req, res)
-            return            
-        }
-        await appendFile(commandLog, JSONTag.stringify(command))
 
-        status.set(command.id, 'queued')
-        console.log('command',command)
-
-        result = "OK"
-        sendCommandResponse(result, req, res)
-        let request = {
-            method: req.method,
-            url: req.originalUrl,
-            query: req.query,
-            jsontag: req.accepts('application/jsontag')
-        }
-
-        commandWorkerpool
-        .run({request, commandStr})
-        .then(response => {
-            //@TODO store response status, if response.code => error
-            if (!response.code) {
-                jsontag = response.body // global jsontag
-                let dataspace = JSONTag.parse(jsontag)
-                //@TODO: make sure queryWorkerpool is only replaced after
-                //workers are initialized, to prevent hickups if initialization takes a long time
-                let newQueryWorkerpool = initWorkerPool(queryWorker)
-                queryWorkerpool.destroy() // gracefully
-                queryWorkerpool = newQueryWorkerpool
-                //@TODO: write dataspace to disk
-                status.set(command.id, 'done')
-                let end = Date.now()
-                console.log(command.name, (end-start), process.memoryUsage())        
-            }
-        })
-        .catch(err => {
+            commandWorkerpool
+            .run({request, commandStr})
+            .then(response => {
+                //@TODO: add try/catch here as well
+                //@TODO store response status, if response.code => error
+                if (!response.code) {
+                    jsontag = response.body // global jsontag
+                    let dataspace = JSONTag.parse(jsontag)
+                    //@TODO: make sure queryWorkerpool is only replaced after
+                    //workers are initialized, to prevent hickups if initialization takes a long time
+                    let newQueryWorkerpool = initWorkerPool(queryWorker)
+                    queryWorkerpool.destroy() // gracefully
+                    queryWorkerpool = newQueryWorkerpool
+                    //@TODO: write dataspace to disk
+                    status.set(command.id, 'done')
+                    let end = Date.now()
+                    console.log(command.name, (end-start), process.memoryUsage())        
+                }
+            })
+            .catch(err => {
+                console.error(err)
+                //@TODO: set status for this command to error with this err
+                status.set(command.id, err)
+            })
+        } catch(err) {
             console.error(err)
-            //@TODO: set status for this command to error with this err
-            status.set(command.id, err)
-        })
-
+            res.status(500)
+            res.send(err)
+        }
     })
 
     function handleWebRequest(req,res,options)
