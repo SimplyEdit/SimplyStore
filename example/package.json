@@ -1,0 +1,13 @@
+{
+    "name": "Example SimplyStore",
+    "main": "server.mjs",
+    "scripts": {
+        "start": "node server.mjs"
+    },
+    "dependencies": {
+        "@muze-nl/jsontag": "^0.8.6",
+        "@muze-nl/jsontag-types": "^0.1.1",
+        "@muze-nl/simplystore": "^0.3.2",
+        "array-where-select": "^0.3.1"
+    }
+}
