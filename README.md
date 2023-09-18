@@ -3,8 +3,10 @@
 SimplyStore is a radically simpler backend storage server. It does not have a database, certainly no SQL or GraphQL, it is not REST. In return it has a well defined API that is automatically derived from your dataset. It supports JSONTag to allow for semantically meaningful data, without having to do the full switch to Linked Data and triple stores. The query format is javascript, you can post javascript queries that will run on the server. All data is read into memory and is available to these javascript queries without needing (or allowing) disk access or indexes.
 
 [JSONTag](https://github.com/poef/jsontag) is an enhancement over JSON that allows you to tag JSON data with metadata using HTML-like tags.
-Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox.
+Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox. 
 You can query data using the [array-where-select](https://www.npmjs.com/package/array-where-select) extension.
+
+Note: _There are known security issues in VM2, so the project will switch to V8-isolate. For now don't use SimplyStore in production_
 
 ## Table of Contents
 
@@ -160,6 +162,8 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 - add support for metadata on each JSON pointer path (or better: each object)
 - allow custom templates, instead of the default index.html
 - add support for access control, based on webid / openid connect
+- switch from VM2 to V8-isolate, which is more secure
+- switch the server runtime to Rust, so SimplyStore can share immutable data between threads
 
 <a name="license"></a>
 ## License
