@@ -1,6 +1,6 @@
 import JSONTag from "@muze-nl/jsontag"
 import pointer from 'json-pointer'
-import {_,from,not,anyOf,allOf} from 'array-where-select'
+import {_,from,not,anyOf,allOf,asc,desc} from 'array-where-select'
 import {deepFreeze} from './util.mjs'
 import {VM} from 'vm2'
 
@@ -113,6 +113,8 @@ export function runQuery({pointer, request, query}) {
                 not,
                 anyOf,
                 allOf,
+                asc,
+                desc,
 //                    console: connectConsole(res),
                 JSONTag,
                 request
