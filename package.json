@@ -17,7 +17,7 @@
 	"homepage": "https://github.com/simplyedit/simplystore#readme",
 	"dependencies": {
 		"@muze-nl/jsontag": "^0.8.6",
-		"array-where-select": "^0.4.2",
+		"array-where-select": "^0.4.3",
 		"codemirror": "^6.0.1",
 		"express": "^4.18.1",
 		"json-pointer": "^0.6.2",
