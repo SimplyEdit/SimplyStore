@@ -103,11 +103,27 @@ from(data.persons)
 })
 ```
 
-See the [array-where-select](https://www.npmjs.com/package/array-where-select) package for more information about the query possibilities.
+See the [query documentation](docs/queries.md) for more information about the query possibilities.
 
 Remember: it is just javascript, so you can also use filter(), map() and reduce() on arrays. You can use all the default javascript API's, like Math, Array, Object, etc. You can not use any webbrowser API's, and you can't access any NodeJS API's. You do not have network access in your query.
 
 Most important: queries cannot change the dataset, it is immutable.
+
+## Example SimplyStore server
+
+The example directory contains a server that uses SimplyStore to serve a
+Star Wars API. 
+
+To start it:
+
+```shell
+cd example/
+npm install
+npm start
+```
+
+Now go to http://localhost:3000/query/ and you can run all the example
+queries from the [query documentation](docs/queries.md)
 
 <a name="goals"></a>
 ## Goals of this project
