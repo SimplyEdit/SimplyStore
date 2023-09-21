@@ -9,7 +9,8 @@ SimplyStore uses javascript as its query engine. This means that you can write a
 - [Filtering with Where()](#where)
 - [Request parameters](#request)
 - [Paginating results](#paginating)
-- [Sorting with orderBy()]("#orderBy")
+- [Sorting with orderBy()](#orderBy)
+- [Grouping with groupBy()](#groupBy)
 - [Default values](#defaults)
 - [Array functions](#array-functions)
 - [Conditional execution](#conditional)
@@ -28,7 +29,7 @@ from(data.people)
 ```
 Returns:
 
-```
+```jsontag
 [
     {
         "name":<text>"Luke Skywalker"
@@ -40,6 +41,7 @@ Returns:
         "name":<text>"R2-D2"
     },
     ...
+]
 ```
 
 The equivalent GraphQL query would be:
@@ -66,7 +68,7 @@ from(data.people)
 
 With the following result:
 
-```
+```jsontag
 [
     {
         "name":<text>"Luke Skywalker",
@@ -89,6 +91,7 @@ With the following result:
         ]
     },
     ...
+]
 ```
 
 The equivalent GraphQL query would be:
@@ -193,6 +196,7 @@ Resulting in:
         "info":"Darth Vader (male)"
     },
     ...
+]
 ```
 
 GraphQL doesn't allow you to write your own functions in the query, so there is no equivalent GraphQL query.
@@ -215,7 +219,7 @@ from(data.people)
 ```
 
 And the result is:
-```
+```jsontag
 [
     {
         "name":<text>"Luke Skywalker"
@@ -230,6 +234,7 @@ And the result is:
         "name":<text>"Darth Vader"
     },
     ...
+]
  ```
  
 In GraphQL you would have to have a prepared query or reducer that allows you to filter on a film title. In that case the query would probably look like this:
@@ -299,7 +304,7 @@ Paginate(results)
 ```
 
 This will result in:
-```
+```jsontag
 {
     "count":87,
     "data":[
@@ -383,6 +388,7 @@ Which gives this result:
         }
     },
     ...
+]
 ```
 
 orderBy() sorts on the properties in the order given. Only if an earlier sort property is equal, will the next property be compared.
@@ -391,7 +397,7 @@ orderBy() can be added before or after the select() clause. If you add it before
 
 The corresponding GraphQL query depends on which GraphQL engine you are using. But usually it would be:
 
-```GraphQL
+```GraphQL=
 query People {
   people(order_by:{home_world:{gravity:asc},name:asc}) {
     name
@@ -399,6 +405,66 @@ query People {
       gravity
     }
   }
+}
+```
+
+<a name="groupBy"></a>
+## Grouping with groupBy
+
+Note: _This function is still very experimental and likely to change._
+
+You can group results by distinct field values, like this:
+
+```javascript=
+from(data.people)
+.groupBy({
+    films: {
+        title: _.name
+    }
+})
+```
+
+Which results in:
+```json
+{
+    "Revenge of the Sith":[
+        "Luke Skywalker",
+        "C-3PO",
+        "R2-D2",
+        ...
+    ],
+    "Return of the Jedi":[
+        "Luke Skywalker",
+        "C-3PO",
+        "R2-D2",
+        ...
+    ],
+    ...
+}
+
+```
+
+In addition, you can also use the SQL-like functions `count()`,`sum()`,`avg()`,`min()` and `max()`. Of these `count()` will work on any value. The others need number values.
+
+```javascript=
+from(data.people)
+.groupBy({
+  films: {
+    title: count()
+  }
+})
+```
+
+Results in:
+```json
+{
+    "Revenge of the Sith":34,
+    "Return of the Jedi":20,
+    "The Empire Strikes Back":16,
+    "A New Hope":18,
+    "The Force Awakens":11,
+    "Attack of the Clones":40,
+    "The Phantom Menace":34
 }
 ```
 
