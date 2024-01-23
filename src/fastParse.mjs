@@ -2,12 +2,10 @@ import JSONTag from '@muze-nl/jsontag';
 import Null from '@muze-nl/jsontag/src/lib/Null.mjs'
 
 const decoder = new TextDecoder()
+export const source = Symbol('source')
 
 export default function parse(input, meta)
 {
-    if (!(input instanceof Uint8Array)) {
-        error('fast parse only accepts Uint8Array as input')
-    }
     if (!meta) {
         meta = {}
     }
@@ -39,13 +37,21 @@ export default function parse(input, meta)
 
     let error = function(m)
     {
-        let context = decoder.decode(input.slice(0,at+100));
+        let context
+        try {
+            context = decoder.decode(input.slice(at-100,at+100));
+        } catch(err) {}
         throw {
             name: 'SyntaxError',
             message: m,
             at: at,
             input: context
         }
+    }
+
+    if (!(input instanceof Uint8Array)) {
+        console.log('input',input)
+        error('fast parse only accepts Uint8Array as input')
     }
 
     let next = function(c)
@@ -645,6 +651,8 @@ export default function parse(input, meta)
         let parsed = false
         at += length
         next()
+        //@FIXME: toString method on proxy should run cache toString, if filled
+        //or return slice of the input from start to end
         return new Proxy(cache, {
             get(target, prop, receiver) {
                 if (!parsed) {
@@ -827,3 +835,4 @@ export default function parse(input, meta)
     
     return resultArray
 }
+

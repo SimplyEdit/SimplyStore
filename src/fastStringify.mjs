@@ -1,4 +1,5 @@
 import JSONTag from '@muze-nl/jsontag';
+import {source} from './fastParse.mjs'
 
 // faststringify function for a fast parseable arraybuffer output
 // 
@@ -49,7 +50,8 @@ export default function stringify(value) {
 		const str = (key, holder) => {
 			let value = holder[key]
 			let result, updateReference
-			if (typeof value === 'object' && references.has(value)) {
+			//@FIXME: only objects with jsontag type object should be handled this way
+			if (JSONTag.getType(value) === 'object' && references.has(value)) {
 				let id = JSONTag.getAttribute(value, 'id')
 				if (!id) {
 					id = createId(value)
@@ -59,7 +61,7 @@ export default function stringify(value) {
 			if (typeof value === 'undefined' || value === null) {
 				return 'null'
 			}
-			if (typeof value === 'object' && !Array.isArray(value)) {
+			if (JSONTag.getType(value) === 'object' && !Array.isArray(value)) {
 				references.set(value, resultArray.length)
 				updateReference = resultArray.length
 				resultArray.push('')
@@ -67,7 +69,9 @@ export default function stringify(value) {
 			if (Array.isArray(value)) {
 				result = JSONTag.getTypeString(value) + "["+encodeEntries(value)+"]"
 			} else if (value instanceof Object) {
-				switch (JSONTag.getType(value)) {
+				let typeString = JSONTag.getTypeString(value)
+				let type = JSONTag.getType(value)
+				switch (type) {
 					case 'string':
 					case 'decimal':
 					case 'money':
@@ -84,7 +88,12 @@ export default function stringify(value) {
 					case 'date':
 					case 'time':
 					case 'datetime':
-						result = JSONTag.getTypeString(value) + JSON.stringify(''+value)
+						if (JSONTag.isNull(value)) {
+							value = 'null'
+						} else {
+							value = JSON.stringify(''+value)
+						}
+						result = typeString + value
 					break
 					case 'int':
 					case 'uint':
@@ -96,24 +105,31 @@ export default function stringify(value) {
 					case 'uint32':
 					case 'int64':
 					case 'uint64':
+						console.log('int',value)
+
 					case 'float':
 					case 'float32':
 					case 'float64':
 					case 'timestamp':
 					case 'number':
 					case 'boolean':
-						result = JSONTag.getTypeString(value) + JSON.stringify(value)
+						if (JSONTag.isNull(value)) {
+							value = 'null'
+						} else {
+							value = JSON.stringify(value)
+						}
+						result = typeString + value
 					break
 					case 'array': 
 						let entries = encodeEntries(value) // calculate children first so parent references can add id attribute
-						result = JSONTag.getTypeString(value) + '[' + entries + '}'
+						result = typeString + '[' + entries + '}'
 					break
 					case 'object': 
-						if (value === null) {
-							result = "null"
+						if (JSONTag.isNull(value)) {
+							result = typeString + "null"
 						} else {
 							let props = encodeProperties(value); // calculate children first so parent references can add id attribute
-							result = JSONTag.getTypeString(value) + '{' + props + '}'
+							result = typeString + '{' + props + '}'
 						}
 					break
 					default:
