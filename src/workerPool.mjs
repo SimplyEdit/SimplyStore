@@ -40,8 +40,10 @@ export default class WorkerPool extends EventEmitter {
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, and mark it as free
       // again.
-      worker[kTaskInfo].done(null, result);
-      worker[kTaskInfo] = null;
+      if (worker[kTaskInfo]) {
+        worker[kTaskInfo].done(null, result);
+        worker[kTaskInfo] = null;
+      }
       this.freeWorkers.push(worker);
       this.emit(kWorkerFreedEvent);
     });
@@ -58,8 +60,6 @@ export default class WorkerPool extends EventEmitter {
       this.addNewWorker();
     });
     this.workers.push(worker);
-    worker[kTaskInfo] = new WorkerPoolTaskInfo(() => {
-    });
     worker.postMessage(this.initTask);
   }
 
@@ -67,10 +67,8 @@ export default class WorkerPool extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.runTask({name,req}, (error, result) => {
         if (error) {
-          console.log('worker error response')
           return reject(error)
         }
-        console.log('worker result')
         return resolve(result)
       })
     })
@@ -85,7 +83,6 @@ export default class WorkerPool extends EventEmitter {
     }
     const worker = this.freeWorkers.pop();
     worker[kTaskInfo] = new WorkerPoolTaskInfo(callback);
-    console.log('run task',task)
     worker.postMessage(task);
   }
 
@@ -93,6 +90,13 @@ export default class WorkerPool extends EventEmitter {
     // re-init all workers when they become available
     // or move current workers to stoplist and terminate them when they become free
     // and start new workers, with the initTask?
+  }
+
+  memoryUsage() {
+    for (let worker of this.freeWorkers) {
+      worker[kTaskInfo] = new WorkerPoolTaskInfo((result) => {})
+      worker.postMessage({name:'memoryUsage'})
+    }
   }
 
   close() {
