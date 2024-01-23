@@ -283,31 +283,3 @@ function handleWebRequest(req,res,options)
         res.sendFile('/index.html', fileOptions)
     }
 }
-
-function linkReplacer(data, baseURL) {
-    let type = JSONTag.getType(data)
-    let attributes = JSONTag.getAttributes(data)
-    if (Array.isArray(data)) {
-        data = data.map((entry,index) => {
-            return linkReplacer(data[index], baseURL+index+'/')
-        })
-    } else if (type === 'link') {
-        // do nothing
-    } else if (data && typeof data === 'object') {
-        data = JSONTag.clone(data)
-        Object.keys(data).forEach(key => {
-            if (Array.isArray(data[key])) {
-                data[key] = new JSONTag.Link(baseURL+key+'/')
-            } else if (typeof data[key] === 'object') {
-                if (JSONTag.getType(data[key])!=='link') {
-                    let id=JSONTag.getAttribute(data[key], 'id')
-                    if (!id) {
-                        id = baseURL+key+'/'
-                    }
-                    data[key] = new JSONTag.Link(id)
-                }
-            }
-        })
-    }
-    return data
-}

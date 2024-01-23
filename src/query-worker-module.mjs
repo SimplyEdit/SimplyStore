@@ -14,10 +14,6 @@ const tasks = {
 		return true
 	},
 	query: async (task) => {
-		console.log('running query')
-		if (task.req.method=='GET') {
-			task.req.body = 'data'
-		}
 		return runQuery(task.req.path, task.req, task.req.body)
 	}
 }
@@ -125,6 +121,7 @@ export function runQuery(pointer, request, query) {
             }
         }
     } else {
+        console.log('no query, send path',path)
         result = linkReplacer(result, path+'/')
     }
     if (!response.code) {
@@ -138,6 +135,7 @@ export function runQuery(pointer, request, query) {
                 response.body = '<object class="Error">{"message":'+JSON.stringify(''+err)+',"code":500}'
             }
         } else {
+            //@FIXME: replace recursive links
         	response.body = JSON.stringify(result)
         }
     }
