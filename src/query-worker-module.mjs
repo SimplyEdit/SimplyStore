@@ -1,11 +1,20 @@
 import JSONTag from '@muze-nl/jsontag'
-import fastParse from './fastParse.mjs'
+import fastParse,{source} from './fastParse.mjs'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'array-where-select'
 import pointer from 'json-pointer'
 import {VM} from 'vm2'
+import { memoryUsage } from 'node:process'
 
 let dataspace
 let meta = {}
+
+const FastJSONTag = {
+    getType: (obj) => JSONTag.getType(obj[source]),
+    getAttribute: (obj, attr) => JSONTag.getAttribute(obj[source],attr),
+    getAttributes: (obj) => JSONTag.getAttributes(obj[source]),
+    getAttributeString: (obj) => JSONTag.getAttributesString(obj[source]),
+    getTypeString: (obj) => JSONTag.getTypeString(obj[source])
+}
 
 const tasks = {
 	init: async (task) => {
@@ -15,7 +24,12 @@ const tasks = {
 	},
 	query: async (task) => {
 		return runQuery(task.req.path, task.req, task.req.body)
-	}
+	},
+    memoryUsage: async () => {
+        let result = memoryUsage()
+        console.log('memory',result)
+        return result
+    }
 }
 
 export default tasks
@@ -102,7 +116,7 @@ export function runQuery(pointer, request, query) {
                 max,
                 min,    
 //                    console: connectConsole(res),
-                JSONTag,
+                JSONTag: FastJSONTag,
                 request
             },
             wasm: false
@@ -121,13 +135,11 @@ export function runQuery(pointer, request, query) {
             }
         }
     } else {
-        console.log('no query, send path',path)
         result = linkReplacer(result, path+'/')
     }
     if (!response.code) {
         if (response.jsontag) {
             try {
-                console.log('result',typeof result,result,Array.isArray(result))
             	response.body = JSONTag.stringify(result)
             } catch(err) {
                 console.log(err)
