@@ -50,7 +50,6 @@ export default function parse(input, meta)
     }
 
     if (!(input instanceof Uint8Array)) {
-        console.log('input',input)
         error('fast parse only accepts Uint8Array as input')
     }
 
@@ -634,10 +633,10 @@ export default function parse(input, meta)
         return parseInt(numString)
     }
 
-    let parseValue = function(target, position) {
+    let parseValue = function(position) {
         at = position.start
         next()
-        Object.assign(target, value())
+        return value()
     }
 
     let valueProxy = function(length)
@@ -656,21 +655,24 @@ export default function parse(input, meta)
         return new Proxy(cache, {
             get(target, prop, receiver) {
                 if (!parsed) {
-                    parseValue(cache, position)
+                    cache = parseValue(position)
                     parsed = true
+                }
+                if (prop===source) {
+                    return cache
                 }
                 return cache[prop]
             },
             has() {
                 if (!parsed) {
-                    parseValue(cache, position)
+                    cache = parseValue(position)
                     parsed = true
                 }
                 return typeof cache[prop] !== 'undefined'
             },
             ownKeys() {
                 if (!parsed) {
-                    parseValue(cache, position)
+                    cache = parseValue(position)
                     parsed = true
                 }
                 return Reflect.ownKeys(cache)
