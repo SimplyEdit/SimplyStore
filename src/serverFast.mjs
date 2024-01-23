@@ -23,7 +23,6 @@ async function main(options) {
     const queryWorker   = options.queryWorker   || __dirname+'/src/query-worker.mjs'
     const loadWorker    = options.loadWorker    || __dirname+'/src/load-worker.mjs'
 
-    console.log('root',wwwroot)
 	server.use(express.static(wwwroot))
 
 	// allow access to raw body, used to parse a query send as post body
@@ -47,8 +46,7 @@ async function main(options) {
     }
     try {
 	    jsontagBuffer = await loadData()
-        fs.writeFileSync('./dump.txt', Buffer.from(jsontagBuffer))
-        console.log('data loaded')
+//        fs.writeFileSync('./dump.txt', Buffer.from(jsontagBuffer))
 	} catch(err) {
 		console.error('ERROR: SimplyStore cannot load '+datafile, err)
 		process.exit(1)
@@ -130,7 +128,8 @@ async function main(options) {
         	sendError(error, res)
         }
         let end = Date.now()
-        console.log(path, (end-start), process.memoryUsage())    
+        console.log(path, (end-start), process.memoryUsage())
+//        queryWorkerPool.memoryUsage()
     })
 
     let status = new Map()
@@ -220,6 +219,8 @@ async function main(options) {
 
     server.listen(port, () => {
         console.log('SimplyStore listening on port '+port)
+        let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
+        console.log(`(${used} MB)`);
     })
 }
 
@@ -264,7 +265,6 @@ function accept(req, res, mimetypes, handler) {
 
 function handleWebRequest(req,res,options)
 {
-    console.log('web request',options)
     let path = req.path;
     path = path.replace(/[^a-z0-9_\.\-\/]*/gi, '') // whitelist acceptable file paths
     path = path.replace(/\.+/g, '.') // blacklist '..'
