@@ -11,6 +11,7 @@ import httpStatusCodes from './statusCodes.mjs'
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 let jsontagBuffer = null
+let meta = {}
 
 async function main(options) {
     if (!options) {
@@ -45,7 +46,9 @@ async function main(options) {
 	    })
     }
     try {
-	    jsontagBuffer = await loadData()
+        let data = await loadData()
+	    jsontagBuffer = data.data
+        meta = data.meta
 //        fs.writeFileSync('./dump.txt', Buffer.from(jsontagBuffer))
 	} catch(err) {
 		console.error('ERROR: SimplyStore cannot load '+datafile, err)
@@ -55,7 +58,8 @@ async function main(options) {
     const queryWorkerInitTask = {
     	name: 'init',
     	req: {
-    		body: jsontagBuffer
+    		body: jsontagBuffer,
+            meta
     	}
     }
 
@@ -135,7 +139,7 @@ async function main(options) {
     let status = new Map()
 
     server.post('/command', async (req, res) => {
-        function runCommand(name,data) {
+        function runCommand(name,data,meta) {
             return new Promise((resolve,reject) => {
                 let worker = new Worker(commandWorker)
                 worker.on('message', result => {
@@ -149,6 +153,7 @@ async function main(options) {
                 worker.postMessage({
                     name,
                     req,
+                    meta,
                     data: jsontagBuffer
                 })
             })
@@ -164,7 +169,9 @@ async function main(options) {
             result = 'OK'
             sendResponse({body: JSON.stringify(result)}, res)
 
-            jsontagBuffer = await runCommand(command, jsontagBuffer)
+            let data = await runCommand(command, jsontagBuffer, meta)
+            jsontagBuffer = data.data
+            meta = data.meta
             status.set(command.id, 'done')
             //@TODO: re-init query workers
             // updateQueryWorkers()
