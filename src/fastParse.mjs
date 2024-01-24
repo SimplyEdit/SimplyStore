@@ -3,6 +3,7 @@ import Null from '@muze-nl/jsontag/src/lib/Null.mjs'
 
 const decoder = new TextDecoder()
 export const source = Symbol('source')
+export const isProxy = Symbol('isProxy')
 
 export default function parse(input, meta)
 {
@@ -660,6 +661,8 @@ export default function parse(input, meta)
                 }
                 if (prop===source) {
                     return cache
+                } else if (prop===isProxy) {
+                    return true
                 }
                 return cache[prop]
             },
