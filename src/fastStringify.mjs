@@ -4,9 +4,18 @@ import {source} from './fastParse.mjs'
 // faststringify function for a fast parseable arraybuffer output
 // 
 
-export default function stringify(value) {
+export default function stringify(value, meta) {
 	let resultArray = []
 	let references = new WeakMap()
+	if (!meta) {
+		meta = {}
+	}
+	if (!meta.index) {
+		meta.index = {}
+	}
+	if (!meta.index.id) {
+		meta.index.id = new Map()
+	}
 
 	const innerStringify = (value) => {
 		let indent = ""
@@ -56,7 +65,9 @@ export default function stringify(value) {
 				if (!id) {
 					id = createId(value)
 				}
-				return '~'+references.get(value)
+				let reference = references.get(value)
+				meta.index.id.set(id, reference)
+				return '~'+reference
 			}
 			if (typeof value === 'undefined' || value === null) {
 				return 'null'
@@ -64,6 +75,10 @@ export default function stringify(value) {
 			if (JSONTag.getType(value) === 'object' && !Array.isArray(value)) {
 				references.set(value, resultArray.length)
 				updateReference = resultArray.length
+				let id = JSONTag.getAttribute(value, 'id')
+				if (id) {
+					meta.index.id.set(id, updateReference)
+				}
 				resultArray.push('')
 			}
 			if (Array.isArray(value)) {
@@ -105,8 +120,6 @@ export default function stringify(value) {
 					case 'uint32':
 					case 'int64':
 					case 'uint64':
-						console.log('int',value)
-
 					case 'float':
 					case 'float32':
 					case 'float64':
