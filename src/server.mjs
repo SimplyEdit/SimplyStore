@@ -1,15 +1,17 @@
 import express from 'express'
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
+import WorkerPool from './workerPool.mjs'
+import { Worker } from 'worker_threads'
 import { fileURLToPath } from 'url'
-import path from 'path'
-import commands from './commands.mjs'
 import {appendFile} from './util.mjs'
-import {Piscina} from 'piscina'
+import path from 'path'
+import httpStatusCodes from './statusCodes.mjs'
 
+const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-
-const server    = express()
+let jsontagBuffer = null
+let meta = {}
 
 async function main(options) {
     if (!options) {
@@ -18,80 +20,55 @@ async function main(options) {
     const port          = options.port          || 3000
     const datafile      = options.datafile      || './data.jsontag'
     const wwwroot       = options.wwwroot       || __dirname+'/www'
-    const commandLog    = options.commandlog    || './commandlog.jsontag'
-    const queryWorker   = options.queryWorker   || __dirname+'/src/worker-query-init.mjs'
-    const commandWorker = options.commandWorker || __dirname+'/src/worker-command-init.mjs'
+    const maxWorkers    = options.maxWorkers    || 8
+    const queryWorker   = options.queryWorker   || __dirname+'/src/query-worker.mjs'
+    const loadWorker    = options.loadWorker    || __dirname+'/src/load-worker.mjs'
+    const commandWorker = options.commandWorker || __dirname+'/src/command-worker.mjs'
 
-    let jsontag         = fs.readFileSync(datafile, 'utf-8')
+	server.use(express.static(wwwroot))
 
-    function initWorkerPool(workerName, size=null) {
-        let options = {
-            filename: workerName,
-            workerData: jsontag
-        }
-        if (size) {
-            options.maxThreads = size
-        }
-        return new Piscina(options)
-    }
-
-    let queryWorkerpool = initWorkerPool(queryWorker)
-
-    const commandWorkerpool = initWorkerPool(commandWorker,1) // only one update worker so no changes can get lost
-
-    server.get('/', (req,res) => {
-        res.send('<h1>SimplyStore</h1>') //@TODO: implement something nice
-    })
-
-    server.use(express.static(wwwroot))
-
-    // allow access to raw body, used to parse a query send as post body
+	// allow access to raw body, used to parse a query send as post body
     server.use(express.raw({
         type: (req) => true // parse body on all requests
     }))
 
-    function accept(req, res, mimetypes, handler) {
-        let accept = req.accepts(mimetypes)
-        if (!accept) {
-            res.status(406)
-            res.send("<h1>406 Unacceptable</h1>\n")
-            return false
-        }
-        if (typeof handler === 'function') {
-            return handler(req, res, accept)
-        }
-        return true
+    function loadData() {
+    	return new Promise((resolve,reject) => {
+	    	let worker = new Worker(loadWorker)
+	    	worker.on('message', result => {
+	    		resolve(result)
+	    		worker.terminate()
+	    	})
+	    	worker.on('error', error => {
+	    		reject(error)
+	    		worker.terminate()
+	    	})
+	    	worker.postMessage(datafile)
+	    })
+    }
+    try {
+        let data = await loadData()
+	    jsontagBuffer = data.data
+        meta = data.meta
+//        fs.writeFileSync('./dump.txt', Buffer.from(jsontagBuffer))
+	} catch(err) {
+		console.error('ERROR: SimplyStore cannot load '+datafile, err)
+		process.exit(1)
+	}
+
+    const queryWorkerInitTask = {
+    	name: 'init',
+    	req: {
+    		body: jsontagBuffer,
+            meta
+    	}
     }
 
-    function sendResponse(response, res) {
-        if (response.code) {
-            res.status(response.code)
-        }
-        if (response.jsontag) {
-            res.setHeader('content-type','application/jsontag')
-        } else {
-            res.setHeader('content-type','application/json')
-        }
-        res.send(response.body)+"\n"
-    }
+    let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask)
 
-    function sendCommandResponse(result, req, res) {
-        if (result.code) {
-            res.status(result.code)
-        }
-        if (req.accepts('application/jsontag')) {
-            res.setHeader('content-type','application/jsontag')
-            res.send(JSONTag.stringify(result, null, 4)+"\n")
-        } else {
-            res.setHeader('content-type','application/json')
-            res.send(JSON.stringify(result, null, 4)+"\n")
-        }
-    }
-
-    server.get('/query/*', (req, res, next) => 
+    server.get('/query/*', async (req, res, next) => 
     {
         let start = Date.now()
-
         if ( !accept(req,res,
             ['application/jsontag','application/json','text/html','text/javascript','image/*'], 
             function(req, res, accept) {
@@ -99,7 +76,7 @@ async function main(options) {
                     case 'text/html':
                     case 'image/*':
                     case 'text/javascript':
-                        handleWebRequest(req,res,options);
+                        handleWebRequest(req,res,{root:wwwroot});
                         return false
                     break
                 }
@@ -109,52 +86,138 @@ async function main(options) {
             // done
             return
         }
-        let path = req.path.substr(6); // cut '/query'
+        let path = req.path.substr(6) // cut '/query'
+        console.log('query',path)
         let request = {
-            method: req.method,
-            url: req.originalUrl,
-            query: req.query,
-            jsontag: req.accepts('application/jsontag')
+        	method: req.method,
+        	url: req.originalUrl,
+        	query: req.query,
+        	path: path
         }
-        queryWorkerpool.run({pointer:path, request})
-        .then(response => {
-            sendResponse(response, res)
-            let end = Date.now()
-            console.log(path, (end-start), process.memoryUsage())
-        })
+        if (accept(req,res,['application/jsontag'])) {
+            request.jsontag = true
+        }
+        try {
+        	let result = await queryWorkerPool.run('query', request)
+        	sendResponse(result, res)
+        } catch(error) {
+        	sendError(error, res)
+        }
+        let end = Date.now()
+        console.log(path, (end-start), process.memoryUsage())
     })
 
-    /**
-     * handle queries, query is the post body
-     */
-    server.post('/query/*',  (req, res) => {
+    server.post('/query/*', async (req,res) => {
         let start = Date.now()
         if ( !accept(req,res,
             ['application/jsontag','application/json']) 
         ) {
+            sendError({code:406, message:'Not Acceptable',accept:['application/json','application/jsontag']},res)
             return
         }
-        let query = req.body.toString() // raw body through express.raw()
-        let path = req.path.substr(6); // cut '/query'
+        let path = req.path.substr(6) // cut '/query'
         let request = {
-            method: req.method,
-            url: req.originalUrl,
-            query: req.query,
-            jsontag: req.accepts('application/jsontag')
+        	method: req.method,
+        	url: req.originalUrl,
+        	query: req.query,
+        	path: path,
+        	body: req.body.toString()
         }
-        queryWorkerpool.run({pointer:path, request, query})
-        .then(response => {
-            sendResponse(response, res)
-            let end = Date.now()
-            console.log(path, (end-start), process.memoryUsage())
-        })
+        if (accept(req,res,['application/jsontag'])) {
+            request.jsontag = true
+        }
+        try {
+        	let result = await queryWorkerPool.run('query', request)
+        	sendResponse(result, res)
+        } catch(error) {
+        	sendError(error, res)
+        }
+        let end = Date.now()
+        console.log(path, (end-start), process.memoryUsage())
+//        queryWorkerPool.memoryUsage()
     })
 
     let status = new Map()
 
+    server.post('/command', async (req, res) => {
+        function runCommand(name,data,meta,request) {
+            return new Promise((resolve,reject) => {
+                let worker = new Worker(commandWorker)
+                worker.on('message', result => {
+                    resolve(result)
+                    worker.terminate()
+                })
+                worker.on('error', error => {
+                    reject(error)
+                    worker.terminate()
+                })
+                worker.postMessage({
+                    name: command.name,
+                    request,
+                    meta,
+                    data
+                })
+            })
+        }
+
+        let command = checkCommand(req, res)
+        if (!command) {
+            return
+        }
+        try {
+            await appendFile(commandLog, JSONTag.stringify(command))
+            status.set(command.id, 'queued')
+            result = 'OK'
+            sendResponse({body: JSON.stringify(result)}, res)
+
+            let path = req.path.substr(6) // cut '/query'
+            let request = {
+                method: req.method,
+                url: req.originalUrl,
+                query: req.query,
+                path: path
+            }
+
+            let data = await runCommand(command, jsontagBuffer, meta, request)
+            jsontagBuffer = data.data
+            meta = data.meta
+            status.set(command.id, 'done')
+            //@TODO: re-init query workers
+            // updateQueryWorkers()
+        } catch(err) {
+            status.set(command.id, err)
+            console.error('ERROR: SimplyStore cannot run command ', command.id, err)
+            process.exit(1)
+        }
+    })
+
+    function checkCommand(req, res) {
+        let commandStr = req.body.toString() // raw body through express.raw()
+        let command = JSONTag.parse(commandStr)
+        console.log('command',command)
+        if (!command || !command.id) {
+            error = {
+                code: 422,
+                message: "Command has no id"
+            }
+            sendResponse({code: 422, body: JSON.stringify(error)}, res)
+            return false
+        } else if (status.has(command.id)) {
+            result = "OK"
+            sendResponse({body: JSON.stringify(result)}, res)
+            return false
+        } else if (!command.name || !commands[command.name]) {
+            error = {
+                code: 422,
+                message: "Command has no name or is unknown"
+            }
+            sendResponse({code:422, body: JSON.stringify(error)}, res)
+            return false      
+        }
+        return command
+    }
+
     server.get('/command/:id', (req, res) => {
-        //@TODO: find the status of command with :id
-        //return that
         if (status.has(req.params.id)) {
             let result = status.get(req.params.id)
             sendResponse({
@@ -165,143 +228,74 @@ async function main(options) {
             sendResponse({
                 code: 404,
                 jsontag: false,
-                body: JSON.stringify({"code":404,"message":"Command not found"})
+                body: JSON.stringify({code: 404, message: "Command not found"})
             }, res)
         }
     })
 
-    server.post('/command', async (req, res) => {
-        try {
-            let start = Date.now()
-            if ( !accept(req,res,
-                ['application/jsontag','application/json']) 
-            ) {
-                return
-            }
-            let error, result
-
-            let commandStr = req.body.toString() // raw body through express.raw()
-            let command = JSONTag.parse(commandStr)
-            console.log('command',command)
-            if (!command || !command.id) {
-                error = {
-                    code: 422,
-                    message: "Command has no id"
-                }
-                sendCommandResponse(error, req, res)
-                return
-            } else if (status.has(command.id)) {
-                result = "OK"
-                sendCommandResponse(result, req, res)
-                return
-            } else if (!command.name || !commands[command.name]) {
-                error = {
-                    code: 422,
-                    message: "Command has no name or is unknown"
-                }
-                sendCommandResponse(error, req, res)
-                return            
-            }
-            // catch appendFile errors?
-            await appendFile(commandLog, JSONTag.stringify(command))
-
-            status.set(command.id, 'queued')
-            console.log('command',command)
-
-            result = "OK"
-            sendCommandResponse(result, req, res)
-            let request = {
-                method: req.method,
-                url: req.originalUrl,
-                query: req.query,
-                jsontag: req.accepts('application/jsontag')
-            }
-
-            commandWorkerpool
-            .run({request, commandStr})
-            .then(response => {
-                //@TODO: add try/catch here as well
-                //@TODO store response status, if response.code => error
-                if (!response.code) {
-                    jsontag = response.body // global jsontag
-                    let dataspace = JSONTag.parse(jsontag)
-                    //@TODO: make sure queryWorkerpool is only replaced after
-                    //workers are initialized, to prevent hickups if initialization takes a long time
-                    let newQueryWorkerpool = initWorkerPool(queryWorker)
-                    queryWorkerpool.destroy() // gracefully
-                    queryWorkerpool = newQueryWorkerpool
-                    //@TODO: write dataspace to disk
-                    status.set(command.id, 'done')
-                    let end = Date.now()
-                    console.log(command.name, (end-start), process.memoryUsage())        
-                }
-            })
-            .catch(err => {
-                console.error(err)
-                //@TODO: set status for this command to error with this err
-                status.set(command.id, err)
-            })
-        } catch(err) {
-            console.error(err)
-            res.status(500)
-            res.send(err)
-        }
-    })
-
-    function handleWebRequest(req,res,options)
-    {
-        let path = req.path;
-        path = path.replace(/[^a-z0-9_\.\-\/]*/gi, '') // whitelist acceptable file paths
-        path = path.replace(/\.+/g, '.') // blacklist '..'
-        if (!path) {
-            path = '/'
-        }
-        if (path.substring(path.length-1)==='/') {
-            path += 'index.html'
-        }
-        const fileOptions = {
-            root: options.root || wwwroot
-        }
-        if (fs.existsSync(fileOptions.root+path)) {
-            res.sendFile(path, fileOptions)
-        } else {
-            res.sendFile('/index.html', fileOptions)
-        }
-    }
-
-    function linkReplacer(data, baseURL) {
-        let type = JSONTag.getType(data)
-        let attributes = JSONTag.getAttributes(data)
-        if (Array.isArray(data)) {
-            data = data.map((entry,index) => {
-                return linkReplacer(data[index], baseURL+index+'/')
-            })
-        } else if (type === 'link') {
-            // do nothing
-        } else if (data && typeof data === 'object') {
-            data = JSONTag.clone(data)
-            Object.keys(data).forEach(key => {
-                if (Array.isArray(data[key])) {
-                    data[key] = new JSONTag.Link(baseURL+key+'/')
-                } else if (typeof data[key] === 'object') {
-                    if (JSONTag.getType(data[key])!=='link') {
-                        let id=JSONTag.getAttribute(data[key], 'id')
-                        if (!id) {
-                            id = baseURL+key+'/'
-                        }
-                        data[key] = new JSONTag.Link(id)
-                    }
-                }
-            })
-        }
-        return data
-    }
-
     server.listen(port, () => {
         console.log('SimplyStore listening on port '+port)
+        let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
+        console.log(`(${used} MB)`);
     })
+}
 
+function sendResponse(response, res) {
+    if (response.code && httpStatusCodes[response.code]) {
+        res.status(response.code)
+    }
+    if (response.jsontag) {
+        res.setHeader('content-type','application/jsontag')
+    } else {
+        res.setHeader('content-type','application/json')
+    }
+    res.send(response.body)+"\n"
+}
+
+function sendError(error, res) {
+    console.error(error)
+    if (error.code && httpStatusCodes[error.code]) {
+        res.status(error.code)
+    } else {
+        res.status(500)
+    }
+    res.setHeader('content-type','application/json')
+    res.send(JSON.stringify(error))
 }
 
 server.run = main
 export default server
+
+function accept(req, res, mimetypes, handler) {
+    let accept = req.accepts(mimetypes)
+    if (!accept) {
+        res.status(406)
+        res.send("<h1>406 Unacceptable</h1>\n")
+        return false
+    }
+    if (typeof handler === 'function') {
+        return handler(req, res, accept)
+    }
+    return true
+}
+
+function handleWebRequest(req,res,options)
+{
+    let path = req.path;
+    path = path.replace(/[^a-z0-9_\.\-\/]*/gi, '') // whitelist acceptable file paths
+    path = path.replace(/\.+/g, '.') // blacklist '..'
+    if (!path) {
+        path = '/'
+    }
+    if (path.substring(path.length-1)==='/') {
+        path += 'index.html'
+    }
+    const fileOptions = {
+        root: options.root
+    }
+    if (fs.existsSync(fileOptions.root+path)) {
+        res.sendFile(path, fileOptions)
+    } else {
+        res.sendFile('/index.html', fileOptions)
+    }
+}
