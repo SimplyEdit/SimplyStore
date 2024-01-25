@@ -78,6 +78,7 @@ export default function stringify(value, meta, skipLength=false, index) {
 				}
 				let reference
 				if (!meta.index.id.has(id)) {
+					//FIXME: isProxy is already checked, so getIndex should never exist here, right?
 					reference = value[getIndex]
 					if (typeof reference === 'undefined') {
 						reference = resultArray.length

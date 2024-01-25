@@ -646,17 +646,22 @@ export default function parse(input, meta, immutable=true)
         let arrayHandler = {
             get(target, prop) {
                 if (target[prop] instanceof Function) {
-                    if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift'].indexOf(prop)!==-1) {
-                        targetIsChanged = true
+                    return (...args) => {
+                        args = args.map(arg => {
+                            if (JSONTag.getType(arg)==='object' && !arg[isProxy]) {
+                                arg = getNewValueProxy(arg)
+                            }
+                            return arg
+                        })
+                        target[prop].apply(target, args)
                     }
-                    return (...args) => target[prop].apply(target, args)
                 } else if (prop===isChanged) {
                     return true
                 } else {
-                        if (!immutable && Array.isArray(target[prop])) {
-                            return new Proxy(target[prop], arrayHandler)
-                        }
-                        return target[prop]
+                    if (Array.isArray(target[prop])) {
+                        return new Proxy(target[prop], arrayHandler)
+                    }
+                    return target[prop]
                 }
             },
             set(target, prop, value) {
@@ -664,7 +669,6 @@ export default function parse(input, meta, immutable=true)
                     value = getNewValueProxy(value)
                 } 
                 target[prop] = value
-                targetIsChanged = true
                 return true
             }
         }
@@ -693,7 +697,7 @@ export default function parse(input, meta, immutable=true)
                         return true
                     break
                     default:
-                        if (!immutable && Array.isArray(target[prop])) {
+                        if (Array.isArray(target[prop])) {
                             return new Proxy(target[prop], arrayHandler)
                         }
                         return target[prop]
@@ -719,7 +723,7 @@ export default function parse(input, meta, immutable=true)
         // current offset + length contains jsontag of this value
         let position = {
             start: at-1,
-            end: at+length-1
+            end: at-1+length
         }
         let cache = {}
         let targetIsChanged = false
@@ -805,7 +809,7 @@ export default function parse(input, meta, immutable=true)
                         if (!immutable && Array.isArray(cache[prop])) {
                             return new Proxy(cache[prop], arrayHandler)
                         }
-                        return cache[prop]
+                        return cache[prop] // FIXME: make arrays immutable as well
                     break
                 }
             },
