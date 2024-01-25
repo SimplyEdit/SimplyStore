@@ -1,10 +1,10 @@
 import JSONTag from '@muze-nl/jsontag';
-import {source,isProxy,getBuffer,getIndex} from './symbols.mjs'
+import {source,isProxy,getIndex, getBuffer} from './symbols.mjs'
 
 // faststringify function for a fast parseable arraybuffer output
 // 
 
-export default function stringify(value, meta, skipLength=false) {
+export default function stringify(value, meta, skipLength=false, index) {
 	let resultArray = []
 	if (!meta) {
 		meta = {}
@@ -35,9 +35,10 @@ export default function stringify(value, meta, skipLength=false) {
 		}
 
 		const encodeEntries = (arr) => {
-			return arr.map((value,index) => {
+			let result = arr.map((value,index) => {
 				return str(index, arr)
 			}).join(",")
+			return result
 		}
 
 		const createId = (value) => {
@@ -57,13 +58,14 @@ export default function stringify(value, meta, skipLength=false) {
 		}
 
 		const encoder = new TextEncoder()
+		const decoder = new TextDecoder()
 
 		const str = (key, holder) => {
 			let value = holder[key]
 			let result, updateReference
 			// if value is a valueProxy, just copy the input slice
 			if (!JSONTag.isNull(value) && value[isProxy]) {
-				return encoder.encode(value[getBuffer])
+				return decoder.decode(value[getBuffer](index))
 			}
 			if (typeof value === 'undefined' || value === null) {
 				return 'null'
@@ -180,4 +182,3 @@ export default function stringify(value, meta, skipLength=false) {
 	innerStringify(value)
 	return resultArray.map(encode).join("\n")
 }
-

@@ -4,6 +4,7 @@ import fastStringify from './fastStringify.mjs'
 import {source,isProxy,getBuffer,getIndex,isChanged} from './symbols.mjs'
 
 const decoder = new TextDecoder()
+const encoder = new TextEncoder()
 
 export default function parse(input, meta, immutable=true)
 {
@@ -640,7 +641,80 @@ export default function parse(input, meta, immutable=true)
         return value()
     }
 
-    let valueProxy = function(length)
+    const getNewValueProxy = function(value) {
+        let index = resultArray.length
+        let arrayHandler = {
+            get(target, prop) {
+                if (target[prop] instanceof Function) {
+                    if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift'].indexOf(prop)!==-1) {
+                        targetIsChanged = true
+                    }
+                    return (...args) => target[prop].apply(target, args)
+                } else if (prop===isChanged) {
+                    return true
+                } else {
+                        if (!immutable && Array.isArray(target[prop])) {
+                            return new Proxy(target[prop], arrayHandler)
+                        }
+                        return target[prop]
+                }
+            },
+            set(target, prop, value) {
+                if (JSONTag.getType(value)==='object' && !value[isProxy]) {
+                    value = getNewValueProxy(value)
+                } 
+                target[prop] = value
+                targetIsChanged = true
+                return true
+            }
+        }
+        let newValueHandler = {
+            get(target, prop, receiver) {
+                switch(prop) {
+                    case source:
+                        return target
+                    break
+                    case isProxy:
+                        return true
+                    break
+                    case getBuffer:
+                        return (i) => {
+                            if (i != index) {
+                                return encoder.encode('~'+index)
+                            }
+                            // return newly stringified contents of cache
+                            return encoder.encode(fastStringify(target, meta, true, i))
+                        }
+                    break
+                    case getIndex:
+                        return index
+                    break
+                    case isChanged:
+                        return true
+                    break
+                    default:
+                        if (!immutable && Array.isArray(target[prop])) {
+                            return new Proxy(target[prop], arrayHandler)
+                        }
+                        return target[prop]
+                    break
+                } 
+            },
+            set(target, prop, value) {
+                if (JSONTag.getType(value)==='object' && !value[isProxy]) {
+                    value = getNewValueProxy(value)
+                }
+                cache[prop] = val
+                return true                    
+            }
+        }
+
+        let result = new Proxy(value, newValueHandler)
+        resultArray.push(result)
+        return result
+    }
+
+    let valueProxy = function(length, index)
     {
         // current offset + length contains jsontag of this value
         let position = {
@@ -652,27 +726,44 @@ export default function parse(input, meta, immutable=true)
         let parsed = false
         at += length
         next()
-        //@FIXME: toString method on proxy should run cache toString, if filled
-        //or return slice of the input from start to end
+        // newValueHandler makes sure that value[getBuffer] runs stringify
+        // arrayHandler makes sure that changes in the array set targetIsChanged to true
         let arrayHandler = {
             get(target, prop) {
                 if (target[prop] instanceof Function) {
                     if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift'].indexOf(prop)!==-1) {
                         targetIsChanged = true
                     }
-                    return (...args) => target[prop].call(target, args)
+                    return (...args) => {
+                        args = args.map(arg => {
+                            if (JSONTag.getType(arg)==='object' && !arg[isProxy]) {
+                                arg = getNewValueProxy(arg)
+                            }
+                            return arg
+                        })
+                        return target[prop].apply(target, args)
+                    }
                 } else if (prop===isChanged) {
                     return targetIsChanged
                 } else {
-                    return target[prop] // FIXME: could be an array again, if so it needs a proxy
+                    if (!immutable && Array.isArray(target[prop])) {
+                        return new Proxy(target[prop], arrayHandler)
+                    }
+                    return target[prop]
                 }
             },
             set(target, prop, value) {
+                if (JSONTag.getType(value)==='object' && !value[isProxy]) {
+                    value = getNewValueProxy(value)
+                } 
                 target[prop] = value
                 targetIsChanged = true
                 return true
             },
             deleteProperty(target, prop) {
+                //FIXME: if target[prop] was the last reference to an object
+                //that object should be deleted so that its line will become empty
+                //when stringifying resultArray again
                 delete target[prop]
                 targetIsChanged = true
                 return true
@@ -692,13 +783,17 @@ export default function parse(input, meta, immutable=true)
                         return true
                     break
                     case getBuffer:
-                        if (targetIsChanged) {
-                            // return newly stringified contents of cache
-                            let encoder = new TextEncoder()
-                            let temp = fastStringify(cache, null, true)
-                            return encoder.encode(fastStringify(cache, null, true))
+                        return (i) => {
+                            if (i != index) {
+                                return encoder.encode('~'+index)
+                            }
+                            if (targetIsChanged) {
+                                // return newly stringified contents of cache
+                                let temp = fastStringify(cache, null, true)
+                                return encoder.encode(fastStringify(cache, null, true))
+                            }
+                            return input.slice(position.start,position.end)
                         }
-                        return input.slice(position.start,position.end)
                     break
                     case getIndex:
                         return index
@@ -735,6 +830,9 @@ export default function parse(input, meta, immutable=true)
                     if (!parsed) {
                         cache = parseValue(position)
                         parsed = true
+                    }
+                    if (JSONTag.getType(val)==='object' && !val[isProxy]) {
+                        val = getNewValueProxy(val)
                     }
                     cache[prop] = val
                     targetIsChanged = true
@@ -824,9 +922,9 @@ export default function parse(input, meta, immutable=true)
         return result
     }
 
-    function lengthValue() {
+    function lengthValue(i) {
         let l = length()
-        let v = valueProxy(l)
+        let v = valueProxy(l,i)
         return [l, v]
     }
 
@@ -834,7 +932,7 @@ export default function parse(input, meta, immutable=true)
     ch = " "
     let resultArray = []
     while(ch && at<input.length) {
-        result = lengthValue()
+        result = lengthValue(resultArray.length)
         whitespace()
         offsetArray.push(at)
         resultArray.push(result[1])
