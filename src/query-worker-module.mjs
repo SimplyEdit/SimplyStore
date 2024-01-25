@@ -1,5 +1,6 @@
 import JSONTag from '@muze-nl/jsontag'
-import fastParse,{source, isProxy} from './fastParse.mjs'
+import fastParse from './fastParse.mjs'
+import {source, isProxy} from './symbols.mjs'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'array-where-select'
 import pointer from 'json-pointer'
 import {VM} from 'vm2'
