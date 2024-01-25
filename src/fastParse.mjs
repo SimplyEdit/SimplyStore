@@ -1,11 +1,11 @@
 import JSONTag from '@muze-nl/jsontag';
 import Null from '@muze-nl/jsontag/src/lib/Null.mjs'
+import fastStringify from './fastStringify.mjs'
+import {source,isProxy,getBuffer,getIndex,isChanged} from './symbols.mjs'
 
 const decoder = new TextDecoder()
-export const source = Symbol('source')
-export const isProxy = Symbol('isProxy')
 
-export default function parse(input, meta)
+export default function parse(input, meta, immutable=true)
 {
     if (!meta) {
         meta = {}
@@ -648,25 +648,73 @@ export default function parse(input, meta)
             end: at+length-1
         }
         let cache = {}
+        let targetIsChanged = false
         let parsed = false
         at += length
         next()
         //@FIXME: toString method on proxy should run cache toString, if filled
         //or return slice of the input from start to end
-        return new Proxy(cache, {
+        let arrayHandler = {
+            get(target, prop) {
+                if (target[prop] instanceof Function) {
+                    if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift'].indexOf(prop)!==-1) {
+                        targetIsChanged = true
+                    }
+                    return (...args) => target[prop].call(target, args)
+                } else if (prop===isChanged) {
+                    return targetIsChanged
+                } else {
+                    return target[prop] // FIXME: could be an array again, if so it needs a proxy
+                }
+            },
+            set(target, prop, value) {
+                target[prop] = value
+                targetIsChanged = true
+                return true
+            },
+            deleteProperty(target, prop) {
+                delete target[prop]
+                targetIsChanged = true
+                return true
+            }
+        }
+        let handler = {
             get(target, prop, receiver) {
                 if (!parsed) {
                     cache = parseValue(position)
                     parsed = true
                 }
-                if (prop===source) {
-                    return cache
-                } else if (prop===isProxy) {
-                    return true
+                switch(prop) {
+                    case source:
+                        return cache
+                    break
+                    case isProxy:
+                        return true
+                    break
+                    case getBuffer:
+                        if (targetIsChanged) {
+                            // return newly stringified contents of cache
+                            let encoder = new TextEncoder()
+                            let temp = fastStringify(cache, null, true)
+                            return encoder.encode(fastStringify(cache, null, true))
+                        }
+                        return input.slice(position.start,position.end)
+                    break
+                    case getIndex:
+                        return index
+                    break
+                    case isChanged:
+                        return targetIsChanged
+                    break
+                    default:
+                        if (!immutable && Array.isArray(cache[prop])) {
+                            return new Proxy(cache[prop], arrayHandler)
+                        }
+                        return cache[prop]
+                    break
                 }
-                return cache[prop]
             },
-            has() {
+            has(target, prop) {
                 if (!parsed) {
                     cache = parseValue(position)
                     parsed = true
@@ -680,7 +728,30 @@ export default function parse(input, meta)
                 }
                 return Reflect.ownKeys(cache)
             }
-        })
+        }
+        if (!immutable) {
+            Object.assign(handler, {
+                set: (target, prop, val) => {
+                    if (!parsed) {
+                        cache = parseValue(position)
+                        parsed = true
+                    }
+                    cache[prop] = val
+                    targetIsChanged = true
+                    return true
+                },
+                deleteProperty: (target, prop) => {
+                    if (!parsed) {
+                        cache = parseValue(position)
+                        parsed = true
+                    }
+                    delete cache[prop]
+                    targetIsChanged = true
+                    return true
+                }
+            })
+        }
+        return new Proxy(cache, handler)
     }
 
     value = function()

@@ -1,0 +1,5 @@
+export const source = Symbol('source')
+export const isProxy = Symbol('isProxy')
+export const getBuffer = Symbol('getBuffer')
+export const getIndex = Symbol('getIndex')
+export const isChanged = Symbol('isChanged')

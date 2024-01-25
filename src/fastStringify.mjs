@@ -1,12 +1,11 @@
 import JSONTag from '@muze-nl/jsontag';
-import {source} from './fastParse.mjs'
+import {source,isProxy,getBuffer,getIndex} from './symbols.mjs'
 
 // faststringify function for a fast parseable arraybuffer output
 // 
 
-export default function stringify(value, meta) {
+export default function stringify(value, meta, skipLength=false) {
 	let resultArray = []
-	let references = new WeakMap()
 	if (!meta) {
 		meta = {}
 	}
@@ -16,6 +15,7 @@ export default function stringify(value, meta) {
 	if (!meta.index.id) {
 		meta.index.id = new Map()
 	}
+	let references = new WeakMap()
 
 	const innerStringify = (value) => {
 		let indent = ""
@@ -56,30 +56,37 @@ export default function stringify(value, meta) {
 			return id
 		}
 
+		const encoder = new TextEncoder()
+
 		const str = (key, holder) => {
 			let value = holder[key]
 			let result, updateReference
-			//@FIXME: only objects with jsontag type object should be handled this way
-			if (JSONTag.getType(value) === 'object' && references.has(value)) {
-				let id = JSONTag.getAttribute(value, 'id')
-				if (!id) {
-					id = createId(value)
-				}
-				let reference = references.get(value)
-				meta.index.id.set(id, reference)
-				return '~'+reference
+			// if value is a valueProxy, just copy the input slice
+			if (!JSONTag.isNull(value) && value[isProxy]) {
+				return encoder.encode(value[getBuffer])
 			}
 			if (typeof value === 'undefined' || value === null) {
 				return 'null'
 			}
 			if (JSONTag.getType(value) === 'object' && !Array.isArray(value)) {
-				references.set(value, resultArray.length)
-				updateReference = resultArray.length
+				//} && references.has(value)) {
 				let id = JSONTag.getAttribute(value, 'id')
-				if (id) {
-					meta.index.id.set(id, updateReference)
+				if (!id) {
+					id = createId(value)
 				}
-				resultArray.push('')
+				let reference
+				if (!meta.index.id.has(id)) {
+					reference = value[getIndex]
+					if (typeof reference === 'undefined') {
+						reference = resultArray.length
+					}
+					updateReference = reference
+					meta.index.id.set(id, updateReference)
+					resultArray.push('')
+				} else {
+					reference = meta.index.id.get(id)
+					return '~'+reference
+				}
 			}
 			if (Array.isArray(value)) {
 				result = JSONTag.getTypeString(value) + "["+encodeEntries(value)+"]"
@@ -163,6 +170,9 @@ export default function stringify(value, meta) {
 	}
 		
 	const encode = (s) => {
+		if (skipLength) {
+			return s
+		}
 		let length = new Blob([s]).size
 		return '('+length+')'+s
 	}
