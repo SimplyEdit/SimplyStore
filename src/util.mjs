@@ -44,3 +44,11 @@ export async function appendFile(filename, data) {
 		await handle.close()
 	}
 }
+
+export async function replaceFile(filename, data) {
+	console.log('replacing file',filename)
+	//create new temp file
+	//write data to temp file
+	//close file
+	//rename file to filename
+}

@@ -1,13 +1,13 @@
 import { parentPort } from 'node:worker_threads'
-import runCommand from './command-worker-module.mjs' 
-import commands from './commands.mjs'
+import runCommand, { initialize } from '../src/command-worker-module.mjs' 
 
-parentPort.on('message', async task => {
+parentPort.on('message', async data => {
 	let result
-	if (commands[task.name]) {
-		result = await runCommand(task)
-	} else {
-		result = new Error('Unknown task '+task.name)
+	try {
+        await initialize(data)
+		result = await runCommand(data.command)
+	} catch(err) {
+		result = { error: err.message }
 	}
 	parentPort.postMessage(result)
 })

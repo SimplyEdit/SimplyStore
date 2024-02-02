@@ -24,6 +24,8 @@ async function main(options) {
     const queryWorker   = options.queryWorker   || __dirname+'/src/query-worker.mjs'
     const loadWorker    = options.loadWorker    || __dirname+'/src/load-worker.mjs'
     const commandWorker = options.commandWorker || __dirname+'/src/command-worker.mjs'
+    const commandsFile  = options.commandsFile  || __dirname+'/src/commands.mjs'
+    const commandLog    = options.commandLog    || __dirname+'/command-log.jsontag'
 
 	server.use(express.static(wwwroot))
 
@@ -152,10 +154,12 @@ async function main(options) {
                     worker.terminate()
                 })
                 worker.postMessage({
-                    name: command.name,
+                    command,
                     request,
                     meta,
-                    data
+                    data,
+                    commandsFile,
+                    datafile
                 })
             })
         }
@@ -167,8 +171,7 @@ async function main(options) {
         try {
             await appendFile(commandLog, JSONTag.stringify(command))
             status.set(command.id, 'queued')
-            result = 'OK'
-            sendResponse({body: JSON.stringify(result)}, res)
+            sendResponse({body: '"OK"'}, res)
 
             let path = req.path.substr(6) // cut '/query'
             let request = {
@@ -179,6 +182,11 @@ async function main(options) {
             }
 
             let data = await runCommand(command, jsontagBuffer, meta, request)
+            if (!data) {
+                throw new Error('Unexpected command failure')
+            } else if (data.error) {
+                throw data.error
+            }
             jsontagBuffer = data.data
             meta = data.meta
             status.set(command.id, 'done')
@@ -187,7 +195,6 @@ async function main(options) {
         } catch(err) {
             status.set(command.id, err)
             console.error('ERROR: SimplyStore cannot run command ', command.id, err)
-            process.exit(1)
         }
     })
 
@@ -206,10 +213,10 @@ async function main(options) {
             result = "OK"
             sendResponse({body: JSON.stringify(result)}, res)
             return false
-        } else if (!command.name || !commands[command.name]) {
+        } else if (!command.name) {
             error = {
                 code: 422,
-                message: "Command has no name or is unknown"
+                message: "Command has no name"
             }
             sendResponse({code:422, body: JSON.stringify(error)}, res)
             return false      

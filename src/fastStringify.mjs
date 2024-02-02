@@ -3,6 +3,8 @@ import {source,isProxy,getIndex, getBuffer} from './symbols.mjs'
 
 // faststringify function for a fast parseable arraybuffer output
 // 
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
 
 export default function stringify(value, meta, skipLength=false, index) {
 	let resultArray = []
@@ -64,13 +66,18 @@ export default function stringify(value, meta, skipLength=false, index) {
 			let value = holder[key]
 			let result, updateReference
 			// if value is a valueProxy, just copy the input slice
-			if (!JSONTag.isNull(value) && value[isProxy]) {
+			if (value && !JSONTag.isNull(value) && value[isProxy]) {
+				console.log('unchanged, copy')
+				if (index===0) {
+					resultArray.push(decoder.decode(value[getBuffer](index)))
+				}
 				return decoder.decode(value[getBuffer](index))
 			}
 			if (typeof value === 'undefined' || value === null) {
 				return 'null'
 			}
 			if (JSONTag.getType(value) === 'object' && !Array.isArray(value)) {
+				console.log('object')
 				//} && references.has(value)) {
 				let id = JSONTag.getAttribute(value, 'id')
 				if (!id) {
@@ -78,6 +85,7 @@ export default function stringify(value, meta, skipLength=false, index) {
 				}
 				let reference
 				if (!meta.index.id.has(id)) {
+					console.log('new id')
 					//FIXME: isProxy is already checked, so getIndex should never exist here, right?
 					reference = value[getIndex]
 					if (typeof reference === 'undefined') {
@@ -88,6 +96,7 @@ export default function stringify(value, meta, skipLength=false, index) {
 					resultArray.push('')
 				} else {
 					reference = meta.index.id.get(id)
+					console.log('reference',reference)
 					return '~'+reference
 				}
 			}
@@ -164,7 +173,12 @@ export default function stringify(value, meta, skipLength=false, index) {
 			}
 			if (typeof updateReference != 'undefined') {
 				resultArray[updateReference] = result
-				result = '~'+updateReference
+				if (index!==updateReference) {
+					console.log('returning reference',index,updateReference)
+					result = '~'+updateReference
+				} else {
+					console.log('index',index,updateReference)
+				}
 			}
 			return result
 		}
@@ -182,4 +196,19 @@ export default function stringify(value, meta, skipLength=false, index) {
 
 	innerStringify(value)
 	return resultArray.map(encode).join("\n")
+}
+
+export function stringToSAB(strData) {
+	const buffer = encoder.encode(strData)
+	const sab = new SharedArrayBuffer(buffer.length)
+	let uint8sab = new Uint8Array(sab)
+	uint8sab.set(buffer,0)
+	return uint8sab
+}
+
+export function resultSetStringify(resultSet) {
+	return resultSet.map((e,i) => {
+		let buffer = e[getBuffer](i)
+		return '('+buffer.length+')'+decoder.decode(buffer)
+	}).join("\n")
 }
