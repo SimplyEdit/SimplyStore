@@ -7,6 +7,8 @@
     "dependencies": {
         "@muze-nl/jsontag": "^0.8.6",
         "@muze-nl/jsontag-types": "^0.1.1",
-        "@muze-nl/simplystore": "file:../"
+        "@muze-nl/simplystore": "file:../",
+        "eslint": "^8.56.0",
+        "uuid": "^9.0.1"
     }
 }
