@@ -67,7 +67,6 @@ export default function stringify(value, meta, skipLength=false, index) {
 			let result, updateReference
 			// if value is a valueProxy, just copy the input slice
 			if (value && !JSONTag.isNull(value) && value[isProxy]) {
-				console.log('unchanged, copy')
 				if (index===0) {
 					resultArray.push(decoder.decode(value[getBuffer](index)))
 				}
@@ -77,27 +76,16 @@ export default function stringify(value, meta, skipLength=false, index) {
 				return 'null'
 			}
 			if (JSONTag.getType(value) === 'object' && !Array.isArray(value)) {
-				console.log('object')
-				//} && references.has(value)) {
 				let id = JSONTag.getAttribute(value, 'id')
-				if (!id) {
-					id = createId(value)
-				}
-				let reference
-				if (!meta.index.id.has(id)) {
-					console.log('new id')
-					//FIXME: isProxy is already checked, so getIndex should never exist here, right?
-					reference = value[getIndex]
-					if (typeof reference === 'undefined') {
-						reference = resultArray.length
-					}
+				if (!references.has(value)) {
+					let reference = resultArray.length
 					updateReference = reference
-					meta.index.id.set(id, updateReference)
 					resultArray.push('')
+					if (id && !meta.index.id.has(id)) {
+						meta.index.id.set(id, updateReference)
+					}
 				} else {
-					reference = meta.index.id.get(id)
-					console.log('reference',reference)
-					return '~'+reference
+					return '~'+references.get(value)
 				}
 			}
 			if (Array.isArray(value)) {
@@ -173,11 +161,9 @@ export default function stringify(value, meta, skipLength=false, index) {
 			}
 			if (typeof updateReference != 'undefined') {
 				resultArray[updateReference] = result
+				references.set(value, updateReference)
 				if (index!==updateReference) {
-					console.log('returning reference',index,updateReference)
 					result = '~'+updateReference
-				} else {
-					console.log('index',index,updateReference)
 				}
 			}
 			return result
@@ -188,6 +174,7 @@ export default function stringify(value, meta, skipLength=false, index) {
 		
 	const encode = (s) => {
 		if (skipLength) {
+			console.log('skipLength',s)
 			return s
 		}
 		let length = new Blob([s]).size
