@@ -174,7 +174,6 @@ export default function stringify(value, meta, skipLength=false, index) {
 		
 	const encode = (s) => {
 		if (skipLength) {
-			console.log('skipLength',s)
 			return s
 		}
 		let length = new Blob([s]).size
