@@ -641,8 +641,23 @@ export default function parse(input, meta, immutable=true)
         return value()
     }
 
+    const makeChildProxies = function(parent) {
+        Object.entries(parent).forEach(([key,entry]) => {
+            if (Array.isArray(entry)) {
+                makeChildProxies(entry)
+            } else if (JSONTag.getType(entry)==='object') {
+                if (entry[isProxy]) {
+                    // do nothing
+                } else {
+                    parent[key] = getNewValueProxy(entry)
+                }
+            }
+        })
+    }
+
     const getNewValueProxy = function(value) {
         let index = resultArray.length
+        resultArray.push('')
         let arrayHandler = {
             get(target, prop) {
                 if (target[prop] instanceof Function) {
@@ -713,8 +728,9 @@ export default function parse(input, meta, immutable=true)
             }
         }
 
+        makeChildProxies(value)
         let result = new Proxy(value, newValueHandler)
-        resultArray.push(result)
+        resultArray[index] = result
         return result
     }
 
