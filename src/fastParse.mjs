@@ -934,9 +934,10 @@ export default function parse(input, meta, immutable=true)
             }
             if (tagOb.attributes) {
                 JSONTag.setAttributes(result, tagOb.attributes)
-                if (tagOb.attributes?.id) {
-                    meta.index.id.set(tagOb.attributes.id, new WeakRef(result))
+/*                if (tagOb.attributes?.id) {
+                    meta.index.id.set(tagOb.attributes.id, result))
                 }
+*/
             }
         }
         return result
