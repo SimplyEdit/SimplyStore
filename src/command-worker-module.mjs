@@ -1,8 +1,7 @@
-import pointer from 'json-pointer'
 import JSONTag from '@muze-nl/jsontag'
 import {source} from './symbols.mjs'
 import fastParse from './fastParse.mjs'
-import fastStringify, {stringToSAB,resultSetStringify} from './fastStringify.mjs'
+import {stringToSAB,resultSetStringify} from './fastStringify.mjs'
 import writeFileAtomic from 'write-file-atomic'
 
 let commands = {}
@@ -15,11 +14,28 @@ let metaProxy = {
     }
 }
 
-const metaIdProxy = {
+export const metaIdProxy = {
+    forEach: (callback) => {
+        meta.index.id.forEach((ref,id) => {
+            callback({
+                deref: () => {
+                    return resultSet[ref]
+                }
+            },id)
+        })
+    },
+    set: (id,ref) => {
+        //FICME: is this correct?
+        meta.index.id.set(id, resultSet.length-1)
+    },
     get: (id) => {
         let index = meta.index.id.get(id)
         if (index || index===0) {
-            return resultSet[index]
+            return {
+                deref: () => {
+                    return resultSet[index]
+                }
+            }
         }
     },
     has: (id) => {
@@ -27,7 +43,7 @@ const metaIdProxy = {
     }
 }
 
-const FastJSONTag = {
+export const FastJSONTag = {
     getType: (obj) => JSONTag.getType(obj[source]),
     getAttribute: (obj, attr) => JSONTag.getAttribute(obj[source],attr),
     setAttribute: (obj, attr, value) => JSONTag.setAttribute(obj[source], attr, value),
@@ -36,10 +52,8 @@ const FastJSONTag = {
     getTypeString: (obj) => JSONTag.getTypeString(obj[source])
 }
 
-export FastJSONTag
-
 export async function initialize(task) {
-    resultSet = fastParse(task.data)
+    resultSet = fastParse(task.data, task.meta, false) // false means mutable
     dataspace = resultSet[0]
     meta = task.meta
     metaProxy.index.id = metaIdProxy
@@ -49,7 +63,8 @@ export async function initialize(task) {
     })
 }
 
-export default async function runCommand(task, request) {
+export default async function runCommand(commandStr, request) {
+    let task = JSONTag.parse(commandStr, null, metaProxy)
     if (!task.id) { throw new Error('missing command id')}
     if (!task.name) { throw new Error('missing command name parameter')}
     let response = {
@@ -58,18 +73,18 @@ export default async function runCommand(task, request) {
     if (commands[task.name]) {
         try {
             commands[task.name](dataspace, task, request, metaProxy)
-            console.log('dataspace',dataspace,dataspace.people)
             FastJSONTag.setAttribute(dataspace, 'command', task.id)
-            //@TODO: fastStringify should return sharedarraybuffer           
+
             const strData = resultSetStringify(resultSet)
-            console.log('string result', strData)
             const uint8sab = stringToSAB(strData)
             response.data = uint8sab
-            response.meta = meta
+            response.meta = {
+                index: {
+                    id: meta.index.id
+                }
+            }
 
-//            console.log('writing file', datafile)
             await writeFileAtomic(datafile, uint8sab)
-            console.log('data written to ', datafile)
         } catch(err) {
             console.error('error',err)
             response.code = 422;
