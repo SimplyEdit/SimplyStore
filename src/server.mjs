@@ -141,47 +141,49 @@ async function main(options) {
 
     let status = new Map()
 
-    server.post('/command', async (req, res) => {
-        function runCommand(name,data,meta,request) {
-            return new Promise((resolve,reject) => {
-                let worker = new Worker(commandWorker)
-                worker.on('message', result => {
-                    resolve(result)
-                    worker.terminate()
-                })
-                worker.on('error', error => {
-                    reject(error)
-                    worker.terminate()
-                })
-                worker.postMessage({
-                    command,
-                    request,
-                    meta,
-                    data,
-                    commandsFile,
-                    datafile
-                })
+
+    function runCommand(command) {
+        return new Promise((resolve,reject) => {
+            let worker = new Worker(commandWorker)
+            worker.on('message', result => {
+                resolve(result)
+                worker.terminate()
             })
-        }
+            worker.on('error', error => {
+                reject(error)
+                worker.terminate()
+            })
+            worker.postMessage(command)
+        })
+    }
+
+    server.post('/command', async (req, res) => {
+        //@TODO: move all(most) of the logic to the command worker itself
 
         let command = checkCommand(req, res)
         if (!command) {
             return
         }
+        let commandStr = req.body.toString()
         try {
             await appendFile(commandLog, JSONTag.stringify(command))
             status.set(command.id, 'queued')
             sendResponse({body: '"OK"'}, res)
 
-            let path = req.path.substr(6) // cut '/query'
             let request = {
                 method: req.method,
                 url: req.originalUrl,
-                query: req.query,
-                path: path
+                query: req.query
             }
 
-            let data = await runCommand(command, jsontagBuffer, meta, request)
+            let data = await runCommand({
+                command:commandStr,
+                request,
+                meta,
+                data:jsontagBuffer,
+                commandsFile,
+                datafile
+            })
             if (!data) {
                 throw new Error('Unexpected command failure')
             } else if (data.error) {
@@ -201,7 +203,6 @@ async function main(options) {
     function checkCommand(req, res) {
         let commandStr = req.body.toString() // raw body through express.raw()
         let command = JSONTag.parse(commandStr)
-        console.log('command',command)
         if (!command || !command.id) {
             error = {
                 code: 422,
@@ -221,7 +222,7 @@ async function main(options) {
             sendResponse({code:422, body: JSON.stringify(error)}, res)
             return false      
         }
-        return command
+        return commandStr
     }
 
     server.get('/command/:id', (req, res) => {
