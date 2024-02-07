@@ -80,6 +80,7 @@ export default function stringify(value, meta, skipLength=false, index) {
 				if (!references.has(value)) {
 					let reference = resultArray.length
 					updateReference = reference
+					references.set(value, updateReference)
 					resultArray.push('')
 					if (id && !meta.index.id.has(id)) {
 						meta.index.id.set(id, updateReference)
@@ -161,7 +162,6 @@ export default function stringify(value, meta, skipLength=false, index) {
 			}
 			if (typeof updateReference != 'undefined') {
 				resultArray[updateReference] = result
-				references.set(value, updateReference)
 				if (index!==updateReference) {
 					result = '~'+updateReference
 				}

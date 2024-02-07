@@ -161,3 +161,19 @@ tap.test('delete', t => {
 
 })
 
+tap.test('circular', t => {
+	let strData =`{
+	"foo":[
+		<object id="1">{"name":"Foo","children":[<link>"2"]}
+	],"bar":[
+		<object id="2">{"name":"Bar","children":[<link>"1"]}
+	]
+}`
+	let expect = `(23){"foo":[~1],"bar":[~2]}
+(45)<object id="1">{"name":"Foo","children":[~2]}
+(45)<object id="2">{"name":"Bar","children":[~1]}`
+	let data = JSONTag.parse(strData)
+	let result = stringify(data)
+	t.equal(result,expect)
+	t.end()
+})
