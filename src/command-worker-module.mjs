@@ -1,8 +1,8 @@
 import pointer from 'json-pointer'
 import JSONTag from '@muze-nl/jsontag'
-import {source} from '../src/symbols.mjs'
-import fastParse from '../src/fastParse.mjs'
-import fastStringify, {stringToSAB,resultSetStringify} from '../src/fastStringify.mjs'
+import {source} from './symbols.mjs'
+import fastParse from './fastParse.mjs'
+import fastStringify, {stringToSAB,resultSetStringify} from './fastStringify.mjs'
 import writeFileAtomic from 'write-file-atomic'
 
 let commands = {}
@@ -18,7 +18,7 @@ let metaProxy = {
 const metaIdProxy = {
     get: (id) => {
         let index = meta.index.id.get(id)
-        if (index) {
+        if (index || index===0) {
             return resultSet[index]
         }
     },
@@ -35,6 +35,8 @@ const FastJSONTag = {
     getAttributeString: (obj) => JSONTag.getAttributesString(obj[source]),
     getTypeString: (obj) => JSONTag.getTypeString(obj[source])
 }
+
+export FastJSONTag
 
 export async function initialize(task) {
     resultSet = fastParse(task.data)

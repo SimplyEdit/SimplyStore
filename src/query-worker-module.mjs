@@ -17,7 +17,7 @@ let metaProxy = {
 const metaIdProxy = {
     get: (id) => {
         let index = meta.index.id.get(id)
-        if (index) {
+        if (index || index===0) {
             return resultSet[index]
         }
     },
