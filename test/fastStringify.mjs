@@ -64,7 +64,7 @@ tap.test('immutable', t => {
 (64)<object class="foo" id="1">{"name":"Foo",#"nonEnumerable":"bar"}
 (57)<object class="bar" id="2">{"name":"Bar","children":[~1]}`
 	let sab = stringToSAB(strData)
-	let resultSet = parse(sab, {}, true) // imutable
+	let resultSet = parse(sab, {}, true) // immutable
 	let root = resultSet[0]
 	root.foo[0].name='Baz'
 	t.equal(root.foo[0].name, 'Foo')
@@ -87,7 +87,77 @@ tap.test('update', t => {
 	t.equal(root.foo[0].name, 'Baz')
 	t.equal(resultSet[1].name, 'Baz')
 	strData = resultSetStringify(resultSet)
-	t.equal(expect, strData)
+	t.equal(strData, expect)
 	t.end()
 
 })
+
+tap.test('append', t => {
+	let strData = `(23){"foo":[~1],"bar":[~2]}
+(64)<object class="foo" id="1">{"name":"Foo",#"nonEnumerable":"bar"}
+(57)<object class="bar" id="2">{"name":"Bar","children":[~1]}`
+	let expect = `(26){"foo":[~1,~3],"bar":[~2]}
+(64)<object class="foo" id="1">{"name":"Foo",#"nonEnumerable":"bar"}
+(57)<object class="bar" id="2">{"name":"Bar","children":[~1]}
+(30){"name":"Baz","children":[~1]}`
+	
+	let sab = stringToSAB(strData)
+	let resultSet = parse(sab, {}, false)
+	let root = resultSet[0]
+	root.foo.push({
+		name: 'Baz',
+		children: [
+			root.foo[0]
+		]
+	})
+	strData = resultSetStringify(resultSet)
+	t.equal(strData, expect)
+	t.end()
+
+})
+
+tap.test('appendChild', t => {
+	let strData = `(23){"foo":[~1],"bar":[~2]}
+(64)<object class="foo" id="1">{"name":"Foo",#"nonEnumerable":"bar"}
+(57)<object class="bar" id="2">{"name":"Bar","children":[~1]}`
+	let expect = `(26){"foo":[~1,~3],"bar":[~2]}
+(64)<object class="foo" id="1">{"name":"Foo",#"nonEnumerable":"bar"}
+(57)<object class="bar" id="2">{"name":"Bar","children":[~1]}
+(30){"name":"Baz","children":[~4]}
+(16){"name":"Child"}`
+	
+	let sab = stringToSAB(strData)
+	let resultSet = parse(sab, {}, false)
+	let root = resultSet[0]
+	root.foo.push({
+		name: 'Baz',
+		children: [
+			{
+				name: 'Child'				
+			}
+		]
+	})
+	strData = resultSetStringify(resultSet)
+	t.equal(strData, expect)
+	t.end()
+
+})
+
+tap.test('delete', t => {
+	let strData = `(23){"foo":[~1],"bar":[~2]}
+(64)<object class="foo" id="1">{"name":"Foo",#"nonEnumerable":"bar"}
+(57)<object class="bar" id="2">{"name":"Bar","children":[~1]}`
+	let expect = `(21){"foo":[],"bar":[~2]}
+(64)<object class="foo" id="1">{"name":"Foo",#"nonEnumerable":"bar"}
+(57)<object class="bar" id="2">{"name":"Bar","children":[~1]}`
+	
+	let sab = stringToSAB(strData)
+	let resultSet = parse(sab, {}, false)
+	let root = resultSet[0]
+	root.foo.pop()
+	strData = resultSetStringify(resultSet)
+	t.equal(strData, expect)
+	t.end()
+
+})
+
