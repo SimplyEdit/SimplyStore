@@ -387,7 +387,7 @@ export default function parse(input, meta, immutable=true)
 
     let string = function(tagName)
     {
-        let value = "", hex, i, uffff;
+        let value = [], hex, i, uffff;
         if (ch !== '"') {
             error("Syntax Error")
         }
@@ -395,13 +395,14 @@ export default function parse(input, meta, immutable=true)
         while(ch) {
             if (ch==='"') {
                 next()
+                let bytes = new Uint8Array(value)
+                value = decoder.decode(bytes)
                 checkStringType(tagName, value)
                 return value
             }
             if (ch==='\\') {
                 next()
                 if (ch==='u') {
-                    uffff=0
                     for (i=0; i<4; i++) {
                         hex = parseInt(next(), 16)
                         if (!isFinite(hex)) {
@@ -409,16 +410,18 @@ export default function parse(input, meta, immutable=true)
                         }
                         uffff = uffff * 16 + hex
                     }
-                    value += String.fromCharCode(uffff)
+                    let str = String.fromCharCode(uffff) 
+                    let bytes = encoder.encode(str)
+                    value.push.apply(value, bytes)
                     next()
                 } else if (typeof escapee[ch] === 'string') {
-                    value += escapee[ch]
+                    value.push(escapee[ch].charCodeAt(0))
                     next()
                 } else {
                     break
                 }
             } else {
-                value += ch
+                value.push(ch.charCodeAt(0))
                 next()
             }
         }
