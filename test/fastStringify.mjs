@@ -3,6 +3,7 @@ import stringify, {resultSetStringify,stringToSAB} from '../src/fastStringify.mj
 import parse from '../src/fastParse.mjs'
 import tap from 'tap'
 
+const decoder = new TextDecoder()
 
 tap.test('Links', t => {
  	let jsont=`{
@@ -175,5 +176,15 @@ tap.test('circular', t => {
 	let data = JSONTag.parse(strData)
 	let result = stringify(data)
 	t.equal(result,expect)
+	t.end()
+})
+
+
+tap.test('encoding', t => {
+	let strData = `(24){"name":"Padmé Amidala"}`
+	let sab = stringToSAB(strData)
+	let resultSet = parse(sab)
+	let padme = resultSet[0]
+	t.equal(padme.name, "Padmé Amidala")
 	t.end()
 })
