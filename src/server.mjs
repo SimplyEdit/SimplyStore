@@ -58,15 +58,17 @@ async function main(options) {
 		process.exit(1)
 	}
 
-    const queryWorkerInitTask = {
-    	name: 'init',
-    	req: {
-    		body: jsontagBuffer,
-            meta
-    	}
+    const queryWorkerInitTask = () => { 
+        return {
+        	name: 'init',
+        	req: {
+        		body: jsontagBuffer,
+                meta
+        	}
+        }
     }
 
-    let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask)
+    let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
 
     server.get('/query/*', async (req, res, next) => 
     {
@@ -167,8 +169,8 @@ async function main(options) {
         let commandStr = req.body.toString()
         try {
             await appendFile(commandLog, JSONTag.stringify(command))
-            status.set(command.id, 'queued')
-            sendResponse({body: '"OK"'}, res)
+            status.set(command.id, 'accepted')
+            sendResponse({code: 202, body: '"Accepted"'}, res)
 
             let request = {
                 method: req.method,
@@ -192,12 +194,19 @@ async function main(options) {
             jsontagBuffer = data.data
             meta = data.meta
             status.set(command.id, 'done')
-            //@TODO: re-init query workers
-            // updateQueryWorkers()
+            // restart query workers with new data
+            console.log('restarting query pool')
+            let oldPool = queryWorkerPool
+            queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
+            setTimeout(() => {
+                console.log('terminating old query pool')
+                oldPool.close()
+            }, 2000)
         } catch(err) {
             status.set(command.id, err)
             console.error('ERROR: SimplyStore cannot run command ', command.id, err)
         }
+        //@TODO: store command status on disk (and read it in on startup)
     })
 
     function checkCommand(req, res) {
