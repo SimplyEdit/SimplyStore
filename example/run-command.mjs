@@ -3,15 +3,17 @@ import JSONTag from '@muze-nl/jsontag'
 
 // run command to localhost:3000
 
-let command = {
-	id: uuid(),
-	name: 'addPerson',
-	value: {
-		name: 'Some Stormtrooper',
-		gender: 'male',
-		homeworld: new JSONTag.Link("http://swapi.co/api/planets/1/")
+let id = uuid()
+let commandStr = `{
+	"id": "${id}",
+	"name": "addPerson",
+	"value": {
+		"name": "Some Stormtrooper",
+		"gender": "male",
+		"homeworld": <link>"http://swapi.co/api/planets/1/"
 	}
-}
+}`
+
 
 async function main() {
 	let response = await fetch('http://localhost:3000/command', {
@@ -20,7 +22,7 @@ async function main() {
 			'Accept': 'application/jsontag',
 			'Content-Type': 'application/jsontag'
 		},
-		body: JSONTag.stringify(command)	
+		body: commandStr
 	})
 	if (!response.ok) {
 		let text = await response.text()
