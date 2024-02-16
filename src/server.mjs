@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
+import writeFileAtomic from 'write-file-atomic'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -25,7 +26,8 @@ async function main(options) {
     const loadWorker    = options.loadWorker    || __dirname+'/src/load-worker.mjs'
     const commandWorker = options.commandWorker || __dirname+'/src/command-worker.mjs'
     const commandsFile  = options.commandsFile  || __dirname+'/src/commands.mjs'
-    const commandLog    = options.commandLog    || __dirname+'/command-log.jsontag'
+    const commandLog    = options.commandLog    || './command-log.jsontag'
+    const commandStatus = options.commandStatus || './command-status.jsontag'
 
 	server.use(express.static(wwwroot))
 
@@ -52,7 +54,6 @@ async function main(options) {
         let data = await loadData()
 	    jsontagBuffer = data.data
         meta = data.meta
-//        fs.writeFileSync('./dump.txt', Buffer.from(jsontagBuffer))
 	} catch(err) {
 		console.error('ERROR: SimplyStore cannot load '+datafile, err)
 		process.exit(1)
@@ -141,72 +142,147 @@ async function main(options) {
 //        queryWorkerPool.memoryUsage()
     })
 
-    let status = new Map()
 
+    let status = loadCommandStatus(commandStatus)
 
-    function runCommand(command) {
-        return new Promise((resolve,reject) => {
-            let worker = new Worker(commandWorker)
-            worker.on('message', result => {
-                resolve(result)
-                worker.terminate()
-            })
-            worker.on('error', error => {
-                reject(error)
-                worker.terminate()
-            })
-            worker.postMessage(command)
-        })
+    function loadCommandStatus(commandStatusFile) {
+        let status = new Map()
+        if (fs.existsSync(commandStatusFile)) {
+            let file = fs.readFileSync(commandStatusFile, 'utf-8')
+            if (file) {
+                let lines = file.split("\n").filter(Boolean) //filter clears empty lines
+                for(let line of lines) {
+                    let command = JSONTag.parse(line)
+                    status.set(command.id, command.status)
+                }
+            }
+        }
+        return status
+    }
+
+    let commandQueue = []
+
+    function loadCommandLog(commandLog) {
+        if (!fs.existsSync(commandLog)) {
+            return
+        }
+        let log = fs.readFileSync(commandLog)
+        if (log) {
+            let lines = log.split("\n")
+            for(let line of lines) {
+                let command = JSONTag.parse(line)
+                let state = status.get(command.id)
+                switch(state) {
+                    case 'accepted': // enqueue
+                        commandQueue.push(command)
+                        break;
+                    case 'done': // do nothing
+                        break;
+                    default: // error, do nothing
+                        break;
+                } 
+            }
+        }
+    }
+
+    loadCommandLog()
+    let commandWorkerInstance
+
+    async function runNextCommand() {
+        let command = commandQueue.shift()
+        if (command) {
+            let start = (resolve, reject) => {
+                if (!commandWorkerInstance) {
+                    commandWorkerInstance = new Worker(commandWorker)
+                }
+                commandWorkerInstance.on('message', result => {
+                    resolve(result)
+                    runNextCommand()
+                })
+                commandWorkerInstance.on('error', error => {
+                    reject(error)
+                    runNextCommand()
+                })
+                commandWorkerInstance.postMessage(command)
+            }
+            start(
+                // resolve()
+                (data) => {
+                    if (!data || data.error) {
+                        console.error('ERROR: SimplyStore cannot run command ', command.id, err)
+                        if (!data.error) {
+                            status.set(command.id, 'failed')
+                            throw new Error('Unexpected command failure')
+                        } else {
+                            status.set(command.id, data.error)
+                            throw data.error
+                        }
+                    }
+                    jsontagBuffer = data.data
+                    meta = data.meta
+                    status.set(command.id, 'done')
+                    appendFile(commandStatus, JSONTag.stringify({command:command.id, status: 'done'}))
+                    // restart query workers with new data
+                    let oldPool = queryWorkerPool
+                    queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
+                    setTimeout(() => {
+                        oldPool.close()
+                    }, 2000)
+                }, 
+                //reject()
+                (error) => {
+                    status.set(command.id, error)
+                    appendFile(commandStatus, JSONTag.stringify({command:command.id, status: error}))
+                }
+            )
+        } else {
+            await commandWorkerInstance.terminate()
+            commandWorkerInstance.unref() // @FIXME is this needed?
+            commandWorkerInstance = null  // @FIXME or this?
+        }
+    }
+
+    async function runCommand(command) {
+        // append command to the queue
+        commandQueue.push(command)
+
+        // if there is no command worker running, start one with the first entry from the queue
+        if (!commandWorkerInstance) {
+            runNextCommand()
+        }
+        // return a promise that is resolved when that command is finished
+        return new Promise(command.start)
     }
 
     server.post('/command', async (req, res) => {
-        //@TODO: move all(most) of the logic to the command worker itself
-
-        let command = checkCommand(req, res)
-        if (!command) {
+        let commandId = checkCommand(req, res)
+        if (!commandId) {
             return
         }
         let commandStr = req.body.toString()
         try {
-            await appendFile(commandLog, JSONTag.stringify(command))
-            status.set(command.id, 'accepted')
-            sendResponse({code: 202, body: '"Accepted"'}, res)
-
             let request = {
                 method: req.method,
                 url: req.originalUrl,
                 query: req.query
             }
 
-            let data = await runCommand({
+            commandQueue.push({
+                id:commandId,
                 command:commandStr,
                 request,
                 meta,
                 data:jsontagBuffer,
                 commandsFile,
-                datafile
+                datafile                
             })
-            if (!data) {
-                throw new Error('Unexpected command failure')
-            } else if (data.error) {
-                throw data.error
-            }
-            jsontagBuffer = data.data
-            meta = data.meta
-            status.set(command.id, 'done')
-            // restart query workers with new data
-            console.log('restarting query pool')
-            let oldPool = queryWorkerPool
-            queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
-            setTimeout(() => {
-                console.log('terminating old query pool')
-                oldPool.close()
-            }, 2000)
+
+            runNextCommand()
         } catch(err) {
-            status.set(command.id, err)
-            console.error('ERROR: SimplyStore cannot run command ', command.id, err)
+            status.set(commandId, 'ERROR: '+err.message)
+            await appendFile(commandStatus, JSONTag.stringify({command:commandId, status: 'ERROR: '+err.message}))
+            console.error('ERROR: SimplyStore cannot run command ', commandId, err)
         }
-        //@TODO: store command status on disk (and read it in on startup)
     })
 
     function checkCommand(req, res) {
@@ -231,7 +307,10 @@ async function main(options) {
             sendResponse({code:422, body: JSON.stringify(error)}, res)
             return false      
         }
-        return commandStr
+        appendFile(commandLog, JSONTag.stringify(command))
+        status.set(command.id, 'accepted') // doesn't need to be saved to file
+        sendResponse({code: 202, body: '"Accepted"'}, res)
+        return command.id
     }
 
     server.get('/command/:id', (req, res) => {
