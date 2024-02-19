@@ -33,10 +33,9 @@ export function joinArgs(args) {
  * @return {void}
  */
 export async function appendFile(filename, data) {
-	console.log('appending command')
 	let handle;
 	try {
-		handle = await fs.open(filename, 'a')
+		handle = await fs.open(filename, 'a+')
 		await handle.appendFile(data+"\n")
 		await handle.datasync()
 		return true
@@ -44,3 +43,4 @@ export async function appendFile(filename, data) {
 		await handle.close()
 	}
 }
+

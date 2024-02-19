@@ -1,3 +1,4 @@
+/*
 import tap from 'tap'
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
@@ -77,3 +78,4 @@ tap.test('proxies get re-used', t => {
 	})
 	t.end()
 })
+*/

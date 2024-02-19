@@ -1,13 +1,13 @@
 import JSONTag from '@muze-nl/jsontag';
 import Null from '@muze-nl/jsontag/src/lib/Null.mjs'
+import fastStringify from './fastStringify.mjs'
+import {source,isProxy,getBuffer,getIndex,isChanged} from './symbols.mjs'
 
 const decoder = new TextDecoder()
+const encoder = new TextEncoder()
 
-export default function parse(input, meta)
+export default function parse(input, meta, immutable=true)
 {
-    if (!(input instanceof Uint8Array)) {
-        error('fast parse only accepts Uint8Array as input')
-    }
     if (!meta) {
         meta = {}
     }
@@ -39,13 +39,20 @@ export default function parse(input, meta)
 
     let error = function(m)
     {
-        let context = decoder.decode(input.slice(0,at+100));
+        let context
+        try {
+            context = decoder.decode(input.slice(at-100,at+100));
+        } catch(err) {}
         throw {
             name: 'SyntaxError',
             message: m,
             at: at,
             input: context
         }
+    }
+
+    if (!(input instanceof Uint8Array)) {
+        error('fast parse only accepts Uint8Array as input')
     }
 
     let next = function(c)
@@ -380,7 +387,7 @@ export default function parse(input, meta)
 
     let string = function(tagName)
     {
-        let value = "", hex, i, uffff;
+        let value = [], hex, i, uffff;
         if (ch !== '"') {
             error("Syntax Error")
         }
@@ -388,13 +395,14 @@ export default function parse(input, meta)
         while(ch) {
             if (ch==='"') {
                 next()
+                let bytes = new Uint8Array(value)
+                value = decoder.decode(bytes)
                 checkStringType(tagName, value)
                 return value
             }
             if (ch==='\\') {
                 next()
                 if (ch==='u') {
-                    uffff=0
                     for (i=0; i<4; i++) {
                         hex = parseInt(next(), 16)
                         if (!isFinite(hex)) {
@@ -402,16 +410,18 @@ export default function parse(input, meta)
                         }
                         uffff = uffff * 16 + hex
                     }
-                    value += String.fromCharCode(uffff)
+                    let str = String.fromCharCode(uffff) 
+                    let bytes = encoder.encode(str)
+                    value.push.apply(value, bytes)
                     next()
                 } else if (typeof escapee[ch] === 'string') {
-                    value += escapee[ch]
+                    value.push(escapee[ch].charCodeAt(0))
                     next()
                 } else {
                     break
                 }
             } else {
-                value += ch
+                value.push(ch.charCodeAt(0))
                 next()
             }
         }
@@ -628,46 +638,241 @@ export default function parse(input, meta)
         return parseInt(numString)
     }
 
-    let parseValue = function(target, position) {
+    let parseValue = function(position) {
         at = position.start
         next()
-        Object.assign(target, value())
+        return value()
     }
 
-    let valueProxy = function(length)
+    const makeChildProxies = function(parent) {
+        Object.entries(parent).forEach(([key,entry]) => {
+            if (Array.isArray(entry)) {
+                makeChildProxies(entry)
+            } else if (JSONTag.getType(entry)==='object') {
+                if (entry[isProxy]) {
+                    // do nothing
+                } else {
+                    parent[key] = getNewValueProxy(entry)
+                }
+            }
+        })
+    }
+
+    const getNewValueProxy = function(value) {
+        let index = resultArray.length
+        resultArray.push('')
+        let arrayHandler = {
+            get(target, prop) {
+                if (target[prop] instanceof Function) {
+                    return (...args) => {
+                        args = args.map(arg => {
+                            if (JSONTag.getType(arg)==='object' && !arg[isProxy]) {
+                                arg = getNewValueProxy(arg)
+                            }
+                            return arg
+                        })
+                        target[prop].apply(target, args)
+                    }
+                } else if (prop===isChanged) {
+                    return true
+                } else {
+                    if (Array.isArray(target[prop])) {
+                        return new Proxy(target[prop], arrayHandler)
+                    }
+                    return target[prop]
+                }
+            },
+            set(target, prop, value) {
+                if (JSONTag.getType(value)==='object' && !value[isProxy]) {
+                    value = getNewValueProxy(value)
+                } 
+                target[prop] = value
+                return true
+            }
+        }
+        let newValueHandler = {
+            get(target, prop, receiver) {
+                switch(prop) {
+                    case source:
+                        return target
+                    break
+                    case isProxy:
+                        return true
+                    break
+                    case getBuffer:
+                        return (i) => {
+                            if (i != index) {
+                                return encoder.encode('~'+index)
+                            }
+                            // return newly stringified contents of cache
+                            return encoder.encode(fastStringify(target, meta, true, i))
+                        }
+                    break
+                    case getIndex:
+                        return index
+                    break
+                    case isChanged:
+                        return true
+                    break
+                    default:
+                        if (Array.isArray(target[prop])) {
+                            return new Proxy(target[prop], arrayHandler)
+                        }
+                        return target[prop]
+                    break
+                } 
+            },
+            set(target, prop, value) {
+                if (JSONTag.getType(value)==='object' && !value[isProxy]) {
+                    value = getNewValueProxy(value)
+                }
+                cache[prop] = val
+                return true                    
+            }
+        }
+
+        makeChildProxies(value)
+        let result = new Proxy(value, newValueHandler)
+        resultArray[index] = result
+        return result
+    }
+
+    let valueProxy = function(length, index)
     {
         // current offset + length contains jsontag of this value
         let position = {
             start: at-1,
-            end: at+length-1
+            end: at-1+length
         }
         let cache = {}
+        let targetIsChanged = false
         let parsed = false
         at += length
         next()
-        return new Proxy(cache, {
+        // newValueHandler makes sure that value[getBuffer] runs stringify
+        // arrayHandler makes sure that changes in the array set targetIsChanged to true
+        let arrayHandler = {
+            get(target, prop) {
+                if (target[prop] instanceof Function) {
+                    if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift'].indexOf(prop)!==-1) {
+                        targetIsChanged = true
+                    }
+                    return (...args) => {
+                        args = args.map(arg => {
+                            if (JSONTag.getType(arg)==='object' && !arg[isProxy]) {
+                                arg = getNewValueProxy(arg)
+                            }
+                            return arg
+                        })
+                        return target[prop].apply(target, args)
+                    }
+                } else if (prop===isChanged) {
+                    return targetIsChanged
+                } else {
+                    if (!immutable && Array.isArray(target[prop])) {
+                        return new Proxy(target[prop], arrayHandler)
+                    }
+                    return target[prop]
+                }
+            },
+            set(target, prop, value) {
+                if (JSONTag.getType(value)==='object' && !value[isProxy]) {
+                    value = getNewValueProxy(value)
+                } 
+                target[prop] = value
+                targetIsChanged = true
+                return true
+            },
+            deleteProperty(target, prop) {
+                //FIXME: if target[prop] was the last reference to an object
+                //that object should be deleted so that its line will become empty
+                //when stringifying resultArray again
+                delete target[prop]
+                targetIsChanged = true
+                return true
+            }
+        }
+        let handler = {
             get(target, prop, receiver) {
                 if (!parsed) {
-                    parseValue(cache, position)
+                    cache = parseValue(position)
                     parsed = true
                 }
-                return cache[prop]
+                switch(prop) {
+                    case source:
+                        return cache
+                    break
+                    case isProxy:
+                        return true
+                    break
+                    case getBuffer:
+                        return (i) => {
+                            if (i != index) {
+                                return encoder.encode('~'+index)
+                            }
+                            if (targetIsChanged) {
+                                // return newly stringified contents of cache
+                                let temp = fastStringify(cache, null, true)
+                                return encoder.encode(fastStringify(cache, null, true))
+                            }
+                            return input.slice(position.start,position.end)
+                        }
+                    break
+                    case getIndex:
+                        return index
+                    break
+                    case isChanged:
+                        return targetIsChanged
+                    break
+                    default:
+                        if (!immutable && Array.isArray(cache[prop])) {
+                            return new Proxy(cache[prop], arrayHandler)
+                        }
+                        return cache[prop] // FIXME: make arrays immutable as well
+                    break
+                }
             },
-            has() {
+            has(target, prop) {
                 if (!parsed) {
-                    parseValue(cache, position)
+                    cache = parseValue(position)
                     parsed = true
                 }
                 return typeof cache[prop] !== 'undefined'
             },
             ownKeys() {
                 if (!parsed) {
-                    parseValue(cache, position)
+                    cache = parseValue(position)
                     parsed = true
                 }
                 return Reflect.ownKeys(cache)
             }
-        })
+        }
+        if (!immutable) {
+            Object.assign(handler, {
+                set: (target, prop, val) => {
+                    if (!parsed) {
+                        cache = parseValue(position)
+                        parsed = true
+                    }
+                    if (JSONTag.getType(val)==='object' && !val[isProxy]) {
+                        val = getNewValueProxy(val)
+                    }
+                    cache[prop] = val
+                    targetIsChanged = true
+                    return true
+                },
+                deleteProperty: (target, prop) => {
+                    if (!parsed) {
+                        cache = parseValue(position)
+                        parsed = true
+                    }
+                    delete cache[prop]
+                    targetIsChanged = true
+                    return true
+                }
+            })
+        }
+        return new Proxy(cache, handler)
     }
 
     value = function()
@@ -732,17 +937,18 @@ export default function parse(input, meta)
             }
             if (tagOb.attributes) {
                 JSONTag.setAttributes(result, tagOb.attributes)
-                if (tagOb.attributes?.id) {
-                    meta.index.id.set(tagOb.attributes.id, new WeakRef(result))
+/*                if (tagOb.attributes?.id) {
+                    meta.index.id.set(tagOb.attributes.id, result))
                 }
+*/
             }
         }
         return result
     }
 
-    function lengthValue() {
+    function lengthValue(i) {
         let l = length()
-        let v = valueProxy(l)
+        let v = valueProxy(l,i)
         return [l, v]
     }
 
@@ -750,7 +956,7 @@ export default function parse(input, meta)
     ch = " "
     let resultArray = []
     while(ch && at<input.length) {
-        result = lengthValue()
+        result = lengthValue(resultArray.length)
         whitespace()
         offsetArray.push(at)
         resultArray.push(result[1])
@@ -827,3 +1033,4 @@ export default function parse(input, meta)
     
     return resultArray
 }
+

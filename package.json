@@ -23,7 +23,8 @@
 		"json-pointer": "^0.6.2",
 		"jsonpath-plus": "^7.2.0",
 		"piscina": "^4.1.0",
-		"vm2": "^3.9.13"
+		"vm2": "^3.9.13",
+		"write-file-atomic": "^5.0.1"
 	},
 	"devDependencies": {
 		"eslint": "^8.48.0",

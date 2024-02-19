@@ -1,10 +1,22 @@
 import JSONTag from '@muze-nl/jsontag';
+import {source,isProxy,getIndex, getBuffer} from './symbols.mjs'
 
 // faststringify function for a fast parseable arraybuffer output
 // 
+const encoder = new TextEncoder()
+const decoder = new TextDecoder()
 
-export default function stringify(value) {
+export default function stringify(value, meta, skipLength=false, index) {
 	let resultArray = []
+	if (!meta) {
+		meta = {}
+	}
+	if (!meta.index) {
+		meta.index = {}
+	}
+	if (!meta.index.id) {
+		meta.index.id = new Map()
+	}
 	let references = new WeakMap()
 
 	const innerStringify = (value) => {
@@ -25,9 +37,10 @@ export default function stringify(value) {
 		}
 
 		const encodeEntries = (arr) => {
-			return arr.map((value,index) => {
+			let result = arr.map((value,index) => {
 				return str(index, arr)
 			}).join(",")
+			return result
 		}
 
 		const createId = (value) => {
@@ -46,28 +59,42 @@ export default function stringify(value) {
 			return id
 		}
 
+		const encoder = new TextEncoder()
+		const decoder = new TextDecoder()
+
 		const str = (key, holder) => {
 			let value = holder[key]
 			let result, updateReference
-			if (typeof value === 'object' && references.has(value)) {
-				let id = JSONTag.getAttribute(value, 'id')
-				if (!id) {
-					id = createId(value)
+			// if value is a valueProxy, just copy the input slice
+			if (value && !JSONTag.isNull(value) && value[isProxy]) {
+				if (index===0) {
+					resultArray.push(decoder.decode(value[getBuffer](index)))
 				}
-				return '~'+references.get(value)
+				return decoder.decode(value[getBuffer](index))
 			}
 			if (typeof value === 'undefined' || value === null) {
 				return 'null'
 			}
-			if (typeof value === 'object' && !Array.isArray(value)) {
-				references.set(value, resultArray.length)
-				updateReference = resultArray.length
-				resultArray.push('')
+			if (JSONTag.getType(value) === 'object' && !Array.isArray(value)) {
+				let id = JSONTag.getAttribute(value, 'id')
+				if (!references.has(value)) {
+					let reference = resultArray.length
+					updateReference = reference
+					references.set(value, updateReference)
+					resultArray.push('')
+					if (id && !meta.index.id.has(id)) {
+						meta.index.id.set(id, updateReference)
+					}
+				} else {
+					return '~'+references.get(value)
+				}
 			}
 			if (Array.isArray(value)) {
 				result = JSONTag.getTypeString(value) + "["+encodeEntries(value)+"]"
 			} else if (value instanceof Object) {
-				switch (JSONTag.getType(value)) {
+				let typeString = JSONTag.getTypeString(value)
+				let type = JSONTag.getType(value)
+				switch (type) {
 					case 'string':
 					case 'decimal':
 					case 'money':
@@ -84,7 +111,12 @@ export default function stringify(value) {
 					case 'date':
 					case 'time':
 					case 'datetime':
-						result = JSONTag.getTypeString(value) + JSON.stringify(''+value)
+						if (JSONTag.isNull(value)) {
+							value = 'null'
+						} else {
+							value = JSON.stringify(''+value)
+						}
+						result = typeString + value
 					break
 					case 'int':
 					case 'uint':
@@ -102,18 +134,23 @@ export default function stringify(value) {
 					case 'timestamp':
 					case 'number':
 					case 'boolean':
-						result = JSONTag.getTypeString(value) + JSON.stringify(value)
+						if (JSONTag.isNull(value)) {
+							value = 'null'
+						} else {
+							value = JSON.stringify(value)
+						}
+						result = typeString + value
 					break
 					case 'array': 
 						let entries = encodeEntries(value) // calculate children first so parent references can add id attribute
-						result = JSONTag.getTypeString(value) + '[' + entries + '}'
+						result = typeString + '[' + entries + '}'
 					break
 					case 'object': 
-						if (value === null) {
-							result = "null"
+						if (JSONTag.isNull(value)) {
+							result = typeString + "null"
 						} else {
 							let props = encodeProperties(value); // calculate children first so parent references can add id attribute
-							result = JSONTag.getTypeString(value) + '{' + props + '}'
+							result = typeString + '{' + props + '}'
 						}
 					break
 					default:
@@ -125,7 +162,9 @@ export default function stringify(value) {
 			}
 			if (typeof updateReference != 'undefined') {
 				resultArray[updateReference] = result
-				result = '~'+updateReference
+				if (index!==updateReference) {
+					result = '~'+updateReference
+				}
 			}
 			return result
 		}
@@ -134,6 +173,9 @@ export default function stringify(value) {
 	}
 		
 	const encode = (s) => {
+		if (skipLength) {
+			return s
+		}
 		let length = new Blob([s]).size
 		return '('+length+')'+s
 	}
@@ -142,3 +184,17 @@ export default function stringify(value) {
 	return resultArray.map(encode).join("\n")
 }
 
+export function stringToSAB(strData) {
+	const buffer = encoder.encode(strData)
+	const sab = new SharedArrayBuffer(buffer.length)
+	let uint8sab = new Uint8Array(sab)
+	uint8sab.set(buffer,0)
+	return uint8sab
+}
+
+export function resultSetStringify(resultSet) {
+	return resultSet.map((e,i) => {
+		let buffer = e[getBuffer](i)
+		return '('+buffer.length+')'+decoder.decode(buffer)
+	}).join("\n")
+}
