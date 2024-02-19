@@ -86,12 +86,6 @@ export default class WorkerPool extends EventEmitter {
     worker.postMessage(task);
   }
 
-  runInit() {
-    // re-init all workers when they become available
-    // or move current workers to stoplist and terminate them when they become free
-    // and start new workers, with the initTask?
-  }
-
   memoryUsage() {
     for (let worker of this.freeWorkers) {
       worker[kTaskInfo] = new WorkerPoolTaskInfo((result) => {})
