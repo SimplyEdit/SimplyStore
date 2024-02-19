@@ -236,22 +236,13 @@ async function main(options) {
                 }
             )
         } else {
+            // this code can never be triggered from the post(/command/) route, since it always adds a command to the queue
+            // so you can only get here from commandWorkerInstance.on() route
+            // which means that the commandWorkerInstance has finished running the previous command
             await commandWorkerInstance.terminate()
             commandWorkerInstance.unref() // @FIXME is this needed?
             commandWorkerInstance = null  // @FIXME or this?
         }
-    }
-
-    async function runCommand(command) {
-        // append command to the queue
-        commandQueue.push(command)
-
-        // if there is no command worker running, start one with the first entry from the queue
-        if (!commandWorkerInstance) {
-            runNextCommand()
-        }
-        // return a promise that is resolved when that command is finished
-        return new Promise(command.start)
     }
 
     server.post('/command', async (req, res) => {
@@ -279,8 +270,8 @@ async function main(options) {
 
             runNextCommand()
         } catch(err) {
+            appendFile(commandStatus, JSONTag.stringify({command:commandId, status: 'ERROR: '+err.message}))
             status.set(commandId, 'ERROR: '+err.message)
-            await appendFile(commandStatus, JSONTag.stringify({command:commandId, status: 'ERROR: '+err.message}))
             console.error('ERROR: SimplyStore cannot run command ', commandId, err)
         }
     })
@@ -308,7 +299,11 @@ async function main(options) {
             return false      
         }
         appendFile(commandLog, JSONTag.stringify(command))
-        status.set(command.id, 'accepted') // doesn't need to be saved to file
+        appendFile(commandStatus, JSONTag.stringify({
+            command: command.id,
+            status: 'accepted'
+        }))
+        status.set(command.id, 'accepted') 
         sendResponse({code: 202, body: '"Accepted"'}, res)
         return command.id
     }
