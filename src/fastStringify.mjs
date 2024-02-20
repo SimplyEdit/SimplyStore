@@ -6,7 +6,7 @@ import {source,isProxy,getIndex, getBuffer} from './symbols.mjs'
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
-export default function stringify(value, meta, skipLength=false, index) {
+export default function stringify(value, meta, skipLength=false, index=false) {
 	let resultArray = []
 	if (!meta) {
 		meta = {}
@@ -19,7 +19,87 @@ export default function stringify(value, meta, skipLength=false, index) {
 	}
 	let references = new WeakMap()
 
-	const innerStringify = (value) => {
+	function stringifyValue(value) {
+		let prop
+		let typeString = JSONTag.getTypeString(value)
+		let type = JSONTag.getType(value)
+		switch (type) {
+			case 'string':
+			case 'decimal':
+			case 'money':
+			case 'link':
+			case 'text':
+			case 'blob':
+			case 'color':
+			case 'email':
+			case 'hash':
+			case 'duration':
+			case 'phone':
+			case 'url':
+			case 'uuid':
+			case 'date':
+			case 'time':
+			case 'datetime':
+				if (JSONTag.isNull(value)) {
+					value = 'null'
+				} else {
+					value = JSON.stringify(''+value)
+				}
+				prop = typeString + value
+			break
+			case 'int':
+			case 'uint':
+			case 'int8':
+			case 'uint8':
+			case 'int16':
+			case 'uint16':
+			case 'int32':
+			case 'uint32':
+			case 'int64':
+			case 'uint64':
+			case 'float':
+			case 'float32':
+			case 'float64':
+			case 'timestamp':
+			case 'number':
+			case 'boolean':
+				if (JSONTag.isNull(value)) {
+					value = 'null'
+				} else {
+					value = JSON.stringify(value)
+				}
+				prop = typeString + value
+			break
+			case 'array': 
+				let entries = value.map(e => stringifyValue(e)).join(',')
+				prop = typeString + '[' + entries + ']'
+			break
+			case 'object':
+				if (!value) {
+					prop = 'null'
+				} else if (value[isProxy]) {
+					prop = decoder.decode(value[getBuffer](current))
+				} else {
+					if (!references.has(value)) {
+						references.set(value, resultArray.length)
+						resultArray.push(value)
+					}
+					prop = '~'+references.get(value)
+				}
+			break
+			default:
+				throw new Error(JSONTag.getType(value)+' type not yet implemented')
+			break
+		}
+		return prop
+	}
+
+	const encoder = new TextEncoder()
+	const decoder = new TextDecoder()
+
+	// is only ever called on object values
+	// and should always return a stringified object, not a reference (~n)
+	const innerStringify = (current) => {
 		let indent = ""
 		let gap = ""
 
@@ -29,147 +109,26 @@ export default function stringify(value, meta, skipLength=false, index) {
 			indent = space
 		}
 
-		const encodeProperties = (obj) => {
-			return Object.getOwnPropertyNames(obj).map(prop => {
-				let enumerable = obj.propertyIsEnumerable(prop) ? '' : '#'
-				return enumerable+'"'+prop+'":'+str(prop, obj)
-			}).join(',')
+		let object = resultArray[current]
+		let result 
+
+		// if value is a valueProxy, just copy the input slice
+		if (object && !JSONTag.isNull(object) && object[isProxy]) {
+			return decoder.decode(object[getBuffer](current))
 		}
-
-		const encodeEntries = (arr) => {
-			let result = arr.map((value,index) => {
-				return str(index, arr)
-			}).join(",")
-			return result
+		if (typeof object === 'undefined' || object === null) {
+			return 'null'
 		}
-
-		const createId = (value) => {
-			if (typeof crypto === 'undefined') {
-				console.error('JSONTag: cannot generate uuid, crypto support is disabled.')
-				throw new Error('Cannot create links to resolve references, crypto support is disabled')
-			}
-			if (typeof crypto.randomUUID === 'function') {
-				var id = crypto.randomUUID()
-			} else {
-				var id = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-					(c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-				);
-			}
-			JSONTag.setAttribute(value, 'id', id)
-			return id
+		
+		let props = []
+		for (let key of Object.getOwnPropertyNames(object)) {
+			let value = object[key]
+			let prop = stringifyValue(value)
+			let enumerable = object.propertyIsEnumerable(key) ? '' : '#'
+			props.push(enumerable+'"'+key+'":'+prop)
 		}
-
-		const encoder = new TextEncoder()
-		const decoder = new TextDecoder()
-
-		const str = (key, holder) => {
-			let value = holder[key]
-			let result, updateReference
-			// if value is a valueProxy, just copy the input slice
-			if (value && !JSONTag.isNull(value) && value[isProxy]) {
-				if (index===0) {
-					resultArray.push(decoder.decode(value[getBuffer](index)))
-				}
-				return decoder.decode(value[getBuffer](index))
-			}
-			if (typeof value === 'undefined' || value === null) {
-				return 'null'
-			}
-			if (JSONTag.getType(value) === 'object' && !Array.isArray(value)) {
-				let id = JSONTag.getAttribute(value, 'id')
-				if (!references.has(value)) {
-					let reference = resultArray.length
-					updateReference = reference
-					references.set(value, updateReference)
-					resultArray.push('')
-					if (id && !meta.index.id.has(id)) {
-						meta.index.id.set(id, updateReference)
-					}
-				} else {
-					return '~'+references.get(value)
-				}
-			}
-			if (Array.isArray(value)) {
-				result = JSONTag.getTypeString(value) + "["+encodeEntries(value)+"]"
-			} else if (value instanceof Object) {
-				let typeString = JSONTag.getTypeString(value)
-				let type = JSONTag.getType(value)
-				switch (type) {
-					case 'string':
-					case 'decimal':
-					case 'money':
-					case 'link':
-					case 'text':
-					case 'blob':
-					case 'color':
-					case 'email':
-					case 'hash':
-					case 'duration':
-					case 'phone':
-					case 'url':
-					case 'uuid':
-					case 'date':
-					case 'time':
-					case 'datetime':
-						if (JSONTag.isNull(value)) {
-							value = 'null'
-						} else {
-							value = JSON.stringify(''+value)
-						}
-						result = typeString + value
-					break
-					case 'int':
-					case 'uint':
-					case 'int8':
-					case 'uint8':
-					case 'int16':
-					case 'uint16':
-					case 'int32':
-					case 'uint32':
-					case 'int64':
-					case 'uint64':
-					case 'float':
-					case 'float32':
-					case 'float64':
-					case 'timestamp':
-					case 'number':
-					case 'boolean':
-						if (JSONTag.isNull(value)) {
-							value = 'null'
-						} else {
-							value = JSON.stringify(value)
-						}
-						result = typeString + value
-					break
-					case 'array': 
-						let entries = encodeEntries(value) // calculate children first so parent references can add id attribute
-						result = typeString + '[' + entries + '}'
-					break
-					case 'object': 
-						if (JSONTag.isNull(value)) {
-							result = typeString + "null"
-						} else {
-							let props = encodeProperties(value); // calculate children first so parent references can add id attribute
-							result = typeString + '{' + props + '}'
-						}
-					break
-					default:
-						throw new Error(JSONTag.getType(value)+' type not yet implemented')
-					break
-				}
-			} else {
-				result = JSON.stringify(value)
-			}
-			if (typeof updateReference != 'undefined') {
-				resultArray[updateReference] = result
-				if (index!==updateReference) {
-					result = '~'+updateReference
-				}
-			}
-			return result
-		}
-
-		return str("", {"": value})
+		result = JSONTag.getTypeString(object)+'{'+props.join(',')+'}'
+		return result
 	}
 		
 	const encode = (s) => {
@@ -180,7 +139,13 @@ export default function stringify(value, meta, skipLength=false, index) {
 		return '('+length+')'+s
 	}
 
-	innerStringify(value)
+	resultArray.push(value)
+	let current = 0
+	while(current<resultArray.length) {
+		resultArray[current] = innerStringify(current)
+		current++
+	}
+
 	return resultArray.map(encode).join("\n")
 }
 
