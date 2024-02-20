@@ -1,6 +1,6 @@
 {
 	"name": "@muze-nl/simplystore",
-	"version": "0.4.7",
+	"version": "0.5.1",
 	"main": "src/server.mjs",
 	"type": "module",
 	"scripts": {
@@ -16,13 +16,12 @@
 	"bugs": "https://github.com/simplyedit/simplystore/issues",
 	"homepage": "https://github.com/simplyedit/simplystore#readme",
 	"dependencies": {
-		"@muze-nl/jsontag": "^0.8.6",
+		"@muze-nl/jsontag": "^0.9.1",
 		"array-where-select": "^0.4.7",
 		"codemirror": "^6.0.1",
 		"express": "^4.18.1",
 		"json-pointer": "^0.6.2",
 		"jsonpath-plus": "^7.2.0",
-		"piscina": "^4.1.0",
 		"vm2": "^3.9.13",
 		"write-file-atomic": "^5.0.1"
 	},
@@ -30,5 +29,12 @@
 		"eslint": "^8.48.0",
 		"process": "^0.11.10",
 		"tap": "^16.3.8"
-	}
+	},
+	"files": [
+		"README.md",
+		"LICENSE",
+		"src/",
+		"www/",
+		"scripts/"
+	]
 }
