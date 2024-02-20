@@ -67,7 +67,12 @@ tap.test('immutable', t => {
 	let sab = stringToSAB(strData)
 	let resultSet = parse(sab, {}, true) // immutable
 	let root = resultSet[0]
-	root.foo[0].name='Baz'
+	try {
+		root.foo[0].name='Baz'
+		t.ok(false)
+	} catch(e) {
+		t.ok(true)
+	}
 	t.equal(root.foo[0].name, 'Foo')
 	t.equal(resultSet[1].name, 'Foo')
 	t.end()
@@ -186,5 +191,19 @@ tap.test('encoding', t => {
 	let resultSet = parse(sab)
 	let padme = resultSet[0]
 	t.equal(padme.name, "Padmé Amidala")
+	t.end()
+})
+
+tap.test('entries', t => {
+	let strData = `(64)<object class="foo" id="1">{"name":"Foo",#"nonEnumerable":"bar"}	`
+	let sab = stringToSAB(strData)
+	let resultSet = parse(sab)
+	let root = resultSet[0]
+	let keys = Object.keys(root)
+	t.same(keys, ['name'])
+	let ownKeys = Object.getOwnPropertyNames(root)
+	t.same(ownKeys, ['name','nonEnumerable'])
+	let descr = Object.getOwnPropertyDescriptor(root, 'nonEnumerable')
+	t.equal(descr.enumerable, false)
 	t.end()
 })
