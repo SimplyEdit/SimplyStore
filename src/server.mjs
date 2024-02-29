@@ -208,31 +208,32 @@ async function main(options) {
             start(
                 // resolve()
                 (data) => {
-                    if (!data || data.error) {
-                        console.error('ERROR: SimplyStore cannot run command ', command.id, err)
-                        if (!data.error) {
+                    if (!data || (data.code>=300 && data.code<=499)) {
+                        console.error('ERROR: SimplyStore cannot run command ', command.id, data)
+                        if (!data.code) {
                             status.set(command.id, 'failed')
-                            throw new Error('Unexpected command failure')
                         } else {
-                            status.set(command.id, data.error)
-                            throw data.error
+                            status.set(command.id, data.code)
+                        }
+                    } else {
+                        status.set(command.id, 'done')
+                        appendFile(commandStatus, JSONTag.stringify({command:command.id, status: 'done'}))
+                        if (data.data) { // data has changed, commands may do other things instead of changing data
+                            jsontagBuffer = data.data
+                            meta = data.meta
+                            // restart query workers with new data
+                            let oldPool = queryWorkerPool
+                            queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
+                            setTimeout(() => {
+                                oldPool.close()
+                            }, 2000)
                         }
                     }
-                    jsontagBuffer = data.data
-                    meta = data.meta
-                    status.set(command.id, 'done')
-                    appendFile(commandStatus, JSONTag.stringify({command:command.id, status: 'done'}))
-                    // restart query workers with new data
-                    let oldPool = queryWorkerPool
-                    queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
-                    setTimeout(() => {
-                        oldPool.close()
-                    }, 2000)
                 }, 
                 //reject()
                 (error) => {
-                    status.set(command.id, error)
-                    appendFile(commandStatus, JSONTag.stringify({command:command.id, status: error}))
+                    status.set(command.id, error.code)
+                    appendFile(commandStatus, JSONTag.stringify({command:command.id, status: error.code}))
                 }
             )
         } else {
@@ -279,32 +280,34 @@ async function main(options) {
     function checkCommand(req, res) {
         let commandStr = req.body.toString() // raw body through express.raw()
         let command = JSONTag.parse(commandStr)
+        let commandOK = {
+            command: command?.id,
+            status: 'accepted'
+        }
         if (!command || !command.id) {
             error = {
                 code: 422,
-                message: "Command has no id"
+                message: "Command has no id",
+                details: command
             }
             sendResponse({code: 422, body: JSON.stringify(error)}, res)
             return false
         } else if (status.has(command.id)) {
-            result = "OK"
-            sendResponse({body: JSON.stringify(result)}, res)
+            sendResponse({body: JSON.stringify(commandOK)}, res)
             return false
         } else if (!command.name) {
             error = {
                 code: 422,
-                message: "Command has no name"
+                message: "Command has no name",
+                details: command
             }
             sendResponse({code:422, body: JSON.stringify(error)}, res)
             return false      
         }
         appendFile(commandLog, JSONTag.stringify(command))
-        appendFile(commandStatus, JSONTag.stringify({
-            command: command.id,
-            status: 'accepted'
-        }))
+        appendFile(commandStatus, JSONTag.stringify(commandOK))
         status.set(command.id, 'accepted') 
-        sendResponse({code: 202, body: '"Accepted"'}, res)
+        sendResponse({code: 202, body: JSON.stringify(commandOK)}, res)
         return command.id
     }
 
@@ -319,7 +322,7 @@ async function main(options) {
             sendResponse({
                 code: 404,
                 jsontag: false,
-                body: JSON.stringify({code: 404, message: "Command not found"})
+                body: JSON.stringify({code: 404, message: "Command not found", details: req.params.id})
             }, res)
         }
     })
