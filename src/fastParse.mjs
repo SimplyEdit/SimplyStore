@@ -838,10 +838,12 @@ export default function parse(input, meta, immutable=true)
             set(target, prop, value) {
                 if (!immutable) {
                     firstParse()
-                    if (JSONTag.getType(value)==='object' && !value[isProxy]) {
-                        value = getNewValueProxy(value)
+                    if (prop!==isChanged) {
+                        if (JSONTag.getType(value)==='object' && !value[isProxy]) {
+                            value = getNewValueProxy(value)
+                        }
+                        target[prop] = value
                     }
-                    target[prop] = value
                     targetIsChanged = true
                     return true
                 }
