@@ -3,11 +3,7 @@ import runCommand, { initialize } from '../src/command-worker-module.mjs'
 
 parentPort.on('message', async data => {
     let result
-    try {
-        await initialize(data)
-        result = await runCommand(data.command)
-    } catch(err) {
-        result = { error: err.message }
-    }
+    await initialize(data)
+    result = await runCommand(data.command)
     parentPort.postMessage(result)
 })

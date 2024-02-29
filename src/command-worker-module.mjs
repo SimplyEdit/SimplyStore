@@ -1,5 +1,5 @@
 import JSONTag from '@muze-nl/jsontag'
-import {source} from './symbols.mjs'
+import {source, isChanged} from './symbols.mjs'
 import fastParse from './fastParse.mjs'
 import {stringToSAB,resultSetStringify} from './fastStringify.mjs'
 import writeFileAtomic from 'write-file-atomic'
@@ -25,7 +25,7 @@ export const metaIdProxy = {
         })
     },
     set: (id,ref) => {
-        //FICME: is this correct?
+        //FIXME: is this correct?
         meta.index.id.set(id, resultSet.length-1)
     },
     get: (id) => {
@@ -46,7 +46,10 @@ export const metaIdProxy = {
 export const FastJSONTag = {
     getType: (obj) => JSONTag.getType(obj[source]),
     getAttribute: (obj, attr) => JSONTag.getAttribute(obj[source],attr),
-    setAttribute: (obj, attr, value) => JSONTag.setAttribute(obj[source], attr, value),
+    setAttribute: (obj, attr, value) => {
+        obj[isChanged] = true
+        return JSONTag.setAttribute(obj[source], attr, value)
+    },
     getAttributes: (obj) => JSONTag.getAttributes(obj[source]),
     getAttributeString: (obj) => JSONTag.getAttributesString(obj[source]),
     getTypeString: (obj) => JSONTag.getTypeString(obj[source])
@@ -59,6 +62,7 @@ export async function initialize(task) {
     metaProxy.index.id = metaIdProxy
     datafile = task.datafile
     commands = await import(task.commandsFile).then(mod => {
+        console.log('commands loaded:',Object.keys(mod.default))
         return mod.default
     })
 }
@@ -71,29 +75,28 @@ export default async function runCommand(commandStr, request) {
         jsontag: true
     }
     if (commands[task.name]) {
-        try {
-            commands[task.name](dataspace, task, request, metaProxy)
-            FastJSONTag.setAttribute(dataspace, 'command', task.id)
+        let time = Date.now()
+        commands[task.name](dataspace, task, request, metaProxy)
+        FastJSONTag.setAttribute(dataspace, 'command', task.id)
 
-            const strData = resultSetStringify(resultSet)
-            const uint8sab = stringToSAB(strData)
-            response.data = uint8sab
-            response.meta = {
-                index: {
-                    id: meta.index.id
-                }
+        const strData = resultSetStringify(resultSet)
+        const uint8sab = stringToSAB(strData)
+        response.data = uint8sab
+        response.meta = {
+            index: {
+                id: meta.index.id
             }
-
-            await writeFileAtomic(datafile, uint8sab)
-        } catch(err) {
-            console.error('error',err)
-            response.code = 422;
-            response.body = '<object class="Error">{"message":'+JSON.stringify(''+err)+',"code":422}'
         }
+
+        await writeFileAtomic(datafile, uint8sab)
+        let end = Date.now()
+        console.log('task time',end-time)
     } else {
-        console.error('Command not found', task.name, commands)
-        response.code = 404
-        response.body = '<object class="Error">{"message":"Command '+task.name+' not found","code":404}'
+        console.error('Command not found', task.name)
+        throw {
+            code: 404,
+            message: "Command "+task.name+" not found"
+        }
     }
     return response
 }
