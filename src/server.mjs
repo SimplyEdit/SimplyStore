@@ -153,7 +153,7 @@ async function main(options) {
                 let lines = file.split("\n").filter(Boolean) //filter clears empty lines
                 for(let line of lines) {
                     let command = JSONTag.parse(line)
-                    status.set(command.id, command.status)
+                    status.set(command.id, command)
                 }
             }
         }
@@ -208,16 +208,18 @@ async function main(options) {
             start(
                 // resolve()
                 (data) => {
+                    let s
                     if (!data || (data.code>=300 && data.code<=499)) {
                         console.error('ERROR: SimplyStore cannot run command ', command.id, data)
-                        if (!data.code) {
-                            status.set(command.id, 'failed')
+                        if (!data?.code) {
+                            s = {code: 500, status: "failed"}
                         } else {
-                            status.set(command.id, data.code)
+                            s = {code: data.code, status: "failed", message: data.message, details: data.details}
                         }
+                        status.set(command.id, s)
                     } else {
-                        status.set(command.id, 'done')
-                        appendFile(commandStatus, JSONTag.stringify({command:command.id, status: 'done'}))
+                        s = {code: 200, status: "done"}
+                        status.set(command.id, s)
                         if (data.data) { // data has changed, commands may do other things instead of changing data
                             jsontagBuffer = data.data
                             meta = data.meta
@@ -229,11 +231,15 @@ async function main(options) {
                             }, 2000)
                         }
                     }
+                    let l = Object.assign({command:command.id}, s)
+                    console.log('appending status ',l,s)
+                    appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                 }, 
                 //reject()
                 (error) => {
-                    status.set(command.id, error.code)
-                    appendFile(commandStatus, JSONTag.stringify({command:command.id, status: error.code}))
+                    let s = {status: "failed", code: error.code, message: error.message, details: error.details}
+                    status.set(command.id, s)
+                    appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                 }
             )
         } else {
@@ -271,8 +277,9 @@ async function main(options) {
 
             runNextCommand()
         } catch(err) {
-            appendFile(commandStatus, JSONTag.stringify({command:commandId, status: 'ERROR: '+err.message}))
-            status.set(commandId, 'ERROR: '+err.message)
+            let s = {code:err.code||500, status:'failed', message:err.message, details:err.details}
+            status.set(commandId, s)
+            appendFile(commandStatus, JSONTag.stringify(Object.assign({command:commandId}, s)))
             console.error('ERROR: SimplyStore cannot run command ', commandId, err)
         }
     })
@@ -282,6 +289,7 @@ async function main(options) {
         let command = JSONTag.parse(commandStr)
         let commandOK = {
             command: command?.id,
+            code: 202,
             status: 'accepted'
         }
         if (!command || !command.id) {
@@ -293,7 +301,7 @@ async function main(options) {
             sendResponse({code: 422, body: JSON.stringify(error)}, res)
             return false
         } else if (status.has(command.id)) {
-            sendResponse({body: JSON.stringify(commandOK)}, res)
+            sendResponse({body: JSON.stringify(s)}, res)
             return false
         } else if (!command.name) {
             error = {
@@ -306,7 +314,7 @@ async function main(options) {
         }
         appendFile(commandLog, JSONTag.stringify(command))
         appendFile(commandStatus, JSONTag.stringify(commandOK))
-        status.set(command.id, 'accepted') 
+        status.set(command.id, commandOK) 
         sendResponse({code: 202, body: JSON.stringify(commandOK)}, res)
         return command.id
     }
