@@ -29,43 +29,43 @@ async function main(options) {
     const commandLog    = options.commandLog    || './command-log.jsontag'
     const commandStatus = options.commandStatus || './command-status.jsontag'
 
-	server.use(express.static(wwwroot))
+    server.use(express.static(wwwroot))
 
-	// allow access to raw body, used to parse a query send as post body
+    // allow access to raw body, used to parse a query send as post body
     server.use(express.raw({
         type: (req) => true // parse body on all requests
     }))
 
     function loadData() {
-    	return new Promise((resolve,reject) => {
-	    	let worker = new Worker(loadWorker)
-	    	worker.on('message', result => {
-	    		resolve(result)
-	    		worker.terminate()
-	    	})
-	    	worker.on('error', error => {
-	    		reject(error)
-	    		worker.terminate()
-	    	})
-	    	worker.postMessage(datafile)
-	    })
+        return new Promise((resolve,reject) => {
+            let worker = new Worker(loadWorker)
+            worker.on('message', result => {
+                resolve(result)
+                worker.terminate()
+            })
+            worker.on('error', error => {
+                reject(error)
+                worker.terminate()
+            })
+            worker.postMessage(datafile)
+        })
     }
     try {
         let data = await loadData()
-	    jsontagBuffer = data.data
+        jsontagBuffer = data.data
         meta = data.meta
-	} catch(err) {
-		console.error('ERROR: SimplyStore cannot load '+datafile, err)
-		process.exit(1)
-	}
+    } catch(err) {
+        console.error('ERROR: SimplyStore cannot load '+datafile, err)
+        process.exit(1)
+    }
 
     const queryWorkerInitTask = () => { 
         return {
-        	name: 'init',
-        	req: {
-        		body: jsontagBuffer,
+            name: 'init',
+            req: {
+                body: jsontagBuffer,
                 meta
-        	}
+            }
         }
     }
 
@@ -94,19 +94,19 @@ async function main(options) {
         let path = req.path.substr(6) // cut '/query'
         console.log('query',path)
         let request = {
-        	method: req.method,
-        	url: req.originalUrl,
-        	query: req.query,
-        	path: path
+            method: req.method,
+            url: req.originalUrl,
+            query: req.query,
+            path: path
         }
         if (accept(req,res,['application/jsontag'])) {
             request.jsontag = true
         }
         try {
-        	let result = await queryWorkerPool.run('query', request)
-        	sendResponse(result, res)
+            let result = await queryWorkerPool.run('query', request)
+            sendResponse(result, res)
         } catch(error) {
-        	sendError(error, res)
+            sendError(error, res)
         }
         let end = Date.now()
         console.log(path, (end-start), process.memoryUsage())
@@ -122,20 +122,20 @@ async function main(options) {
         }
         let path = req.path.substr(6) // cut '/query'
         let request = {
-        	method: req.method,
-        	url: req.originalUrl,
-        	query: req.query,
-        	path: path,
-        	body: req.body.toString()
+            method: req.method,
+            url: req.originalUrl,
+            query: req.query,
+            path: path,
+            body: req.body.toString()
         }
         if (accept(req,res,['application/jsontag'])) {
             request.jsontag = true
         }
         try {
-        	let result = await queryWorkerPool.run('query', request)
-        	sendResponse(result, res)
+            let result = await queryWorkerPool.run('query', request)
+            sendResponse(result, res)
         } catch(error) {
-        	sendError(error, res)
+            sendError(error, res)
         }
         let end = Date.now()
         console.log(path, (end-start), process.memoryUsage())
@@ -153,9 +153,13 @@ async function main(options) {
                 let lines = file.split("\n").filter(Boolean) //filter clears empty lines
                 for(let line of lines) {
                     let command = JSONTag.parse(line)
-                    status.set(command.id, command)
+                    status.set(command.command, command)
                 }
+            } else {
+                console.error('Could not open command status',commandStatusFile)
             }
+        } else {
+            console.log('no command status', commandStatusFile)
         }
         return status
     }
