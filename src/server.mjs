@@ -261,8 +261,8 @@ async function main(options) {
         if (!commandId) {
             return
         }
-        let commandStr = req.body.toString()
         try {
+            let commandStr = req.body.toString()
             let request = {
                 method: req.method,
                 url: req.originalUrl,
@@ -289,12 +289,24 @@ async function main(options) {
     })
 
     function checkCommand(req, res) {
+        let error, command, commandOK
         let commandStr = req.body.toString() // raw body through express.raw()
-        let command = JSONTag.parse(commandStr)
-        let commandOK = {
-            command: command?.id,
-            code: 202,
-            status: 'accepted'
+        try {
+            command = JSONTag.parse(commandStr)
+
+            commandOK = {
+                command: command?.id,
+                code: 202,
+                status: 'accepted'
+            }
+        } catch(err) {
+            error = {
+                code: 400,
+                message: "Bad request",
+                details: err
+            }
+            sendResponse({code: 400, body: JSON.stringify(error)}, res)
+            return false
         }
         if (!command || !command.id) {
             error = {
