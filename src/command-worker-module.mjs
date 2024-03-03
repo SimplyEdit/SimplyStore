@@ -1,5 +1,5 @@
 import JSONTag from '@muze-nl/jsontag'
-import {source, isChanged} from './symbols.mjs'
+import {source, isChanged, getIndex} from './symbols.mjs'
 import fastParse from './fastParse.mjs'
 import {stringToSAB,resultSetStringify} from './fastStringify.mjs'
 import writeFileAtomic from 'write-file-atomic'
@@ -25,8 +25,16 @@ export const metaIdProxy = {
         })
     },
     set: (id,ref) => {
-        //FIXME: is this correct?
-        meta.index.id.set(id, resultSet.length-1)
+        if (!meta.index.id.has(id)) {
+            if (ref[getIndex]) {
+                meta.index.id.set(id, ref[getIndex])
+            } else {
+                throw new Error('cannot set index.id for non-proxy')
+            }
+        } else {
+            let line = meta.index.id.get(id)
+            resultSet[line] = ref
+        }
     },
     get: (id) => {
         let index = meta.index.id.get(id)
@@ -44,15 +52,16 @@ export const metaIdProxy = {
 }
 
 export const FastJSONTag = {
-    getType: (obj) => JSONTag.getType(obj[source]),
-    getAttribute: (obj, attr) => JSONTag.getAttribute(obj[source],attr),
+    getType: (obj) => JSONTag.getType(obj?.[source]),
+    getAttribute: (obj, attr) => JSONTag.getAttribute(obj?.[source],attr),
     setAttribute: (obj, attr, value) => {
+        if (!obj) return
         obj[isChanged] = true
         return JSONTag.setAttribute(obj[source], attr, value)
     },
-    getAttributes: (obj) => JSONTag.getAttributes(obj[source]),
-    getAttributeString: (obj) => JSONTag.getAttributesString(obj[source]),
-    getTypeString: (obj) => JSONTag.getTypeString(obj[source])
+    getAttributes: (obj) => JSONTag.getAttributes(obj?.[source]),
+    getAttributeString: (obj) => JSONTag.getAttributesString(obj?.[source]),
+    getTypeString: (obj) => JSONTag.getTypeString(obj?.[source])
 }
 
 export async function initialize(task) {
