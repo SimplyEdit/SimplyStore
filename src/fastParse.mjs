@@ -769,6 +769,7 @@ export default function parse(input, meta, immutable=true)
                     return (...args) => {
                         args = args.map(arg => {
                             if (JSONTag.getType(arg)==='object' && !arg[isProxy]) {
+                                console.log('proxying arg')
                                 arg = getNewValueProxy(arg)
                             }
                             return arg
@@ -805,6 +806,15 @@ export default function parse(input, meta, immutable=true)
                 delete target[prop]
                 targetIsChanged = true
                 return true
+            },
+            ownKeys: (target) => {
+                return Reflect.ownKeys(target)
+            },
+            getOwnPropertyDescriptor: (target, prop) => {
+                return {
+                    enumerable: true,
+                    configurable: true
+                }
             }
         }
         let handler = {
@@ -837,10 +847,10 @@ export default function parse(input, meta, immutable=true)
                         return targetIsChanged
                     break
                     default:
-                        if (Array.isArray(target[prop]) && target[prop].propertyIsEnumerable()) {
+                        if (!immutable && Array.isArray(target[prop])) {
                             return new Proxy(target[prop], arrayHandler)
                         }
-                        return target[prop] // FIXME: make arrays immutable as well
+                        return target[prop]
                     break
                 }
             },
