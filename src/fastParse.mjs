@@ -726,7 +726,7 @@ export default function parse(input, meta, immutable=true)
                 if (JSONTag.getType(value)==='object' && !value[isProxy]) {
                     value = getNewValueProxy(value)
                 }
-                target[prop] = val
+                target[prop] = value
                 return true                    
             }
         }
@@ -949,40 +949,6 @@ export default function parse(input, meta, immutable=true)
         whitespace()
         offsetArray.push(at)
         resultArray.push(result[1])
-    }
-
-    if (typeof reviver === 'function') {
-        function walk(holder, key)
-        {
-          var k;
-          var v;
-          var value = holder[key];
-          if (value !== null 
-                  && typeof value === "object" 
-                  && !(value instanceof String 
-                  || value instanceof Number
-                  || value instanceof Boolean)
-          ) {
-              for (k in value) {
-                  if (Object.prototype.hasOwnProperty.call(value, k)) {
-                      v = walk(value, k);
-                      if (v !== undefined 
-                            && ( typeof value[k] === 'undefined' || value[k]!==v) )
-                      {
-                          value[k] = v;
-                          if (JSONTag.getType(v)==='link') {
-                                checkUnresolved(v, value, k)
-                          }
-                      } else if (v === undefined) {
-                          delete value[k];
-                      }
-                  }
-              }
-          }
-          return reviver.call(holder, key, value, meta);
-        }
-        
-        walk({"":result}, "")
     }
 
     let replaceLink = function(u,value)
