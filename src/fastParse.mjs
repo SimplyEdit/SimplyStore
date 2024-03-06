@@ -1,7 +1,7 @@
 import JSONTag from '@muze-nl/jsontag';
 import Null from '@muze-nl/jsontag/src/lib/Null.mjs'
 import fastStringify from './fastStringify.mjs'
-import {source,isProxy,getBuffer,getIndex,isChanged} from './symbols.mjs'
+import {source,isProxy,getBuffer,getIndex,isChanged,isParsed,position,parent} from './symbols.mjs'
 
 const decoder = new TextDecoder()
 const encoder = new TextEncoder()
@@ -36,6 +36,10 @@ export default function parse(input, meta, immutable=true)
         t: "\t"
     }
     let offsetArray = []
+    let resultArray = []
+
+    at = 0
+    ch = " "
 
     let error = function(m)
     {
@@ -58,7 +62,7 @@ export default function parse(input, meta, immutable=true)
     let next = function(c)
     {
         if (c && c!==ch) {
-            error("Expected '"+c+"' instead of '"+ch+"'")
+            error("Expected '"+c+"' instead of '"+ch+"': "+at+':'+input)
         }
         ch = String.fromCharCode(input.at(at))
         at+=1
@@ -658,10 +662,8 @@ export default function parse(input, meta, immutable=true)
         })
     }
 
-    const getNewValueProxy = function(value) {
-        let index = resultArray.length
-        resultArray.push('')
-        let arrayHandler = {
+    const handlers = {
+        newArrayHandler: {
             get(target, prop) {
                 if (target[prop] instanceof Function) {
                     return (...args) => {
@@ -677,7 +679,8 @@ export default function parse(input, meta, immutable=true)
                     return true
                 } else {
                     if (Array.isArray(target[prop])) {
-                        return new Proxy(target[prop], arrayHandler)
+//                        console.log('proxying array with newArrayHandler')
+                        return new Proxy(target[prop], handlers.newArrayHandler)
                     }
                     return target[prop]
                 }
@@ -689,8 +692,8 @@ export default function parse(input, meta, immutable=true)
                 target[prop] = value
                 return true
             }
-        }
-        let newValueHandler = {
+        },
+        newValueHandler: {
             get(target, prop, receiver) {
                 switch(prop) {
                     case source:
@@ -701,6 +704,7 @@ export default function parse(input, meta, immutable=true)
                     break
                     case getBuffer:
                         return (i) => {
+                            let index = target[getIndex]
                             if (i != index) {
                                 return encoder.encode('~'+index)
                             }
@@ -709,14 +713,15 @@ export default function parse(input, meta, immutable=true)
                         }
                     break
                     case getIndex:
-                        return index
+                        return target[getIndex]
                     break
                     case isChanged:
                         return true
                     break
                     default:
                         if (Array.isArray(target[prop])) {
-                            return new Proxy(target[prop], arrayHandler)
+                            // console.log('proxying array with newArrayHandler')
+                            return new Proxy(target[prop], handlers.newArrayHandler)
                         }
                         return target[prop]
                     break
@@ -729,44 +734,18 @@ export default function parse(input, meta, immutable=true)
                 target[prop] = value
                 return true                    
             }
-        }
-
-        makeChildProxies(value)
-        let result = new Proxy(value, newValueHandler)
-        resultArray[index] = result
-        return result
-    }
-
-    let valueProxy = function(length, index)
-    {
-        // current offset + length contains jsontag of this value
-        let position = {
-            start: at-1,
-            end: at-1+length
-        }
-        let cache = {}
-        let targetIsChanged = false
-        let parsed = false
-        at += length
-        next()
-        let firstParse = function() {
-            if (!parsed) {
-                parseValue(position, cache)
-                parsed = true
-            }
-        }
-        // newValueHandler makes sure that value[getBuffer] runs stringify
-        // arrayHandler makes sure that changes in the array set targetIsChanged to true
-        let arrayHandler = {
+        },
+        arrayHandler: {
             get(target, prop) {
                 if (target[prop] instanceof Function) {
                     if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift'].indexOf(prop)!==-1) {
                         if (immutable) {
                             throw new Error('dataspace is immutable')
                         }
-                        targetIsChanged = true
+                        // console.log('getting array function '+prop)
                     }
                     return (...args) => {
+                        // console.log('calling array function '+prop)
                         args = args.map(arg => {
                             if (JSONTag.getType(arg)==='object' && !arg[isProxy]) {
                                 console.log('proxying arg')
@@ -774,13 +753,18 @@ export default function parse(input, meta, immutable=true)
                             }
                             return arg
                         })
-                        return target[prop].apply(target, args)
+                        target[parent][isChanged] = true // incorrect target for isChanged...
+                        let result = target[prop].apply(target, args)
+                        // console.log('target',target,result)
+                        return result
                     }
                 } else if (prop===isChanged) {
-                    return targetIsChanged
+                    return target[parent][isChanged]
                 } else {
                     if (!immutable && Array.isArray(target[prop])) {
-                        return new Proxy(target[prop], arrayHandler)
+                        // console.log('proxying array with arrayHandler')
+                        target[prop][parent] = target[parent]
+                        return new Proxy(target[prop], handlers.arrayHandler)
                     }
                     return target[prop]
                 }
@@ -793,7 +777,7 @@ export default function parse(input, meta, immutable=true)
                     value = getNewValueProxy(value)
                 } 
                 target[prop] = value
-                targetIsChanged = true
+                target[parent][isChanged] = true
                 return true
             },
             deleteProperty(target, prop) {
@@ -804,7 +788,7 @@ export default function parse(input, meta, immutable=true)
                 //that object should be deleted so that its line will become empty
                 //when stringifying resultArray again
                 delete target[prop]
-                targetIsChanged = true
+                target[parent][isChanged] = true
                 return true
             },
             ownKeys: (target) => {
@@ -816,10 +800,10 @@ export default function parse(input, meta, immutable=true)
                     configurable: true
                 }
             }
-        }
-        let handler = {
+        },
+        handler: {
             get(target, prop, receiver) {
-                firstParse()
+                firstParse(target)
                 switch(prop) {
                     case source:
                         return target
@@ -829,26 +813,29 @@ export default function parse(input, meta, immutable=true)
                     break
                     case getBuffer:
                         return (i) => {
+                            let index = target[getIndex]
                             if (i != index) {
                                 return encoder.encode('~'+index)
                             }
-                            if (targetIsChanged) {
+                            if (target[isChanged]) {
                                 // return newly stringified contents of cache
                                 let temp = fastStringify(target, null, true)
                                 return encoder.encode(fastStringify(target, null, true))
                             }
-                            return input.slice(position.start,position.end)
+                            return input.slice(target[position].start,target[position].end)
                         }
                     break
                     case getIndex:
-                        return index
+                        return target[getIndex]
                     break
                     case isChanged:
-                        return targetIsChanged
+                        return target[isChanged]
                     break
                     default:
                         if (!immutable && Array.isArray(target[prop])) {
-                            return new Proxy(target[prop], arrayHandler)
+                            // console.log('proxying array with arrayHandler')
+                            target[prop][parent] = target
+                            return new Proxy(target[prop], handlers.arrayHandler)
                         }
                         return target[prop]
                     break
@@ -856,31 +843,66 @@ export default function parse(input, meta, immutable=true)
             },
             set(target, prop, value) {
                 if (!immutable) {
-                    firstParse()
+                    firstParse(target)
                     if (prop!==isChanged) {
                         if (JSONTag.getType(value)==='object' && !value[isProxy]) {
                             value = getNewValueProxy(value)
                         }
                         target[prop] = value
                     }
-                    targetIsChanged = true
+                    target[isChanged] = true
                     return true
                 }
             },
             deleteProperty: (target, prop) => {
                 if (!immutable) {
-                    firstParse()
+                    firstParse(target)
                     delete target[prop]
-                    targetIsChanged = true
+                    target[isChanged] = true
                     return true
                 }
             },
             'ownKeys': (target) => {
-                firstParse()
+                firstParse(target)
                 return Reflect.ownKeys(target)
             }
         }
-        return new Proxy(cache, handler)
+
+    }
+
+    const firstParse = function(target) {
+        if (!target[isParsed]) {
+            parseValue(target[position], target)
+            target[isParsed] = true
+        }
+    }
+
+    const getNewValueProxy = function(value) {
+        let index = resultArray.length
+        resultArray.push('')
+        value[getIndex] = index
+        makeChildProxies(value)
+        let result = new Proxy(value, handlers.newValueHandler)
+        resultArray[index] = result
+        return result
+    }
+
+    let valueProxy = function(length, index)
+    {
+        let cache = {}
+        cache[getIndex] = index
+        cache[isChanged] = false
+        cache[isParsed] = false
+        // current offset + length contains jsontag of this value
+        cache[position] = {
+            start: at-1,
+            end: at-1+length
+        }
+        at += length
+        next()
+        // newValueHandler makes sure that value[getBuffer] runs stringify
+        // arrayHandler makes sure that changes in the array set targetIsChanged to true
+        return new Proxy(cache, handlers.handler)
     }
 
     value = function(ob={})
@@ -960,9 +982,6 @@ export default function parse(input, meta, immutable=true)
         return [l, v]
     }
 
-    at = 0
-    ch = " "
-    let resultArray = []
     while(ch && at<input.length) {
         result = lengthValue(resultArray.length)
         whitespace()
