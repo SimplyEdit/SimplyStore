@@ -27,11 +27,11 @@ const metaIdProxy = {
 }
 
 const FastJSONTag = {
-    getType: (obj) => JSONTag.getType(obj[source]),
-    getAttribute: (obj, attr) => JSONTag.getAttribute(obj[source],attr),
-    getAttributes: (obj) => JSONTag.getAttributes(obj[source]),
-    getAttributeString: (obj) => JSONTag.getAttributesString(obj[source]),
-    getTypeString: (obj) => JSONTag.getTypeString(obj[source])
+    getType: (obj) => JSONTag.getType(obj?.[source]),
+    getAttribute: (obj, attr) => JSONTag.getAttribute(obj?.[source],attr),
+    getAttributes: (obj) => JSONTag.getAttributes(obj?.[source]),
+    getAttributeString: (obj) => JSONTag.getAttributesString(obj?.[source]),
+    getTypeString: (obj) => JSONTag.getTypeString(obj?.[source])
 }
 
 const tasks = {

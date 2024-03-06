@@ -86,6 +86,7 @@ export default async function runCommand(commandStr, request) {
     if (commands[task.name]) {
         let time = Date.now()
         commands[task.name](dataspace, task, request, metaProxy)
+        //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
         FastJSONTag.setAttribute(dataspace, 'command', task.id)
 
         const strData = resultSetStringify(resultSet)
@@ -96,7 +97,7 @@ export default async function runCommand(commandStr, request) {
                 id: meta.index.id
             }
         }
-
+        //TODO: write data every x commands or x minutes, in seperate thread
         await writeFileAtomic(datafile, uint8sab)
         let end = Date.now()
         console.log('task time',end-time)

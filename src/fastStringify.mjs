@@ -100,15 +100,6 @@ export default function stringify(value, meta, skipLength=false, index=false) {
 	// is only ever called on object values
 	// and should always return a stringified object, not a reference (~n)
 	const innerStringify = (current) => {
-		let indent = ""
-		let gap = ""
-
-		if (typeof space === "number") {
-			indent += " ".repeat(space)
-		} else if (typeof space === "string") {
-			indent = space
-		}
-
 		let object = resultArray[current]
 		let result 
 
