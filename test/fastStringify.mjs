@@ -1,9 +1,12 @@
 import JSONTag from '@muze-nl/jsontag'
 import stringify, {resultSetStringify,stringToSAB} from '../src/fastStringify.mjs'
+import {isChanged, getBuffer, getIndex} from '../src/symbols.mjs'
 import parse from '../src/fastParse.mjs'
 import tap from 'tap'
 
 const decoder = new TextDecoder()
+const encoder = new TextEncoder()
+
 
 tap.test('Links', t => {
  	let jsont=`{
@@ -162,6 +165,7 @@ tap.test('delete', t => {
 	let root = resultSet[0]
 	root.foo.pop()
 	strData = resultSetStringify(resultSet)
+	t.equal(root.foo[isChanged], true)
 	t.equal(strData, expect)
 	t.end()
 
@@ -205,5 +209,15 @@ tap.test('entries', t => {
 	t.same(ownKeys, ['name','nonEnumerable'])
 	let descr = Object.getOwnPropertyDescriptor(root, 'nonEnumerable')
 	t.equal(descr.enumerable, false)
+	t.end()
+})
+
+
+tap.test('unicode', t => {
+	let strData = `(13){"foo":"𠮷a"}` // >16bit unicode characters 
+	let sab = stringToSAB(strData)
+	let resultSet = parse(sab)
+	let root = resultSet[0]
+	t.equal(root.foo, '𠮷a')
 	t.end()
 })
