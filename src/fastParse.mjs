@@ -761,11 +761,15 @@ export default function parse(input, meta, immutable=true)
             get(target, prop) {
                 if (target[prop] instanceof Function) {
                     if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift'].indexOf(prop)!==-1) {
+                        if (immutable) {
+                            throw new Error('dataspace is immutable')
+                        }
                         targetIsChanged = true
                     }
                     return (...args) => {
                         args = args.map(arg => {
                             if (JSONTag.getType(arg)==='object' && !arg[isProxy]) {
+                                console.log('proxying arg')
                                 arg = getNewValueProxy(arg)
                             }
                             return arg
@@ -782,6 +786,9 @@ export default function parse(input, meta, immutable=true)
                 }
             },
             set(target, prop, value) {
+                if (immutable) {
+                    throw new Error('dataspace is immutable')
+                }
                 if (JSONTag.getType(value)==='object' && !value[isProxy]) {
                     value = getNewValueProxy(value)
                 } 
@@ -790,12 +797,24 @@ export default function parse(input, meta, immutable=true)
                 return true
             },
             deleteProperty(target, prop) {
+                if (immutable) {
+                    throw new Error('dataspace is immutable')
+                }
                 //FIXME: if target[prop] was the last reference to an object
                 //that object should be deleted so that its line will become empty
                 //when stringifying resultArray again
                 delete target[prop]
                 targetIsChanged = true
                 return true
+            },
+            ownKeys: (target) => {
+                return Reflect.ownKeys(target)
+            },
+            getOwnPropertyDescriptor: (target, prop) => {
+                return {
+                    enumerable: true,
+                    configurable: true
+                }
             }
         }
         let handler = {
@@ -831,7 +850,7 @@ export default function parse(input, meta, immutable=true)
                         if (!immutable && Array.isArray(target[prop])) {
                             return new Proxy(target[prop], arrayHandler)
                         }
-                        return target[prop] // FIXME: make arrays immutable as well
+                        return target[prop]
                     break
                 }
             },
@@ -988,4 +1007,3 @@ export default function parse(input, meta, immutable=true)
     
     return resultArray
 }
-
