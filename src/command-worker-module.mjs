@@ -3,6 +3,7 @@ import {source, isChanged, getIndex} from './symbols.mjs'
 import fastParse from './fastParse.mjs'
 import {stringToSAB,resultSetStringify} from './fastStringify.mjs'
 import writeFileAtomic from 'write-file-atomic'
+import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'jaqt'
 
 let commands = {}
 let resultSet = []
@@ -110,4 +111,3 @@ export default async function runCommand(commandStr, request) {
     }
     return response
 }
-
