@@ -212,6 +212,23 @@ tap.test('entries', t => {
 	t.end()
 })
 
+tap.test('nonEnumerableArrayProxy', t => {
+	let strData = `(64)<object class="foo" id="1">{"name":"Foo",#"arr":["foo","bar"]}`
+	let sab = stringToSAB(strData)
+	let resultSet = parse(sab) // immutable
+	let root = resultSet[0]
+	try {
+		root.arr.push('baz')
+		t.ok(false)
+	} catch(e) {
+		t.ok(true)
+	}
+	resultSet = parse(sab, {}, false) // mutable
+	root = resultSet[0]
+	root.arr.push('baz')
+	t.same(root.arr[2], 'baz')
+	t.end()
+})
 
 tap.test('unicode', t => {
 	let strData = `(13){"foo":"𠮷a"}` // >16bit unicode characters 
