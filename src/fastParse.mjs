@@ -599,7 +599,12 @@ export default function parse(input, meta, immutable=true)
             next(':')
             val = value()
             if (!enumerable) {
-                Object.defineProperty(object,key, { value: val})
+                Object.defineProperty(object, key, {
+                    configurable: true, //important, must be true, otherwise Proxies cannot use it
+                    writable: true, // handle immutability in the Proxy traps
+                    enumerable: false,
+                    value: val
+                })
             } else {
                 object[key] = val
             }
@@ -679,7 +684,6 @@ export default function parse(input, meta, immutable=true)
                     return true
                 } else {
                     if (Array.isArray(target[prop])) {
-//                        console.log('proxying array with newArrayHandler')
                         return new Proxy(target[prop], handlers.newArrayHandler)
                     }
                     return target[prop]
@@ -720,7 +724,6 @@ export default function parse(input, meta, immutable=true)
                     break
                     default:
                         if (Array.isArray(target[prop])) {
-                            // console.log('proxying array with newArrayHandler')
                             return new Proxy(target[prop], handlers.newArrayHandler)
                         }
                         return target[prop]
@@ -742,27 +745,22 @@ export default function parse(input, meta, immutable=true)
                         if (immutable) {
                             throw new Error('dataspace is immutable')
                         }
-                        // console.log('getting array function '+prop)
                     }
                     return (...args) => {
-                        // console.log('calling array function '+prop)
                         args = args.map(arg => {
                             if (JSONTag.getType(arg)==='object' && !arg[isProxy]) {
-                                console.log('proxying arg')
                                 arg = getNewValueProxy(arg)
                             }
                             return arg
                         })
                         target[parent][isChanged] = true // incorrect target for isChanged...
                         let result = target[prop].apply(target, args)
-                        // console.log('target',target,result)
                         return result
                     }
                 } else if (prop===isChanged) {
                     return target[parent][isChanged]
                 } else {
-                    if (!immutable && Array.isArray(target[prop])) {
-                        // console.log('proxying array with arrayHandler')
+                    if (Array.isArray(target[prop])) {
                         target[prop][parent] = target[parent]
                         return new Proxy(target[prop], handlers.arrayHandler)
                     }
@@ -790,15 +788,6 @@ export default function parse(input, meta, immutable=true)
                 delete target[prop]
                 target[parent][isChanged] = true
                 return true
-            },
-            ownKeys: (target) => {
-                return Reflect.ownKeys(target)
-            },
-            getOwnPropertyDescriptor: (target, prop) => {
-                return {
-                    enumerable: true,
-                    configurable: true
-                }
             }
         },
         handler: {
@@ -832,8 +821,7 @@ export default function parse(input, meta, immutable=true)
                         return target[isChanged]
                     break
                     default:
-                        if (!immutable && Array.isArray(target[prop])) {
-                            // console.log('proxying array with arrayHandler')
+                        if (Array.isArray(target[prop])) {
                             target[prop][parent] = target
                             return new Proxy(target[prop], handlers.arrayHandler)
                         }
@@ -842,29 +830,35 @@ export default function parse(input, meta, immutable=true)
                 }
             },
             set(target, prop, value) {
-                if (!immutable) {
-                    firstParse(target)
-                    if (prop!==isChanged) {
-                        if (JSONTag.getType(value)==='object' && !value[isProxy]) {
-                            value = getNewValueProxy(value)
-                        }
-                        target[prop] = value
+                if (immutable) {
+                    throw new Error('dataspace is immutable')
+                }
+                firstParse(target)
+                if (prop!==isChanged) {
+                    if (JSONTag.getType(value)==='object' && !value[isProxy]) {
+                        value = getNewValueProxy(value)
                     }
-                    target[isChanged] = true
-                    return true
+                    target[prop] = value
                 }
+                target[isChanged] = true
+                return true
             },
-            deleteProperty: (target, prop) => {
-                if (!immutable) {
-                    firstParse(target)
-                    delete target[prop]
-                    target[isChanged] = true
-                    return true
+            deleteProperty(target, prop) {
+                if (immutable) {
+                    throw new Error('dataspace is immutable')
                 }
+                firstParse(target)
+                delete target[prop]
+                target[isChanged] = true
+                return true
             },
-            'ownKeys': (target) => {
+            ownKeys(target) {
                 firstParse(target)
                 return Reflect.ownKeys(target)
+            },
+            getOwnPropertyDescriptor(target, prop) {
+                firstParse(target)
+                return Reflect.getOwnPropertyDescriptor(target, prop)
             }
         }
 
