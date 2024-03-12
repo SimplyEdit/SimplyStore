@@ -859,9 +859,22 @@ export default function parse(input, meta, immutable=true)
             getOwnPropertyDescriptor(target, prop) {
                 firstParse(target)
                 return Reflect.getOwnPropertyDescriptor(target, prop)
+            },
+            defineProperty(target, prop, descriptor) {
+                if (immutable) {
+                    throw new Error('dataspace is immutable')
+                }
+                firstParse(target)
+                Object.defineProperty(target, prop, descriptor)
+            },
+            has(target, prop) {
+                firstParse()
+                return prop in target
+            },
+            setPrototypeOf(target,proto) {
+                throw new Error('changing prototypes is not supported')
             }
         }
-
     }
 
     const firstParse = function(target) {
