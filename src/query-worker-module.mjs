@@ -1,12 +1,13 @@
-import JSONTag from '@muze-nl/jsontag'
-import fastParse from './fastParse.mjs'
-import {source, isProxy} from './symbols.mjs'
-import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'jaqt'
 import pointer from 'json-pointer'
 import {VM} from 'vm2'
 import { memoryUsage } from 'node:process'
+import JSONTag from '@muze-nl/jsontag'
+import {source, isProxy, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
+import parse from '@muze-nl/od-jsontag/src/parse.mjs'
+import * as FastJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
+import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'jaqt'
 
-let resultSet = []
+let resultArr = []
 let dataspace
 let meta = {}
 let metaProxy = {
@@ -18,7 +19,7 @@ const metaIdProxy = {
     get: (id) => {
         let index = meta.index.id.get(id)
         if (index || index===0) {
-            return resultSet[index]
+            return resultArr[index]
         }
     },
     has: (id) => {
@@ -26,18 +27,10 @@ const metaIdProxy = {
     }
 }
 
-const FastJSONTag = {
-    getType: (obj) => JSONTag.getType(obj?.[source]),
-    getAttribute: (obj, attr) => JSONTag.getAttribute(obj?.[source],attr),
-    getAttributes: (obj) => JSONTag.getAttributes(obj?.[source]),
-    getAttributeString: (obj) => JSONTag.getAttributesString(obj?.[source]),
-    getTypeString: (obj) => JSONTag.getTypeString(obj?.[source])
-}
-
 const tasks = {
 	init: async (task) => {
-		resultSet = fastParse(task.req.body)
-		dataspace = resultSet[0]
+		dataspace = parse(task.req.body)
+		resultArr = dataspace[resultSet]
         meta = task.req.meta
         metaProxy.index.id = metaIdProxy
         //@TODO: add references and baseURL

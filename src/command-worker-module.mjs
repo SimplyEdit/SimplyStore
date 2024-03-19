@@ -1,12 +1,13 @@
 import JSONTag from '@muze-nl/jsontag'
-import {source, isChanged, getIndex} from './symbols.mjs'
-import fastParse from './fastParse.mjs'
-import {stringToSAB,resultSetStringify} from './fastStringify.mjs'
+import {source, isChanged, getIndex, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
+import parse from '@muze-nl/od-jsontag/src/parse.mjs'
+import serialize, {stringify} from '@muze-nl/od-jsontag/src/serialize.mjs'
+import * as FastJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
 import writeFileAtomic from 'write-file-atomic'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'jaqt'
 
 let commands = {}
-let resultSet = []
+let resultArr = []
 let dataspace
 let datafile
 let meta = {}
@@ -20,7 +21,7 @@ export const metaIdProxy = {
         meta.index.id.forEach((ref,id) => {
             callback({
                 deref: () => {
-                    return resultSet[ref]
+                    return resultArr[ref]
                 }
             },id)
         })
@@ -34,7 +35,7 @@ export const metaIdProxy = {
             }
         } else {
             let line = meta.index.id.get(id)
-            resultSet[line] = ref
+            resultArr[line] = ref
         }
     },
     get: (id) => {
@@ -42,7 +43,7 @@ export const metaIdProxy = {
         if (index || index===0) {
             return {
                 deref: () => {
-                    return resultSet[index]
+                    return resultArr[index]
                 }
             }
         }
@@ -52,22 +53,9 @@ export const metaIdProxy = {
     }
 }
 
-export const FastJSONTag = {
-    getType: (obj) => JSONTag.getType(obj?.[source]),
-    getAttribute: (obj, attr) => JSONTag.getAttribute(obj?.[source],attr),
-    setAttribute: (obj, attr, value) => {
-        if (!obj) return
-        obj[isChanged] = true
-        return JSONTag.setAttribute(obj[source], attr, value)
-    },
-    getAttributes: (obj) => JSONTag.getAttributes(obj?.[source]),
-    getAttributeString: (obj) => JSONTag.getAttributesString(obj?.[source]),
-    getTypeString: (obj) => JSONTag.getTypeString(obj?.[source])
-}
-
 export async function initialize(task) {
-    resultSet = fastParse(task.data, task.meta, false) // false means mutable
-    dataspace = resultSet[0]
+    dataspace = parse(task.data, task.meta, false) // false means mutable
+    resultArr = dataspace[resultSet]
     meta = task.meta
     metaProxy.index.id = metaIdProxy
     datafile = task.datafile
@@ -90,8 +78,7 @@ export default async function runCommand(commandStr, request) {
         //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
         FastJSONTag.setAttribute(dataspace, 'command', task.id)
 
-        const strData = resultSetStringify(resultSet)
-        const uint8sab = stringToSAB(strData)
+        const uint8sab = serialize(dataspace)
         response.data = uint8sab
         response.meta = {
             index: {
