@@ -1,9 +1,9 @@
 import { parentPort } from 'node:worker_threads'
 import JSONTag from '@muze-nl/jsontag'
-import fastParse from './fastParse.mjs'
+import parse from '@muze-nl/od-jsontag/src/parse.mjs'
 import fs from 'fs'
-import {resultSetStringify,stringToSAB} from './fastStringify.mjs'
-import {source} from '../src/symbols.mjs'
+import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import {source, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
 
 parentPort.on('message', datafile => {
 	const jsontag = fs.readFileSync(datafile)
@@ -12,19 +12,19 @@ parentPort.on('message', datafile => {
 			id: new Map()
 		}
 	}
-	const data = fastParse(jsontag)
+	const data = parse(jsontag)
+	const resultArr = data[resultSet]
 
-	// fastParse doesn't create meta.index.id, so do that here
-	let length = data.length
+	// od-jsontag/parse doesn't create meta.index.id, so do that here
+	let length = resultArr.length
 	for (let i=0; i<length; i++) {
-		let id=JSONTag.getAttribute(data[i][source],'id')
+		let id=JSONTag.getAttribute(resultArr[i][source],'id')
 		if (id) {
 			meta.index.id.set(id,i)
 		}
 	}
 
-	const strData = resultSetStringify(data)
-	const sab = stringToSAB(strData)
+	const sab = serialize(data)
 
 	parentPort.postMessage({
 		data: sab,
