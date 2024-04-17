@@ -1,5 +1,5 @@
 import JSONTag from '@muze-nl/jsontag'
-import fastStringify from '../src/fastStringify.mjs'
+import serialize, { stringify } from '@muze-nl/od-jsontag/src/serialize.mjs'
 import fs from 'node:fs'
 
 if (process.argv.length<=3) {
@@ -18,7 +18,7 @@ let input = fs.readFileSync(inputFile, 'utf-8')
 let data = JSONTag.parse(input)
 
 // write resultset to output
-let strData = fastStringify(data)
+let strData = stringify(serialize(data))
 
 fs.writeFileSync(outputFile, strData)
 
