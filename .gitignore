@@ -1,2 +1,6 @@
 node_modules
 package-lock.json
+example/command-log.jsontag
+example/command-status.jsontag
+example/data.jsontag
+example/package-lock.json
