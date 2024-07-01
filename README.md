@@ -6,7 +6,7 @@ SimplyStore is a radically simpler backend storage server. It does not have a da
 Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox. 
 You can query data using the [array-where-select](https://www.npmjs.com/package/array-where-select) extension.
 
-Note: _There are known security issues in VM2, so the project will switch to V8-isolate. For now don't use SimplyStore in production_
+Note: _There are known security issues in VM2, so the project will switch to V8-isolate. For now make sure SimplyStore is not publically accessible, by adding an api gateway in front of it for example_
 
 ## Table of Contents
 
