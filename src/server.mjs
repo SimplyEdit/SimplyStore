@@ -28,6 +28,7 @@ async function main(options) {
     const commandsFile  = options.commandsFile  || __dirname+'/src/commands.mjs'
     const commandLog    = options.commandLog    || './command-log.jsontag'
     const commandStatus = options.commandStatus || './command-status.jsontag'
+    const access        = options.access        || null
 
     server.use(express.static(wwwroot))
 
@@ -64,7 +65,8 @@ async function main(options) {
             name: 'init',
             req: {
                 body: jsontagBuffer,
-                meta
+                meta,
+                access
             }
         }
     }

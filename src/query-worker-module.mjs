@@ -28,17 +28,21 @@ const metaIdProxy = {
 }
 
 const tasks = {
-	init: async (task) => {
-		dataspace = parse(task.req.body)
-		resultArr = dataspace[resultSet]
+    init: async (task) => {
+        if (task.req.access) {
+            task.req.access = await import(task.req.access)
+            task.req.access = task.req.access.default
+        }
+        dataspace = parse(task.req.body, { access: task.req.access })
+        resultArr = dataspace[resultSet]
         meta = task.req.meta
         metaProxy.index.id = metaIdProxy
-        //@TODO: add references and baseURL
-		return true
-	},
-	query: async (task) => {
-		return runQuery(task.req.path, task.req, task.req.body)
-	},
+        //@TODO: add meta.index.references? and baseURL
+        return true
+    },
+    query: async (task) => {
+        return runQuery(task.req.path, task.req, task.req.body)
+    },
     memoryUsage: async () => {
         let result = memoryUsage()
         console.log('memory',result)
@@ -51,7 +55,7 @@ export default tasks
 export function runQuery(pointer, request, query) {
     if (!pointer) { throw new Error('missing pointer parameter')}
     if (!request) { throw new Error('missing request parameter')}
-	let response = {
+    let response = {
         jsontag: request.jsontag
     }
     let [result,path] = getDataSpace(pointer, dataspace)
@@ -85,16 +89,16 @@ export function runQuery(pointer, request, query) {
             wasm: false
         })
         try {
-            result = deProxy(vm.run(query))
+            result = vm.run(query)
             let used = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
             console.log(`(${used} MB)`);
         } catch(err) {
             console.log(err)
             response.code = 422;
             if (request.jsontag) {
-            	response.body = '<object class="Error">{"message":'+JSON.stringify(''+err)+',"code":422}'
+                response.body = '<object class="Error">{"message":'+JSON.stringify(''+err)+',"code":422}'
             } else {
-            	response.body = JSON.stringify({message:err, code: 422})
+                response.body = JSON.stringify({message:err, code: 422})
             }
         }
     } else {
@@ -103,7 +107,7 @@ export function runQuery(pointer, request, query) {
     if (!response.code) {
         if (response.jsontag) {
             try {
-            	response.body = JSONTag.stringify(result)
+                response.body = JSONTag.stringify(result)
             } catch(err) {
                 console.log(err)
                 response.code = 500
@@ -111,7 +115,7 @@ export function runQuery(pointer, request, query) {
             }
         } else {
             //@FIXME: replace recursive links
-        	response.body = JSON.stringify(result)
+            response.body = JSON.stringify(result)
         }
     }
     return response
@@ -169,33 +173,4 @@ export function linkReplacer(data, baseURL) {
         })
     }
     return data
-}
-
-let seen = new WeakMap()
-function deProxy(o) {
-    if (!o) {
-        return o
-    }
-    if (typeof o !== 'object') {
-        return o
-    }
-    if (seen.has(o)) {
-        return seen.get(o)
-    }
-    let result
-    if (Array.isArray(o)) {
-        result = o.map(deProxy)
-    } else if (JSONTag.isNull(o)) {
-        return o
-    } else if (JSONTag.getType(o)==='object' && o[source]) {
-        result = JSONTag.clone(o[source])
-        seen.set(o, result)
-        Object.entries(o[source]).forEach(([i,v]) => {
-            result[i] = deProxy(v)
-        })
-    } else {
-        seen.set(o, o)
-        result = o
-    }
-    return result
 }

@@ -4,4 +4,5 @@ SimplyStore.run({
 	datafile: process.cwd()+'/data.jsontag',
 	commandsFile: process.cwd()+'/commands.mjs',
 	commandLog: process.cwd()+'/command-log.jsontag',
+	access: process.cwd()+'/access.mjs'
 })
