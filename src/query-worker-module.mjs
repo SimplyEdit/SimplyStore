@@ -145,8 +145,8 @@ export function getDataSpace(path, dataspace) {
 }
 
 export function linkReplacer(data, baseURL) {
-    let type = JSONTag.getType(data)
-    let attributes = JSONTag.getAttributes(data)
+    let type = FastJSONTag.getType(data)
+    let attributes = FastJSONTag.getAttributes(data)
     if (Array.isArray(data)) {
         data = data.map((entry,index) => {
             return linkReplacer(data[index], baseURL+index+'/')
@@ -157,17 +157,17 @@ export function linkReplacer(data, baseURL) {
         if (data[source]) {
             data = data[source]
         }
-        data = JSONTag.clone(data)
+        data = JSONTag.clone(data?.[source] ?? data)
         Object.keys(data).forEach(key => {
             if (Array.isArray(data[key])) {
-                data[key] = new JSONTag.Link(baseURL+key+'/')
+                data[key] = new FastJSONTag.Link(baseURL+key+'/')
             } else if (data[key] && typeof data[key] === 'object') {
-                if (JSONTag.getType(data[key])!=='link') {
-                    let id=JSONTag.getAttribute(data[key], 'id')
+                if (FastJSONTag.getType(data[key])!=='link') {
+                    let id=FastJSONTag.getAttribute(data[key], 'id')
                     if (!id) {
                         id = baseURL+key+'/'
                     }
-                    data[key] = new JSONTag.Link(id)
+                    data[key] = new FastJSONTag.Link(id)
                 }
             }
         })
