@@ -160,14 +160,14 @@ export function linkReplacer(data, baseURL) {
         data = JSONTag.clone(data?.[source] ?? data)
         Object.keys(data).forEach(key => {
             if (Array.isArray(data[key])) {
-                data[key] = new FastJSONTag.Link(baseURL+key+'/')
+                data[key] = new JSONTag.Link(baseURL+key+'/')
             } else if (data[key] && typeof data[key] === 'object') {
                 if (FastJSONTag.getType(data[key])!=='link') {
                     let id=FastJSONTag.getAttribute(data[key], 'id')
                     if (!id) {
                         id = baseURL+key+'/'
                     }
-                    data[key] = new FastJSONTag.Link(id)
+                    data[key] = new JSONTag.Link(id)
                 }
             }
         })
