@@ -34,7 +34,8 @@ async function main(options) {
 
     // allow access to raw body, used to parse a query send as post body
     server.use(express.raw({
-        type: (req) => true // parse body on all requests
+        type: (req) => true, // parse body on all requests
+        limit: '50MB'
     }))
 
     function loadData() {
