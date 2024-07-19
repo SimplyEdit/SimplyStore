@@ -152,18 +152,14 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 <a name="roadmap"></a>
 ## Roadmap
 
-- [v] allow changes to dataset by creating a new root
-- [v] command handling with crud commands and command log
-- [v] backup current dataset to JSONTag file
-- [v] on startup check if any commands in the log haven't been resolved, if so run them
-
+- [x] allow changes to dataset by creating a new root
+- [x] command handling with crud commands and command log
+- [x] backup current dataset to JSONTag file
+- [x] on startup check if any commands in the log haven't been resolved, if so run them
 - [ ] improved web client with type-specific views and form elements
-
-- [x] add support for metadata on each JSON pointer path (or better: each object)
 - [ ] allow custom templates, instead of the default index.html
 - [ ] add support for access control, based on webid / openid connect
-- [ ] switch from VM2 to V8-isolate, which is more secure
-- [x] switch the server runtime to Rust, so SimplyStore can share immutable data between threads
+- [ ] switch from VM2 to V8-isolate or QuickJS, which is more secure
 
 <a name="license"></a>
 ## License
