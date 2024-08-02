@@ -1,10 +1,8 @@
 import JSONTag from '@muze-nl/jsontag'
-import {source, isChanged, getIndex, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
+import {getIndex, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import parse from '@muze-nl/od-jsontag/src/parse.mjs'
-import serialize, {stringify} from '@muze-nl/od-jsontag/src/serialize.mjs'
-import * as FastJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
+import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import writeFileAtomic from 'write-file-atomic'
-import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'jaqt'
 
 let commands = {}
 let resultArr = []
@@ -54,7 +52,9 @@ export const metaIdProxy = {
 }
 
 export async function initialize(task) {
-    dataspace = parse(task.data, task.meta, false) // false means mutable
+    for(let jsontag of task.data) {
+        dataspace = parse(jsontag, task.meta, false) // false means mutable
+    }
     resultArr = dataspace[resultSet]
     meta = task.meta
     metaProxy.index.id = metaIdProxy
@@ -76,9 +76,9 @@ export default async function runCommand(commandStr, request) {
         let time = Date.now()
         commands[task.name](dataspace, task, request, metaProxy)
         //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
-        FastJSONTag.setAttribute(dataspace, 'command', task.id)
+        JSONTag.setAttribute(dataspace, 'command', task.id)
 
-        const uint8sab = serialize(dataspace)
+        const uint8sab = serialize(dataspace, {meta, changes: true}) // serialize only changes
         response.data = uint8sab
         response.meta = {
             index: {
@@ -86,7 +86,11 @@ export default async function runCommand(commandStr, request) {
             }
         }
         //TODO: write data every x commands or x minutes, in seperate thread
-        await writeFileAtomic(datafile, uint8sab)
+
+        let newfilename = datafile + (meta.parts ? '.'+meta.parts : '')
+        await writeFileAtomic(newfilename, uint8sab)
+        meta.parts++
+        response.meta.parts = meta.parts
         let end = Date.now()
         console.log('task time',end-time)
     } else {
