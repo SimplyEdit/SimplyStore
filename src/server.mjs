@@ -11,7 +11,7 @@ import writeFileAtomic from 'write-file-atomic'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-let jsontagBuffer = null
+let jsontagBuffers = null
 let meta = {}
 
 async function main(options) {
@@ -54,7 +54,7 @@ async function main(options) {
     }
     try {
         let data = await loadData()
-        jsontagBuffer = data.data
+        jsontagBuffers = [data.data]
         meta = data.meta
     } catch(err) {
         console.error('ERROR: SimplyStore cannot load '+datafile, err)
@@ -65,12 +65,13 @@ async function main(options) {
         return {
             name: 'init',
             req: {
-                body: jsontagBuffer,
+                body: jsontagBuffers,
                 meta,
                 access
             }
         }
     }
+
 
     let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
 
@@ -228,18 +229,18 @@ async function main(options) {
                         s = {code: 200, status: "done"}
                         status.set(command.id, s)
                         if (data.data) { // data has changed, commands may do other things instead of changing data
-                            jsontagBuffer = data.data
+                            jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
                             meta = data.meta
-                            // restart query workers with new data
-                            let oldPool = queryWorkerPool
-                            queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
-                            setTimeout(() => {
-                                oldPool.close()
-                            }, 2000)
+                            queryWorkerPool.update({
+                                name: 'update',
+                                req: {
+                                    body: jsontagBuffers[jsontagBuffers.length-1], // only add the last change, update tasks for earlier changes have already been sent
+                                    meta
+                                }
+                            })
                         }
                     }
                     let l = Object.assign({command:command.id}, s)
-                    console.log('appending status ',l,s)
                     appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                 }, 
                 //reject()
@@ -277,7 +278,7 @@ async function main(options) {
                 command:commandStr,
                 request,
                 meta,
-                data:jsontagBuffer,
+                data:jsontagBuffers,
                 commandsFile,
                 datafile                
             })
