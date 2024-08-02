@@ -1,33 +1,34 @@
 import { parentPort } from 'node:worker_threads'
-import JSONTag from '@muze-nl/jsontag'
 import parse from '@muze-nl/od-jsontag/src/parse.mjs'
 import fs from 'fs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import {source, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
 
 parentPort.on('message', datafile => {
-	const jsontag = fs.readFileSync(datafile)
 	let meta = {
 		index: {
 			id: new Map()
 		}
 	}
-	const data = parse(jsontag)
-	const resultArr = data[resultSet]
 
-	// od-jsontag/parse doesn't create meta.index.id, so do that here
-	let length = resultArr.length
-	for (let i=0; i<length; i++) {
-		let id=JSONTag.getAttribute(resultArr[i][source],'id')
-		if (id) {
-			meta.index.id.set(id,i)
-		}
-	}
+	let count = 0
+	let basefile = datafile
+	let data 
+	let jsontag
+	let tempMeta = {}
 
-	const sab = serialize(data)
+	do {
+		jsontag = fs.readFileSync(datafile)
+		data = parse(jsontag, tempMeta) // tempMeta is needed to combine the resultArray, using meta conflicts with meta.index.id
+		count++
+		datafile = basefile + '.' + count
+	} while(fs.existsSync(datafile))
+	meta.parts = count
+
+	const sab = serialize(data, {meta})
 
 	parentPort.postMessage({
 		data: sab,
 		meta
 	})
+
 })
