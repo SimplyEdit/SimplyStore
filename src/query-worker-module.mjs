@@ -4,7 +4,6 @@ import { memoryUsage } from 'node:process'
 import JSONTag from '@muze-nl/jsontag'
 import {source, isProxy, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import parse from '@muze-nl/od-jsontag/src/parse.mjs'
-import * as FastJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'jaqt'
 
 let resultArr = []
@@ -32,12 +31,25 @@ const tasks = {
         if (task.req.access) {
             task.req.access = await import(task.req.access)
             task.req.access = task.req.access.default
+            meta.access = task.req.access
         }
-        dataspace = parse(task.req.body, { access: task.req.access })
-        resultArr = dataspace[resultSet]
-        meta = task.req.meta
+        if (task.req.meta.index) {
+            meta.index = task.req.meta.index
+        }
+        for (let sab of task.req.body) { //body contains an array of sharedArrayBuffers with initial data and changes
+            dataspace = parse(sab, meta)
+        }
+        resultArr = meta.resultArray
         metaProxy.index.id = metaIdProxy
         //@TODO: add meta.index.references? and baseURL
+        return true
+    },
+    update: async (task) => {
+        if (task.req.meta.index) {
+            meta.index = task.req.meta.index
+        }
+        dataspace = parse(task.req.body, meta) //update only has a single changeset
+        resultArr = meta.resultArray
         return true
     },
     query: async (task) => {
@@ -83,7 +95,7 @@ export function runQuery(pointer, request, query) {
                 max,
                 min,    
 //                    console: connectConsole(res),
-                JSONTag: FastJSONTag,
+                JSONTag,
                 request
             },
             wasm: false
@@ -145,8 +157,8 @@ export function getDataSpace(path, dataspace) {
 }
 
 export function linkReplacer(data, baseURL) {
-    let type = FastJSONTag.getType(data)
-    let attributes = FastJSONTag.getAttributes(data)
+    let type = JSONTag.getType(data)
+    let attributes = JSONTag.getAttributes(data)
     if (Array.isArray(data)) {
         data = data.map((entry,index) => {
             return linkReplacer(data[index], baseURL+index+'/')
@@ -162,8 +174,8 @@ export function linkReplacer(data, baseURL) {
             if (Array.isArray(data[key])) {
                 data[key] = new JSONTag.Link(baseURL+key+'/')
             } else if (data[key] && typeof data[key] === 'object') {
-                if (FastJSONTag.getType(data[key])!=='link') {
-                    let id=FastJSONTag.getAttribute(data[key], 'id')
+                if (JSONTag.getType(data[key])!=='link') {
+                    let id=JSONTag.getAttribute(data[key], 'id')
                     if (!id) {
                         id = baseURL+key+'/'
                     }
