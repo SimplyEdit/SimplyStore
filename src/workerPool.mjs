@@ -19,7 +19,6 @@ class WorkerPoolTaskInfo extends AsyncResource {
 }
 
 //@TODO: only create new workers when needed, not immediately
-//@TODO: allow initialization of newly created workers
 
 export default class WorkerPool extends EventEmitter {
   constructor(numThreads, workerFile, initTask) {
@@ -29,13 +28,14 @@ export default class WorkerPool extends EventEmitter {
     this.initTask    = initTask
     this.workers     = []
     this.freeWorkers = []
-
+    this.priority    = new Map()
     for (let i = 0; i < numThreads; i++)
       this.addNewWorker();
   }
 
   addNewWorker() {
     const worker = new Worker(path.resolve(this.workerFile));
+    this.priority[worker] = []
     worker.on('message', (result) => {
       // In case of success: Call the callback that was passed to `runTask`,
       // remove the `TaskInfo` associated with the Worker, and mark it as free
@@ -44,8 +44,13 @@ export default class WorkerPool extends EventEmitter {
         worker[kTaskInfo].done(null, result);
         worker[kTaskInfo] = null;
       }
-      this.freeWorkers.push(worker);
-      this.emit(kWorkerFreedEvent);
+      if (this.priority[worker].length) {
+        let task = this.priority[worker].shift()
+        worker.postMessage(task)
+      } else {
+        this.freeWorkers.push(worker);
+        this.emit(kWorkerFreedEvent);
+      }
     });
     worker.on('error', (err) => {
       // In case of an uncaught exception: Call the callback that was passed to
@@ -84,6 +89,16 @@ export default class WorkerPool extends EventEmitter {
     const worker = this.freeWorkers.pop();
     worker[kTaskInfo] = new WorkerPoolTaskInfo(callback);
     worker.postMessage(task);
+  }
+
+  update(task) {
+    for (let worker of this.workers) {
+      if (worker[kTaskInfo]) { // worker is busy
+        this.priority[worker].push(task) // push task on priority list for this specific worker
+      } else { // worker is free
+        worker.postMessage(task) // run task immediately
+      }
+    }
   }
 
   memoryUsage() {
