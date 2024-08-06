@@ -2,11 +2,11 @@ import pointer from 'json-pointer'
 import {VM} from 'vm2'
 import { memoryUsage } from 'node:process'
 import JSONTag from '@muze-nl/jsontag'
+import * as odJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
 import {source, isProxy, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import parse from '@muze-nl/od-jsontag/src/parse.mjs'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min} from 'jaqt'
 
-let resultArr = []
 let dataspace
 let meta = {}
 let metaProxy = {
@@ -14,11 +14,49 @@ let metaProxy = {
     }
 }
 
+function protect(target) {
+    if (target[source]) {
+        throw new Error('Data is immutable')
+    }
+}
+
+const myJSONTag = {
+    getAttribute: odJSONTag.getAttribute,
+    getAttributes: odJSONTag.getAttributes,
+    getType: odJSONTag.getType,
+    getTypeString: odJSONTag.getTypeString,
+    setAttribute: (target, name, value) => {
+        protect(target)
+        return odJSONTag.setAttribute(target, name, value)
+    },
+    setType: (target, type) => {
+        protect(target)
+        return odJSONTag.setType(target, type)
+    },
+    setAttributes: (target, attributes) => {
+        protect(target)
+        return odJSONTag.setAttributes(target, attributes)
+    },
+    addAttribute: (target, name, value) => {
+        protect(target)
+        return odJSONTag.addAttribute(target, name, value)
+    },
+    removeAttribute: (target, name) => {
+        protect(target)
+        return odJSONTag.removeAttribute(target, name)
+    },
+    getAttributesString: odJSONTag.getAttributesString,
+    isNull: odJSONTag.isNull,
+    clone: JSONTag.clone,
+    Link: JSONTag.Link,
+    Null: JSONTag.Null
+}
+
 const metaIdProxy = {
     get: (id) => {
         let index = meta.index.id.get(id)
         if (index || index===0) {
-            return resultArr[index]
+            return meta.resultArr[index]
         }
     },
     has: (id) => {
@@ -39,7 +77,6 @@ const tasks = {
         for (let sab of task.req.body) { //body contains an array of sharedArrayBuffers with initial data and changes
             dataspace = parse(sab, meta)
         }
-        resultArr = meta.resultArray
         metaProxy.index.id = metaIdProxy
         //@TODO: add meta.index.references? and baseURL
         return true
@@ -49,7 +86,6 @@ const tasks = {
             meta.index = task.req.meta.index
         }
         dataspace = parse(task.req.body, meta) //update only has a single changeset
-        resultArr = meta.resultArray
         return true
     },
     query: async (task) => {
@@ -95,7 +131,7 @@ export function runQuery(pointer, request, query) {
                 max,
                 min,    
 //                    console: connectConsole(res),
-                JSONTag,
+                JSONTag: myJSONTag,
                 request
             },
             wasm: false
