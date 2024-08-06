@@ -56,7 +56,7 @@ const metaIdProxy = {
     get: (id) => {
         let index = meta.index.id.get(id)
         if (index || index===0) {
-            return meta.resultArr[index]
+            return meta.resultArray[index]
         }
     },
     has: (id) => {
