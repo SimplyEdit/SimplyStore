@@ -245,6 +245,7 @@ async function main(options) {
                 }, 
                 //reject()
                 (error) => {
+                    console.error(error)
                     let s = {status: "failed", code: error.code, message: error.message, details: error.details}
                     status.set(command.id, s)
                     appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
