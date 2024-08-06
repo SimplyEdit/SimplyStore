@@ -51,6 +51,13 @@ export const metaIdProxy = {
     }
 }
 
+const metaReadProxy = {
+    foreach: metaProxy.forEach,
+    get: metaProxy.get,
+    has: metaProxy.has,
+    set: meta.set
+}
+
 export async function initialize(task) {
     for(let jsontag of task.data) {
         dataspace = parse(jsontag, task.meta, false) // false means mutable
@@ -60,45 +67,49 @@ export async function initialize(task) {
     metaProxy.index.id = metaIdProxy
     datafile = task.datafile
     commands = await import(task.commandsFile).then(mod => {
-        console.log('commands loaded:',Object.keys(mod.default))
         return mod.default
     })
 }
 
 export default async function runCommand(commandStr, request) {
-    let task = JSONTag.parse(commandStr, null, metaProxy)
-    if (!task.id) { throw new Error('missing command id')}
-    if (!task.name) { throw new Error('missing command name parameter')}
     let response = {
         jsontag: true
     }
-    if (commands[task.name]) {
-        let time = Date.now()
-        commands[task.name](dataspace, task, request, metaProxy)
-        //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
-        JSONTag.setAttribute(dataspace, 'command', task.id)
+    try {
+        let task = JSONTag.parse(commandStr, null, metaReadProxy)
+        if (!task.id) { throw new Error('missing command id')}
+        if (!task.name) { throw new Error('missing command name parameter')}
+        if (commands[task.name]) {
+            let time = Date.now()
+            commands[task.name](dataspace, task, request, metaProxy)
+            //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
+            JSONTag.setAttribute(dataspace, 'command', task.id)
+        
+            const uint8sab = serialize(dataspace, {meta, changes: true}) // serialize only changes
+            response.data = uint8sab
+            response.meta = {
+                index: {
+                    id: meta.index.id
+                }
+            }
+            //TODO: write data every x commands or x minutes, in seperate thread
 
-        const uint8sab = serialize(dataspace, {meta, changes: true}) // serialize only changes
-        response.data = uint8sab
-        response.meta = {
-            index: {
-                id: meta.index.id
+            let newfilename = datafile + (meta.parts ? '.'+meta.parts : '')
+            await writeFileAtomic(newfilename, uint8sab)
+            meta.parts++
+            response.meta.parts = meta.parts
+            let end = Date.now()
+            console.log('task time',end-time)
+        } else {
+            console.error('Command not found', task.name)
+            throw {
+                code: 404,
+                message: "Command "+task.name+" not found"
             }
         }
-        //TODO: write data every x commands or x minutes, in seperate thread
-
-        let newfilename = datafile + (meta.parts ? '.'+meta.parts : '')
-        await writeFileAtomic(newfilename, uint8sab)
-        meta.parts++
-        response.meta.parts = meta.parts
-        let end = Date.now()
-        console.log('task time',end-time)
-    } else {
-        console.error('Command not found', task.name)
-        throw {
-            code: 404,
-            message: "Command "+task.name+" not found"
-        }
+    } catch(err) {
+        console.error('task error', err)
+        throw err
     }
     return response
 }
