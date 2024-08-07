@@ -17,14 +17,12 @@ Note: _There are known security issues in VM2, so the project will switch to V8-
 - [Goals](#goals)
 - [Roadmap](#roadmap)
 - [License](#license)
-
-<a name="background"></a>
-## Background
+- [Contributions](#contributions)
 
 <a name="install"></a>
 ## Install
 
-SimplyStore is a Node library. You can install it in your application like this:
+SimplyStore is a NodeJS/[ExpressJS](https://expressjs.com/) library. You can install it in your application like this:
 
 ```shell
 npm install @muze-nl/simplystore
@@ -47,7 +45,7 @@ simplystore.run({
 })
 ````
 
-Other options are:
+simplystore is an [express application](https://expressjs.com/), with all the usual options. Other options are:
 
 - port: The port number to use, defaults to 3000
 - dataspace: an object or array with all the data that SimplyStore will serve. Optional, replaces the datafile.
@@ -160,8 +158,13 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 - [ ] allow custom templates, instead of the default index.html
 - [ ] add support for access control, based on webid / openid connect
 - [ ] switch from VM2 to V8-isolate or QuickJS, which is more secure
+- [ ] improved developer experience, with online command editor and eslint
+- [ ] optional schema definitions and validation
 
 <a name="license"></a>
 ## License
 
 [MIT](LICENSE) © Muze.nl
+
+## Contributions
+Contributions are welcome, but make sure that all code is MIT licensed. If you want to send a merge request, please make sure that there is a ticket that shows the bug/feature and reference it. If you find any problem, please do file a ticket, but you should not expect a timely resolution. This project is still very experimental, don't use it in production unless you are ready to fix problems yourself.
