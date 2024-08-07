@@ -154,7 +154,7 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 - [x] command handling with crud commands and command log
 - [x] backup current dataset to JSONTag file
 - [x] on startup check if any commands in the log haven't been resolved, if so run them
-- [x] add support for access control, --based on webid / openid connect--
+- [x] add support for access control, ~~based on webid / openid connect~~
 - [ ] stress test ACID compliance
 - [ ] improved web client with type-specific views and form elements
 - [ ] improved developer experience, with online command editor and eslint
