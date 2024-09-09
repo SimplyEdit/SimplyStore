@@ -10,7 +10,7 @@ let commandStr = `{
 	"name": "addPerson",
 	"timestamp": <date>"${timestamp}",
 	"author":"someone",
-	"value": {
+	"value": <object id="/uuid/${id}">{
 		"name": "Dave the Stormtrooper",
 		"gender": "male",
 		"homeworld": <link>"http://swapi.co/api/planets/1/"

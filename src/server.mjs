@@ -19,7 +19,7 @@ async function main(options) {
         options = {}
     }  
     const port          = options.port          || 3000
-    const datafile      = options.datafile      || './data.jsontag'
+    const datafile      = options.datafile      || './data.od-jsontag'
     const wwwroot       = options.wwwroot       || __dirname+'/www'
     const maxWorkers    = options.maxWorkers    || 8
     const queryWorker   = options.queryWorker   || __dirname+'/src/query-worker.mjs'

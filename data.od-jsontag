@@ -1,0 +1,3 @@
+(19){"persons":[~1,~2]}
+(102)<object id="john" class="Person">{"name":"John","lastName":"Doe","dob":<date>"1972-09-20","foaf":[~2]}
+(102)<object id="jane" class="Person">{"name":"Jane","lastName":"Doe","dob":<date>"1986-01-01","foaf":[~1]}
