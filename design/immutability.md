@@ -1,12 +1,12 @@
 # Immutable JSONTag data
 
-1 - When parsing jsontag data, each entry is frozen immediately after instantiation.
-2 - Add a clone method to clone an object (shallow clone)
-3 - a clone is mutable
-4 - all objects linking to the original object get cloned as well, and the link updated to the new clone
-5 - once all updates are done, you can freeze the root object again and it will also freeze all clones
-6 - identity. Each object should have a clear identity, that is the same over mutations, as well as a static identity that changes with mutations. (one indentity-over-time, one identity-per-version)
-7 - cleanup. Any object no longer linked should be removed, unless you want automatic versioning. In that case the root objects versions should all be kept, and therefor all objects remain linked.
+1. When parsing jsontag data, each entry is frozen immediately after instantiation.
+2. Add a clone method to clone an object (shallow clone)
+3. a clone is mutable
+4. all objects linking to the original object get cloned as well, and the link updated to the new clone
+5. once all updates are done, you can freeze the root object again and it will also freeze all clones
+6. identity. Each object should have a clear identity, that is the same over mutations, as well as a static identity that changes with mutations. (one indentity-over-time, one identity-per-version)
+7. cleanup. Any object no longer linked should be removed, unless you want automatic versioning. In that case the root objects versions should all be kept, and therefor all objects remain linked.
 
 ## Problems
 

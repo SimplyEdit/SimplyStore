@@ -19,7 +19,7 @@ If you instead assign grants to objects directly, the grants will correctly move
 
 This opens up the possibility of storing the grants in an attribute on the JSONTag tag of the object. e.g.
 
-<object class="Site" grants="user1: read edit, user2: read edit delete">{ ... }
+&lt;object class="Site" grants="user1: read edit, user2: read edit delete"&gt;{ ... }
 
 Here we need to carefully consider how to treat links. Do we need read access to follow a link, or is that implied?
 
