@@ -20,6 +20,7 @@ async function main(options) {
     }  
     const port          = options.port          || 3000
     const datafile      = options.datafile      || './data.od-jsontag'
+    const schemaFile    = options.schemaFile    || null 
     const wwwroot       = options.wwwroot       || __dirname+'/www'
     const maxWorkers    = options.maxWorkers    || 8
     const queryWorker   = options.queryWorker   || __dirname+'/src/query-worker.mjs'
@@ -49,7 +50,7 @@ async function main(options) {
                 reject(error)
                 worker.terminate()
             })
-            worker.postMessage(datafile)
+            worker.postMessage({dataFile:datafile,schemaFile})
         })
     }
     try {

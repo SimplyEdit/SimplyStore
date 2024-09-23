@@ -74,10 +74,14 @@ const tasks = {
         if (task.req.meta.index) {
             meta.index = task.req.meta.index
         }
+        if (task.req.meta.schema) {
+            meta.schema = task.req.meta.schema
+        }
         for (let sab of task.req.body) { //body contains an array of sharedArrayBuffers with initial data and changes
             dataspace = parse(sab, meta)
         }
         metaProxy.index.id = metaIdProxy
+        metaProxy.schema = meta.schema
         //@TODO: add meta.index.references? and baseURL
         return true
     },
