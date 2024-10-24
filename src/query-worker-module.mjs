@@ -160,6 +160,11 @@ export function runQuery(pointer, request, query) {
     if (!response.code) {
         if (response.jsontag) {
             try {
+                // JSONTag.stringify doesn't handle tagName/attributes well
+                // with od-jsontag, since some entries in result haven't been parsed yet
+                // only after parsing will these be available
+                // so force parsing of all result - od-jsontag should have its own stringify
+                parseAllObjects(result)
                 response.body = JSONTag.stringify(result)
             } catch(err) {
                 console.log(err)
@@ -172,6 +177,33 @@ export function runQuery(pointer, request, query) {
         }
     }
     return response
+}
+
+let seen = new WeakMap()
+function parseAllObjects(o, reset=true) {
+    if (reset) {
+        seen = new WeakMap()
+    }
+    if (seen.has(o)) {
+        return
+    }
+    if (o && typeof o == 'object') {
+        let temp = o[source]
+        seen.set(o, true)
+        if (Array.isArray(o)) {
+            for (let v of o) {
+                if (v && typeof v == 'object') {
+                    parseAllObjects(v, false)
+                }
+            }
+        } else if (o && typeof o == 'object') {
+            for (let k of Object.keys(o)) {
+                if (o[k] && typeof o[k]=='object') {
+                    parseAllObjects(o[k], false)
+                }
+            }
+        }
+    }
 }
 
 export function getDataSpace(path, dataspace) {
