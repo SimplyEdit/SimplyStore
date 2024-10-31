@@ -65,6 +65,7 @@ export async function initialize(task) {
     resultArr = dataspace[resultSet]
     meta = task.meta
     metaProxy.index.id = metaIdProxy
+    metaProxy.schema = meta.schema
     datafile = task.datafile
     commands = await import(task.commandsFile).then(mod => {
         return mod.default
