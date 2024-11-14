@@ -231,7 +231,7 @@ async function main(options) {
                         status.set(command.id, s)
                         if (data.data) { // data has changed, commands may do other things instead of changing data
                             jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
-                            meta = data.meta
+                            Object.assign(meta, data.meta)
                             queryWorkerPool.update({
                                 name: 'update',
                                 req: {
