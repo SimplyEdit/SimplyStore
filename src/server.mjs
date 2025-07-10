@@ -110,7 +110,7 @@ async function main(options) {
         if (!fs.existsSync(commandLog)) {
             return commands
         }
-        let log = fs.readFileSync(commandLog)
+        let log = fs.readFileSync(commandLog, 'utf8')
         if (log) {
             let lines = log.split("\n").filter(Boolean)
             for(let line of lines) {
