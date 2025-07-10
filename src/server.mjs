@@ -39,22 +39,11 @@ async function main(options) {
         limit: '50MB'
     }))
 
-    function loadData() {
-        return new Promise((resolve,reject) => {
-            let worker = new Worker(loadWorker)
-            worker.on('message', result => {
-                resolve(result)
-                worker.terminate()
-            })
-            worker.on('error', error => {
-                reject(error)
-                worker.terminate()
-            })
-            worker.postMessage({dataFile:datafile,schemaFile})
-        })
-    }
+    let status = loadCommandStatus(commandStatus)
+    let commandQueue = loadCommandLog(status, commandLog)
+
     try {
-        let data = await loadData()
+        let data = await loadData(Array.from(status.keys())) // command id's (keys) are used to generate filenames of changes
         jsontagBuffers = [data.data]
         meta = data.meta
     } catch(err) {
@@ -73,11 +62,90 @@ async function main(options) {
         }
     }
 
-
     let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
+    let commandWorkerInstance
 
-    server.get('/query/*', async (req, res, next) => 
-    {
+    server.get('/query/*', handleGetQuery)
+    server.post('/query/*', handlePostQuery)
+    server.post('/command', handlePostCommand)
+    server.get('/command/:id', handleGetCommand)
+
+    try {
+        const response = await fetch(`http://localhost:${port}`, {
+            signal: AbortSignal.timeout(2000)
+        })
+        console.error(`Port ${port} is already occupied, aborting.`)
+        process.exit()
+    } catch(error) {
+        server.listen(port, () => {
+            console.log('SimplyStore listening on port '+port)
+            let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
+            console.log(`(${used} MB)`);
+        })
+    }
+
+    /* ------ */
+
+    function loadCommandStatus(commandStatusFile) {
+        let status = new Map()
+        if (fs.existsSync(commandStatusFile)) {
+            let file = fs.readFileSync(commandStatusFile, 'utf-8')
+            if (file) {
+                let lines = file.split("\n").filter(Boolean) //filter clears empty lines
+                for(let line of lines) {
+                    let command = JSONTag.parse(line)
+                    status.set(command.command, command)
+                }
+            } else {
+                console.error('Could not open command status',commandStatusFile)
+            }
+        } else {
+            console.log('no command status', commandStatusFile)
+        }
+        return status
+    }
+
+    function loadCommandLog(status, commandLog) {
+        let commands = []
+        if (!fs.existsSync(commandLog)) {
+            return commands
+        }
+        let log = fs.readFileSync(commandLog, 'utf-8')
+        if (log) {
+            let lines = log.split("\n").filter(Boolean)
+            for(let line of lines) {
+                let command = JSONTag.parse(line)
+                let state = status.get(command.id)
+                switch(state) {
+                    case 'accepted': // enqueue
+                        commands.push(command)
+                        break;
+                    case 'done': // do nothing
+                        break;
+                    default: // error, do nothing
+                        break;
+                } 
+            }
+        }
+        return commands
+    }
+
+    function loadData(commands) {
+        return new Promise((resolve,reject) => {
+            let worker = new Worker(loadWorker)
+            worker.on('message', result => {
+                resolve(result)
+                worker.terminate()
+            })
+            worker.on('error', error => {
+                reject(error)
+                worker.terminate()
+            })
+            worker.postMessage({dataFile:datafile,schemaFile,commands})
+        })
+    }
+
+    async function handleGetQuery(req, res, next) {
         let start = Date.now()
         if ( !accept(req,res,
             ['application/jsontag','application/json','text/html','text/javascript','image/*'], 
@@ -115,9 +183,9 @@ async function main(options) {
         }
         let end = Date.now()
         console.log(path, (end-start), process.memoryUsage())
-    })
+    }
 
-    server.post('/query/*', async (req,res) => {
+    async function handlePostQuery(req,res) {
         let start = Date.now()
         if ( !accept(req,res,
             ['application/jsontag','application/json']) 
@@ -145,57 +213,55 @@ async function main(options) {
         let end = Date.now()
         console.log(path, (end-start), process.memoryUsage())
 //        queryWorkerPool.memoryUsage()
-    })
-
-
-    let status = loadCommandStatus(commandStatus)
-
-    function loadCommandStatus(commandStatusFile) {
-        let status = new Map()
-        if (fs.existsSync(commandStatusFile)) {
-            let file = fs.readFileSync(commandStatusFile, 'utf-8')
-            if (file) {
-                let lines = file.split("\n").filter(Boolean) //filter clears empty lines
-                for(let line of lines) {
-                    let command = JSONTag.parse(line)
-                    status.set(command.command, command)
-                }
-            } else {
-                console.error('Could not open command status',commandStatusFile)
-            }
-        } else {
-            console.log('no command status', commandStatusFile)
-        }
-        return status
     }
 
-    let commandQueue = []
-
-    function loadCommandLog(commandLog) {
-        if (!fs.existsSync(commandLog)) {
+    async function handlePostCommand(req, res) {
+        let commandId = checkCommand(req, res)
+        if (!commandId) {
             return
         }
-        let log = fs.readFileSync(commandLog)
-        if (log) {
-            let lines = log.split("\n")
-            for(let line of lines) {
-                let command = JSONTag.parse(line)
-                let state = status.get(command.id)
-                switch(state) {
-                    case 'accepted': // enqueue
-                        commandQueue.push(command)
-                        break;
-                    case 'done': // do nothing
-                        break;
-                    default: // error, do nothing
-                        break;
-                } 
+        try {
+            let commandStr = req.body.toString()
+            let request = {
+                method: req.method,
+                url: req.originalUrl,
+                query: req.query
             }
+
+            commandQueue.push({
+                id:commandId,
+                command:commandStr,
+                request,
+                meta,
+                data:jsontagBuffers,
+                commandsFile,
+                datafile                
+            })
+
+            runNextCommand()
+        } catch(err) {
+            let s = {code:err.code||500, status:'failed', message:err.message, details:err.details}
+            status.set(commandId, s)
+            appendFile(commandStatus, JSONTag.stringify(Object.assign({command:commandId}, s)))
+            console.error('ERROR: SimplyStore cannot run command ', commandId, err)
         }
     }
 
-    loadCommandLog()
-    let commandWorkerInstance
+    function handleGetCommand(req, res) {
+        if (status.has(req.params.id)) {
+            let result = status.get(req.params.id)
+            sendResponse({
+                jsontag: false,
+                body: JSON.stringify(result)
+            },res)
+        } else {
+            sendResponse({
+                code: 404,
+                jsontag: false,
+                body: JSON.stringify({code: 404, message: "Command not found", details: req.params.id})
+            }, res)
+        }
+    }
 
     async function runNextCommand() {
         let command = commandQueue.shift()
@@ -262,38 +328,6 @@ async function main(options) {
         }
     }
 
-    server.post('/command', async (req, res) => {
-        let commandId = checkCommand(req, res)
-        if (!commandId) {
-            return
-        }
-        try {
-            let commandStr = req.body.toString()
-            let request = {
-                method: req.method,
-                url: req.originalUrl,
-                query: req.query
-            }
-
-            commandQueue.push({
-                id:commandId,
-                command:commandStr,
-                request,
-                meta,
-                data:jsontagBuffers,
-                commandsFile,
-                datafile                
-            })
-
-            runNextCommand()
-        } catch(err) {
-            let s = {code:err.code||500, status:'failed', message:err.message, details:err.details}
-            status.set(commandId, s)
-            appendFile(commandStatus, JSONTag.stringify(Object.assign({command:commandId}, s)))
-            console.error('ERROR: SimplyStore cannot run command ', commandId, err)
-        }
-    })
-
     function checkCommand(req, res) {
         let error, command, commandOK
         let commandStr = req.body.toString() // raw body through express.raw()
@@ -341,27 +375,6 @@ async function main(options) {
         return command.id
     }
 
-    server.get('/command/:id', (req, res) => {
-        if (status.has(req.params.id)) {
-            let result = status.get(req.params.id)
-            sendResponse({
-                jsontag: false,
-                body: JSON.stringify(result)
-            },res)
-        } else {
-            sendResponse({
-                code: 404,
-                jsontag: false,
-                body: JSON.stringify({code: 404, message: "Command not found", details: req.params.id})
-            }, res)
-        }
-    })
-
-    server.listen(port, () => {
-        console.log('SimplyStore listening on port '+port)
-        let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
-        console.log(`(${used} MB)`);
-    })
 }
 
 function sendResponse(response, res) {

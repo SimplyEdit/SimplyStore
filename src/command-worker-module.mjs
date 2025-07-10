@@ -7,7 +7,7 @@ import writeFileAtomic from 'write-file-atomic'
 let commands = {}
 let resultArr = []
 let dataspace
-let datafile
+let datafile, basefile, extension
 let meta = {}
 let metaProxy = {
     index: {
@@ -69,6 +69,8 @@ export async function initialize(task) {
         metaProxy.schema = meta.schema
     }
     datafile = task.datafile
+    extension = datafile.split('.').pop()
+    basefile = datafile.substring(0, datafile.length - (extension.length + 1)) //+1 for . character
     commands = await import(task.commandsFile).then(mod => {
         return mod.default
     })
@@ -95,9 +97,9 @@ export default async function runCommand(commandStr, request) {
                     id: meta.index.id
                 }
             }
-            //TODO: write data every x commands or x minutes, in seperate thread
+            //TODO: write data every x commands or x minutes, in seperate thread?
 
-            let newfilename = datafile + (meta.parts ? '.'+meta.parts : '')
+            let newfilename = basefile + '.' + task.id + '.' + extension
             await writeFileAtomic(newfilename, uint8sab)
             meta.parts++
             response.meta.parts = meta.parts
