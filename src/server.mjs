@@ -43,7 +43,7 @@ async function main(options) {
     let commandQueue = loadCommandLog(status, commandLog)
 
     try {
-        let data = await loadData(status.keys()) // command id's (keys) are used to generate filenames of changes
+        let data = await loadData(Array.from(status.keys())) // command id's (keys) are used to generate filenames of changes
         jsontagBuffers = [data.data]
         meta = data.meta
     } catch(err) {
