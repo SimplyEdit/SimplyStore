@@ -5,7 +5,7 @@ import JSONTag from '@muze-nl/jsontag'
 import * as odJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
 import {source, isProxy, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import parse from '@muze-nl/od-jsontag/src/parse.mjs'
-import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,distinct} from '@muze-nl/jaqt'
+import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,many,one,distinct} from '@muze-nl/jaqt'
 
 let dataspace
 let meta = {}
@@ -134,6 +134,8 @@ export function runQuery(pointer, request, query) {
                 avg,
                 max,
                 min,
+                many,
+                one,
                 distinct,
 //                    console: connectConsole(res),
                 JSONTag: myJSONTag,
