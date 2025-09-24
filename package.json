@@ -1,6 +1,6 @@
 {
 	"name": "@muze-nl/simplystore",
-	"version": "0.7.2",
+	"version": "0.7.3",
 	"main": "src/server.mjs",
 	"type": "module",
 	"scripts": {
@@ -18,7 +18,7 @@
 	"dependencies": {
 		"@muze-nl/jaqt": "^0.10.1",
 		"@muze-nl/jsontag": "^0.9.11",
-		"@muze-nl/od-jsontag": "^0.3.3",
+		"@muze-nl/od-jsontag": "^0.3.4",
 		"codemirror": "^6.0.1",
 		"express": "^4.18.1",
 		"json-pointer": "^0.6.2",
