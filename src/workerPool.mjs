@@ -103,7 +103,7 @@ export default class WorkerPool extends EventEmitter {
 
   memoryUsage() {
     for (let worker of this.freeWorkers) {
-      worker[kTaskInfo] = new WorkerPoolTaskInfo((result) => {})
+      worker[kTaskInfo] = new WorkerPoolTaskInfo(() => {})
       worker.postMessage({name:'memoryUsage'})
     }
   }

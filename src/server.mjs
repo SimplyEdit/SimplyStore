@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url'
 import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
-import writeFileAtomic from 'write-file-atomic'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -35,7 +34,7 @@ async function main(options) {
 
     // allow access to raw body, used to parse a query send as post body
     server.use(express.raw({
-        type: (req) => true, // parse body on all requests
+        type: () => true, // parse body on all requests
         limit: '50MB'
     }))
 
@@ -71,12 +70,12 @@ async function main(options) {
     server.get('/command/:id', handleGetCommand)
 
     try {
-        const response = await fetch(`http://localhost:${port}`, {
+        await fetch(`http://localhost:${port}`, {
             signal: AbortSignal.timeout(2000)
         })
         console.error(`Port ${port} is already occupied, aborting.`)
         process.exit()
-    } catch(error) {
+    } catch(err) {
         server.listen(port, () => {
             console.log('SimplyStore listening on port '+port)
             let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
@@ -145,20 +144,21 @@ async function main(options) {
         })
     }
 
-    async function handleGetQuery(req, res, next) {
+    async function handleGetQuery(req, res) {
         let start = Date.now()
         if ( !accept(req,res,
             ['application/jsontag','application/json','text/html','text/javascript','image/*'], 
             function(req, res, accept) {
+                let result = true
                 switch(accept) {
                     case 'text/html':
                     case 'image/*':
                     case 'text/javascript':
                         handleWebRequest(req,res,{root:wwwroot});
-                        return false
+                        result = false
                     break
                 }
-                return true
+                return result
             }
         )) {
             // done
@@ -307,7 +307,6 @@ async function main(options) {
                             })
                         }
                     }
-                    let l = Object.assign({command:command.id}, s)
                     appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                 }, 
                 //reject()
@@ -357,7 +356,7 @@ async function main(options) {
             sendResponse({code: 422, body: JSON.stringify(error)}, res)
             return false
         } else if (status.has(command.id)) {
-            sendResponse({body: JSON.stringify(s)}, res)
+            sendResponse({body: JSON.stringify(commandOK)}, res)
             return false
         } else if (!command.name) {
             error = {
@@ -419,7 +418,7 @@ function accept(req, res, mimetypes, handler) {
 function handleWebRequest(req,res,options)
 {
     let path = req.path;
-    path = path.replace(/[^a-z0-9_\.\-\/]*/gi, '') // whitelist acceptable file paths
+    path = path.replace(/[^a-z0-9_.\-/]*/gi, '') // whitelist acceptable file paths
     path = path.replace(/\.+/g, '.') // blacklist '..'
     if (!path) {
         path = '/'

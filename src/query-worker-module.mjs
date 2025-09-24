@@ -3,7 +3,7 @@ import {VM} from 'vm2'
 import { memoryUsage } from 'node:process'
 import JSONTag from '@muze-nl/jsontag'
 import * as odJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
-import {source, isProxy, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
+import {source} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import parse from '@muze-nl/od-jsontag/src/parse.mjs'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,many,one,distinct} from '@muze-nl/jaqt'
 
@@ -190,7 +190,6 @@ function parseAllObjects(o, reset=true) {
         return
     }
     if (o && typeof o == 'object') {
-        let temp = o[source]
         seen.set(o, true)
         if (Array.isArray(o)) {
             for (let v of o) {
@@ -233,7 +232,6 @@ export function getDataSpace(path, dataspace) {
 
 export function linkReplacer(data, baseURL) {
     let type = JSONTag.getType(data)
-    let attributes = JSONTag.getAttributes(data)
     if (Array.isArray(data)) {
         data = data.map((entry,index) => {
             return linkReplacer(data[index], baseURL+index+'/')
