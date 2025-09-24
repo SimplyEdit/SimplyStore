@@ -6,6 +6,7 @@ import * as odJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
 import {source} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import parse from '@muze-nl/od-jsontag/src/parse.mjs'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,many,one,distinct} from '@muze-nl/jaqt'
+import process from 'node:process'
 
 let dataspace
 let meta = {}

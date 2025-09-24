@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url'
 import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
+import process from 'node:process'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
