@@ -16,7 +16,7 @@
 	"bugs": "https://github.com/simplyedit/simplystore/issues",
 	"homepage": "https://github.com/simplyedit/simplystore#readme",
 	"dependencies": {
-		"@muze-nl/jaqt": "^0.10.1",
+		"@muze-nl/jaqt": "^0.10.2",
 		"@muze-nl/jsontag": "^0.9.11",
 		"@muze-nl/od-jsontag": "^0.3.4",
 		"codemirror": "^6.0.1",
