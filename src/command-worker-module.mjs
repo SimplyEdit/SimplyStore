@@ -1,6 +1,6 @@
 import JSONTag from '@muze-nl/jsontag'
 import {getIndex, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
-import parse from '@muze-nl/od-jsontag/src/parse.mjs'
+import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import writeFileAtomic from 'write-file-atomic'
 
@@ -13,6 +13,8 @@ let metaProxy = {
     index: {
     }
 }
+const parser = new Parser()
+parser.immutable = false
 
 export const metaIdProxy = {
     forEach: (callback) => {
@@ -59,8 +61,11 @@ const metaReadProxy = {
 }
 
 export async function initialize(task) {
+    if (task.meta) {
+        parser.meta = task.meta
+    }
     for(let jsontag of task.data) {
-        dataspace = parse(jsontag, task.meta, false) // false means mutable
+        dataspace = parser.parse(jsontag)
     }
     resultArr = dataspace[resultSet]
     meta = task.meta

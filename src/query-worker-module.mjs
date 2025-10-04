@@ -2,9 +2,8 @@ import pointer from 'json-pointer'
 import {VM} from 'vm2'
 import { memoryUsage } from 'node:process'
 import JSONTag from '@muze-nl/jsontag'
-import * as odJSONTag from '@muze-nl/od-jsontag/src/jsontag.mjs'
 import {source} from '@muze-nl/od-jsontag/src/symbols.mjs'
-import parse from '@muze-nl/od-jsontag/src/parse.mjs'
+import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,many,one,distinct} from '@muze-nl/jaqt'
 import process from 'node:process'
 
@@ -15,43 +14,7 @@ let metaProxy = {
     }
 }
 
-function protect(target) {
-    if (target[source]) {
-        throw new Error('Data is immutable')
-    }
-}
-
-const myJSONTag = {
-    getAttribute: odJSONTag.getAttribute,
-    getAttributes: odJSONTag.getAttributes,
-    getType: odJSONTag.getType,
-    getTypeString: odJSONTag.getTypeString,
-    setAttribute: (target, name, value) => {
-        protect(target)
-        return odJSONTag.setAttribute(target, name, value)
-    },
-    setType: (target, type) => {
-        protect(target)
-        return odJSONTag.setType(target, type)
-    },
-    setAttributes: (target, attributes) => {
-        protect(target)
-        return odJSONTag.setAttributes(target, attributes)
-    },
-    addAttribute: (target, name, value) => {
-        protect(target)
-        return odJSONTag.addAttribute(target, name, value)
-    },
-    removeAttribute: (target, name) => {
-        protect(target)
-        return odJSONTag.removeAttribute(target, name)
-    },
-    getAttributesString: odJSONTag.getAttributesString,
-    isNull: odJSONTag.isNull,
-    clone: JSONTag.clone,
-    Link: JSONTag.Link,
-    Null: JSONTag.Null
-}
+const parser = new Parser()
 
 const metaIdProxy = {
     get: (id) => {
@@ -70,27 +33,27 @@ const tasks = {
         if (task.req.access) {
             task.req.access = await import(task.req.access)
             task.req.access = task.req.access.default
-            meta.access = task.req.access
+            parser.meta.access = task.req.access
         }
         if (task.req.meta.index) {
-            meta.index = task.req.meta.index
+            parser.meta.index = task.req.meta.index
         }
         if (task.req.meta.schema) {
-            meta.schema = task.req.meta.schema
+            parser.meta.schema = task.req.meta.schema
         }
         for (let sab of task.req.body) { //body contains an array of sharedArrayBuffers with initial data and changes
-            dataspace = parse(sab, meta)
+            dataspace = parser.parse(sab)
         }
         metaProxy.index.id = metaIdProxy
-        metaProxy.schema = meta.schema
+        metaProxy.schema = parser.meta.schema
         //@TODO: add meta.index.references? and baseURL
         return true
     },
     update: async (task) => {
         if (task.req.meta.index) {
-            meta.index = task.req.meta.index
+            parser.meta.index = task.req.meta.index
         }
-        dataspace = parse(task.req.body, meta) //update only has a single changeset
+        dataspace = parser.parse(task.req.body) //update only has a single changeset
         return true
     },
     query: async (task) => {
@@ -139,7 +102,7 @@ export function runQuery(pointer, request, query) {
                 one,
                 distinct,
 //                    console: connectConsole(res),
-                JSONTag: myJSONTag,
+                JSONTag,
                 request
             },
             wasm: false
