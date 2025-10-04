@@ -8,7 +8,6 @@ import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,many,one,distinct}
 import process from 'node:process'
 
 let dataspace
-let meta = {}
 let metaProxy = {
     index: {
     }
@@ -18,13 +17,13 @@ const parser = new Parser()
 
 const metaIdProxy = {
     get: (id) => {
-        let index = meta.index.id.get(id)
+        let index = parser.meta.index.id.get(id)
         if (index || index===0) {
-            return meta.resultArray[index]
+            return parser.meta.resultArray[index]
         }
     },
     has: (id) => {
-        return meta.index.id.has(id)
+        return parser.meta.index.id.has(id)
     }
 }
 
