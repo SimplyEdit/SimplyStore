@@ -1,6 +1,6 @@
 # SimplyStore Queries
 
-SimplyStore uses javascript as its query engine. This means that you can write any traditional javascript to search through the dataspace. However, this can get quite complex quickly. So SimplyStore adds a more convenient javascript library that mimics how GraphQL works. Just in javascript.
+SimplyStore uses javascript as its query engine. This means that you can write any traditional javascript to search through the dataspace. However, this can get quite complex quickly. So SimplyStore adds a more convenient javascript library that mimics how GraphQL works. Just in javascript. This document is a relatively short manual. The full documentation can be found at the [JAQT library github repository](https://github.com/muze-nl/jaqt/blob/main/docs/manual.md)
 
 - [Select](#select)
 - [Aliases](#aliases)
