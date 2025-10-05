@@ -23,3 +23,29 @@ This opens up the possibility of storing the grants in an attribute on the JSONT
 
 Here we need to carefully consider how to treat links. Do we need read access to follow a link, or is that implied?
 
+## Update
+
+You can define your own access check method like this. First create an `access.mjs` file with your access method, e.g:
+
+```javascript
+export default function access(object, property, method) {
+	if (property=='gender') {
+		return false
+	}
+	return true
+}
+```
+
+The in your `server.mjs` file, add the `access` property to `SimplyStore.run`:
+```javascript
+import SimplyStore from '../src/server.mjs'
+
+SimplyStore.run({
+	datafile: process.cwd()+'/data.jsontag',
+	commandsFile: process.cwd()+'/commands.mjs',
+	commandLog: process.cwd()+'/command-log.jsontag',
+	access: process.cwd()+'/access.mjs'
+})
+```
+
+Note that the access function is called for each get access on each object. So it is critical that it is fast and doesn't use much memory.
