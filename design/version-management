@@ -1,0 +1,7 @@
+# version management
+
+Each command creates a new file containing only the objects that have changed. This could allow the query engine to have access to older versions of data.
+All we need to do is create a hidden property on each object which points to the previous version. To build this, the load-worker should just load all 
+  data files and return those instead of re-serializing the latest data. The meta.resultArray should still contain only references to the latest versions
+  of each object. The meta.index.id should likewise only index the latest versions.
+In addition you should be able to ask each object what its version is. That should return the command id of the command that altered it, or null.
