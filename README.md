@@ -4,7 +4,7 @@ SimplyStore is a radically simpler backend storage server. It does not have a da
 
 [JSONTag](https://github.com/poef/jsontag) is an enhancement over JSON that allows you to tag JSON data with metadata using HTML-like tags.
 Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox. 
-You can query data using the [array-where-select](https://www.npmjs.com/package/array-where-select) extension.
+You can query data using the [jaqt](https://www.npmjs.com/package/@muze-nl/jaqt) library.
 
 Note: _There are known security issues in VM2, so the project will switch to V8-isolate. For now make sure SimplyStore is not publically accessible, by adding an api gateway in front of it for example_
 
