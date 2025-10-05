@@ -18,7 +18,7 @@ parser.immutable = false
 
 export const metaIdProxy = {
     forEach: (callback) => {
-        meta.index.id.forEach((ref,id) => {
+        parser.meta.index.id.forEach((ref,id) => {
             callback({
                 deref: () => {
                     return resultArr[ref]
@@ -27,19 +27,19 @@ export const metaIdProxy = {
         })
     },
     set: (id,ref) => {
-        if (!meta.index.id.has(id)) {
+        if (!parser.meta.index.id.has(id)) {
             if (ref[getIndex]) {
-                meta.index.id.set(id, ref[getIndex])
+                parser.meta.index.id.set(id, ref[getIndex])
             } else {
                 throw new Error('cannot set index.id for non-proxy')
             }
         } else {
-            let line = meta.index.id.get(id)
+            let line = parser.meta.index.id.get(id)
             resultArr[line] = ref
         }
     },
     get: (id) => {
-        let index = meta.index.id.get(id)
+        let index = parser.meta.index.id.get(id)
         if (index || index===0) {
             return {
                 deref: () => {
@@ -49,7 +49,7 @@ export const metaIdProxy = {
         }
     },
     has: (id) => {
-        return meta.index.id.has(id)
+        return parser.meta.index.id.has(id)
     }
 }
 
@@ -93,7 +93,6 @@ export default async function runCommand(commandStr, request) {
             let time = Date.now()
             commands[task.name](dataspace, task, request, metaProxy)
             //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
-            JSONTag.setAttribute(dataspace, 'command', task.id)
         
             const uint8sab = serialize(dataspace, {meta, changes: true}) // serialize only changes
             response.data = uint8sab
