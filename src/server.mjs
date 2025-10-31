@@ -40,7 +40,6 @@ async function main(options) {
     }))
 
     let status = loadCommandStatus(commandStatus)
-    let commandQueue = loadCommandLog(status, commandLog)
 
     try {
         let data = await loadData(Array.from(status.keys())) // command id's (keys) are used to generate filenames of changes
@@ -50,6 +49,8 @@ async function main(options) {
         console.error('ERROR: SimplyStore cannot load '+datafile, err)
         process.exit(1)
     }
+
+    let commandQueue = loadCommandLog(status, commandLog)
 
     const queryWorkerInitTask = () => { 
         return {
@@ -77,6 +78,14 @@ async function main(options) {
         console.error(`Port ${port} is already occupied, aborting.`)
         process.exit()
     } catch(err) {
+        let result
+        do {
+            try {
+                result = await runNextCommand()
+            } catch(err) {
+                // console.log(err) // ignore errors here, already logged to console
+            }
+        } while(result)
         server.listen(port, () => {
             console.log('SimplyStore listening on port '+port)
             let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
@@ -115,10 +124,18 @@ async function main(options) {
             let lines = log.split("\n").filter(Boolean)
             for(let line of lines) {
                 let command = JSONTag.parse(line)
-                let state = status.get(command.id)
+                let state = status.get(command.id)?.status
                 switch(state) {
                     case 'accepted': // enqueue
-                        commands.push(command)
+                        commands.push({
+                            id: command.id,
+                            command: line,
+                            request: null,
+                            meta,
+                            data:jsontagBuffers,
+                            commandsFile,
+                            datafile
+                        })
                         break;
                     case 'done': // do nothing
                         break;
@@ -238,8 +255,10 @@ async function main(options) {
                 commandsFile,
                 datafile                
             })
-
-            runNextCommand()
+            let result
+            do {
+                result = await runNextCommand()
+            } while(result)
         } catch(err) {
             let s = {code:err.code||500, status:'failed', message:err.message, details:err.details}
             status.set(commandId, s)
@@ -265,67 +284,80 @@ async function main(options) {
     }
 
     async function runNextCommand() {
-        let command = commandQueue.shift()
-        if (command) {
-            let start = (resolve, reject) => {
-                if (!commandWorkerInstance) {
-                    commandWorkerInstance = new Worker(commandWorker)
-                }
-                commandWorkerInstance.on('message', result => {
-                    resolve(result)
-                    runNextCommand()
-                })
-                commandWorkerInstance.on('error', error => {
-                    reject(error)
-                    runNextCommand()
-                })
-                commandWorkerInstance.postMessage(command)
+        return new Promise(async (mainResolve, mainReject) => {
+            if (commandWorkerInstance) {
+                mainReject('commandWorker already running')
+                return
             }
-            start(
-                // resolve()
-                (data) => {
-                    let s
-                    if (!data || (data.code>=300 && data.code<=499)) {
-                        console.error('ERROR: SimplyStore cannot run command ', command.id, data)
-                        if (!data?.code) {
-                            s = {code: 500, status: "failed"}
-                        } else {
-                            s = {code: data.code, status: "failed", message: data.message, details: data.details}
-                        }
-                        status.set(command.id, s)
-                    } else {
-                        s = {code: 200, status: "done"}
-                        status.set(command.id, s)
-                        if (data.data) { // data has changed, commands may do other things instead of changing data
-                            jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
-                            Object.assign(meta, data.meta)
-                            queryWorkerPool.update({
-                                name: 'update',
-                                req: {
-                                    body: jsontagBuffers[jsontagBuffers.length-1], // only add the last change, update tasks for earlier changes have already been sent
-                                    meta
-                                }
-                            })
-                        }
-                    }
-                    appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                }, 
-                //reject()
-                (error) => {
-                    console.error(error)
-                    let s = {status: "failed", code: error.code, message: error.message, details: error.details}
-                    status.set(command.id, s)
-                    appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+            let command = commandQueue.shift()
+            if (command) {
+                console.log('starting command',command.id)
+                let start = (resolve, reject) => {
+                    commandWorkerInstance = new Worker(commandWorker)
+                    commandWorkerInstance.on('message', async result => {
+                        await commandWorkerInstance.terminate()
+                        commandWorkerInstance = null
+                        resolve(result)
+                    })
+                    commandWorkerInstance.on('error', async error => {
+                        await commandWorkerInstance.terminate()
+                        commandWorkerInstance = null
+                        reject(error)
+                    })
+                    commandWorkerInstance.postMessage(command)
                 }
-            )
-        } else {
-            // this code can never be triggered from the post(/command/) route, since it always adds a command to the queue
-            // so you can only get here from commandWorkerInstance.on() route
-            // which means that the commandWorkerInstance has finished running the previous command
-            await commandWorkerInstance.terminate()
-            commandWorkerInstance.unref() // @FIXME is this needed?
-            commandWorkerInstance = null  // @FIXME or this?
-        }
+                start(
+                    // resolve()
+                    (data) => {
+                        let s
+                        if (!data || (data.code>=300 && data.code<=499)) {
+                            console.error('ERROR: SimplyStore cannot run command ', command.id, data)
+                            if (!data?.code) {
+                                s = {code: 500, status: "failed"}
+                            } else {
+                                s = {code: data.code, status: "failed", message: data.message, details: data.details}
+                            }
+                            status.set(command.id, s)
+                            appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                            mainReject(s)
+                        } else {
+                            s = {code: 200, status: "done"}
+                            status.set(command.id, s)
+                            if (data.data) { // data has changed, commands may do other things instead of changing data
+                                jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
+                                Object.assign(meta, data.meta)
+                                queryWorkerPool.update({
+                                    name: 'update',
+                                    req: {
+                                        body: jsontagBuffers[jsontagBuffers.length-1], // only add the last change, update tasks for earlier changes have already been sent
+                                        meta
+                                    }
+                                })
+                            }
+                            appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                            mainResolve(s)
+                        }
+                    }, 
+                    //reject()
+                    (error) => {
+                        let s = {status: "failed", code: error.code, message: error.message, details: error.details}
+                        status.set(command.id, s)
+                        appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                        console.log('command error', command.id, error)
+                        mainReject(s)
+                    }
+                )
+            } else {
+                console.log('no pending commands')
+                // this code can never be triggered from the post(/command/) route, since it always adds a command to the queue
+                // so you can only get here from commandWorkerInstance.on() route
+                // which means that the commandWorkerInstance has finished running the previous command
+                if (commandWorkerInstance) {
+                    await commandWorkerInstance.terminate()
+                }
+                mainResolve(false)
+            }
+        })
     }
 
     function checkCommand(req, res) {
@@ -368,13 +400,12 @@ async function main(options) {
             sendResponse({code:422, body: JSON.stringify(error)}, res)
             return false      
         }
-        appendFile(commandLog, JSONTag.stringify(command))
+        appendFile(commandLog, JSONTag.stringify(command)) //FIXME: this loses request data
         appendFile(commandStatus, JSONTag.stringify(commandOK))
         status.set(command.id, commandOK) 
         sendResponse({code: 202, body: JSON.stringify(commandOK)}, res)
         return command.id
     }
-
 }
 
 function sendResponse(response, res) {
