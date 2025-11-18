@@ -18,7 +18,7 @@
 	"dependencies": {
 		"@muze-nl/jaqt": "^0.10.3",
 		"@muze-nl/jsontag": "^0.10.2",
-		"@muze-nl/od-jsontag": "^0.4.1",
+		"@muze-nl/od-jsontag": "^0.4.2",
 		"codemirror": "^6.0.1",
 		"express": "^4.18.1",
 		"json-pointer": "^0.6.2",
