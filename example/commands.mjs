@@ -1,3 +1,5 @@
+import JSONTag from '@muze-nl/jsontag'
+
 export default {
     addPerson: (dataspace, command, request, meta) => {
         let person = command.value
