@@ -375,8 +375,9 @@ async function main(options) {
             error = {
                 code: 400,
                 message: "Bad request",
-                details: err
+                details: err.message
             }
+            console.error('Error: ',err)
             sendResponse({code: 400, body: JSON.stringify(error)}, res)
             return false
         }
