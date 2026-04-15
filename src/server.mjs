@@ -31,6 +31,8 @@ async function main(options) {
     const commandStatus = options.commandStatus || './command-status.jsontag'
     const access        = options.access        || null
 
+    server.get('/', serveHomepage)
+
     server.use(express.static(wwwroot))
 
     // allow access to raw body, used to parse a query send as post body
@@ -94,6 +96,11 @@ async function main(options) {
     }
 
     /* ------ */
+
+    function serveHomepage(req, res) {
+        res.setHeader('content-type', 'text/html');
+        res.send(fs.readFileSync(wwwroot+'/home.html'))
+    }
 
     function loadCommandStatus(commandStatusFile) {
         let status = new Map()
