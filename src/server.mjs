@@ -30,6 +30,8 @@ async function main(options) {
     const commandLog    = options.commandLog    || './command-log.jsontag'
     const commandStatus = options.commandStatus || './command-status.jsontag'
     const access        = options.access        || null
+    const timeout       = options.timeout       || 1000
+    const slowTimeout   = options.slowTimeout   || 10000
 
     server.get('/', serveHomepage)
 
@@ -59,19 +61,31 @@ async function main(options) {
                 body: jsontagBuffers,
                 meta,
                 access
-            }
+            },
+            timeout
         }
     }
 
+    const slowQueryWorkerInitTask = () => {
+        let result = queryWorkerInitTask()
+        result.timeout = slowTimeout
+        return result
+    }
+
     let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
+    let slowQueryWorkerPool = new WorkerPool(1, queryWorker, slowQueryWorkerInitTask())
     let commandWorkerInstance
 
-    server.get('/query/', handleGetQuery)
-    server.get('/query/*remainder', handleGetQuery)
-    server.post('/query/', handlePostQuery)
-    server.post('/query/*remainder', handlePostQuery)
-    server.post('/command', handlePostCommand)
-    server.get('/command/:id', handleGetCommand)
+    server.get('/query/', (req,next) => handleGetQuery(req,next))
+    server.get('/query/*remainder', (req,next) => handleGetQuery(req,next))
+    server.get('/slowquery/', (req,next) => handleSlowGetQuery(req,next))
+    server.get('/slowquery/*remainder', (req,next) => handleSlowGetQuery(req,next))
+    server.post('/query/', (req,next) => handlePostQuery(req,next))
+    server.post('/query/*remainder', (req,next) => handlePostQuery(req,next))
+    server.post('/slowquery/', (req,next) => handleSlowPostQuery(req,next))
+    server.post('/slowquery/*remainder', (req,next) => handleSlowPostQuery(req,next))
+    server.post('/command', (req,next) => handlePostCommand(req,next))
+    server.get('/command/:id', (req,next) => handleGetCommand(req,next))
 
     server.use(express.static(wwwroot))
 
@@ -171,8 +185,13 @@ async function main(options) {
         })
     }
 
-    async function handleGetQuery(req, res) {
+    async function handleGetQuery(req, res, pool=null) {
         let start = Date.now()
+        if (!pool) {
+            pool = queryWorkerPool
+        } else {
+            console.log(pool)
+        }
         if ( !accept(req,res,
             ['application/jsontag','application/json','text/html','text/javascript','image/*'], 
             function(req, res, accept) {
@@ -191,7 +210,7 @@ async function main(options) {
             // done
             return
         }
-        let path = req.path.substr(6) // cut '/query'
+        let path = req.params.remainder?.join('/') || '/'
         console.log('query',path)
         let request = {
             method: req.method,
@@ -203,7 +222,7 @@ async function main(options) {
             request.jsontag = true
         }
         try {
-            let result = await queryWorkerPool.run('query', request)
+            let result = await pool.run('query', request)
             sendResponse(result, res)
         } catch(error) {
             sendError(error, res)
@@ -212,7 +231,14 @@ async function main(options) {
         console.log(path, (end-start), process.memoryUsage())
     }
 
-    async function handlePostQuery(req,res) {
+    async function handleSlowGetQuery(req, res) {
+        return handleGetQuery(req, res, slowQueryWorkerPool)
+    }
+
+    async function handlePostQuery(req,res,pool=null) {
+        if (!pool) {
+            pool = queryWorkerPool
+        }
         let start = Date.now()
         if ( !accept(req,res,
             ['application/jsontag','application/json']) 
@@ -220,7 +246,7 @@ async function main(options) {
             sendError({code:406, message:'Not Acceptable',accept:['application/json','application/jsontag']},res)
             return
         }
-        let path = req.path.substr(6) // cut '/query'
+        let path = req.params.remainder?.join('/') || '/'
         let request = {
             method: req.method,
             url: req.originalUrl,
@@ -232,7 +258,7 @@ async function main(options) {
             request.jsontag = true
         }
         try {
-            let result = await queryWorkerPool.run('query', request)
+            let result = await pool.run('query', request)
             sendResponse(result, res)
         } catch(error) {
             sendError(error, res)
@@ -240,6 +266,10 @@ async function main(options) {
         let end = Date.now()
         console.log(path, (end-start), process.memoryUsage())
 //        queryWorkerPool.memoryUsage()
+    }
+
+    async function handleSlowPostQuery(req, res) {
+        return handlePostQuery(req, res, slowQueryWorkerPool)
     }
 
     async function handlePostCommand(req, res) {

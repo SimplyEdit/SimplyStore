@@ -55,7 +55,7 @@ const tasks = {
         return true
     },
     query: async (task) => {
-        return runQuery(task.req.path, task.req, task.req.body)
+        return runQuery(task.req.path, task.req, task.req.body, task.timeout)
     },
     memoryUsage: async () => {
         let result = memoryUsage()
@@ -66,7 +66,7 @@ const tasks = {
 
 export default tasks
 
-export function runQuery(pointer, request, query) {
+export function runQuery(pointer, request, query, timeout=1000) {
     if (!pointer) { throw new Error('missing pointer parameter')}
     if (!request) { throw new Error('missing request parameter')}
     let response = {
@@ -78,7 +78,7 @@ export function runQuery(pointer, request, query) {
         // @todo add text search: https://github.com/nextapps-de/flexsearch
         // @todo replace VM with V8 isolate
         const vm = new VM({
-            timeout: 1000,
+            timeout: timeout,
             allowAsync: false,
             sandbox: {
                 root: dataspace, //@TODO: if we don't pass the root, we can later shard
