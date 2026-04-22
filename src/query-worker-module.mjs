@@ -1,10 +1,9 @@
-import pointer from 'json-pointer'
 import {VM} from 'vm2'
 import { memoryUsage } from 'node:process'
 import JSONTag from '@muze-nl/jsontag'
 import {source} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
-import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,many,one,distinct} from '@muze-nl/jaqt'
+import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,many,one,first,distinct} from '@muze-nl/jaqt'
 import process from 'node:process'
 
 let dataspace
@@ -99,6 +98,7 @@ export function runQuery(pointer, request, query) {
                 min,
                 many,
                 one,
+                first,
                 distinct,
 //                    console: connectConsole(res),
                 JSONTag,
@@ -171,24 +171,18 @@ function parseAllObjects(o, reset=true) {
 }
 
 export function getDataSpace(path, dataspace) {
-    if (path.substring(path.length-1)==='/') {
-        //jsonpointer doesn't allow a trailing '/'
+    if (path.substring(path.length-1)=='/') {
         path = path.substring(0, path.length-1)
-    }
-    let result
-    if (path) {
-        //jsonpointer doesn't allow an empty pointer
-        try {
-            if (pointer.has(dataspace, path)) {
-                result = pointer.get(dataspace, path)
-            } else {
-                result = JSONTag.parse('<object class="Error">{"message":"Not found", "code":404}')
-            }
-        } catch(err) {
-            result = JSONTag.parse('<object class="Error">{"message":'+JSON.stringify(err.message)+', "code":500}')
+    } 
+    const pointer = path.split('/')
+    let result = dataspace
+    for (const part of pointer) {
+        if (part && result) {
+            result = result[part]
         }
-    } else {
-        result = dataspace
+    }
+    if (result===undefined) {
+        result = JSONTag.parse(`<object class="Error">{"message":"Path Not found", "code":404, "path":"${path}"}`)
     }
     return [result,path]
 }
