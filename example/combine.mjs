@@ -2,6 +2,7 @@ import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
 import JSONTagTypes from '@muze-nl/jsontag-types'
 
+process.stderr.write("Reading star-wars-dataset\n")
 const data = JSON.parse(fs.readFileSync(process.cwd()+'/star-wars-dataset/data/enriched.json'))
 
 let result = {}
@@ -204,3 +205,4 @@ result.starships = data.starships.map(entity => {
 
 let out = JSONTag.stringify(result, null, 4)
 console.log(out)
+process.stderr.write("Done\n")

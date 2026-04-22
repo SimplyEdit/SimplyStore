@@ -28,4 +28,9 @@ from(data.people)
 
 Press Ctrl-Enter to run, or use the run button.
 
-This example uses information from the Star Wars API project: `https://swapi.dev/`
+This example uses information from the Star Wars API project: `https://swapi.dev/`, in the format provided by `https://github.com/fgeorges/star-wars-dataset`. To update the data clone this repository into `example/star-wars-dataset/` and then run this command:
+
+```shell
+> cd example/
+> node ./combine.mjs > swdb.jsontag
+```
