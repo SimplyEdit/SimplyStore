@@ -33,8 +33,6 @@ async function main(options) {
 
     server.get('/', serveHomepage)
 
-    server.use(express.static(wwwroot))
-
     // allow access to raw body, used to parse a query send as post body
     server.use(express.raw({
         type: () => true, // parse body on all requests
@@ -68,10 +66,14 @@ async function main(options) {
     let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
     let commandWorkerInstance
 
-    server.get('/query/*', handleGetQuery)
-    server.post('/query/*', handlePostQuery)
+    server.get('/query/', handleGetQuery)
+    server.get('/query/*remainder', handleGetQuery)
+    server.post('/query/', handlePostQuery)
+    server.post('/query/*remainder', handlePostQuery)
     server.post('/command', handlePostCommand)
     server.get('/command/:id', handleGetCommand)
+
+    server.use(express.static(wwwroot))
 
     try {
         await fetch(`http://localhost:${port}`, {
