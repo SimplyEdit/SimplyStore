@@ -3,6 +3,7 @@ import {getIndex, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import writeFileAtomic from 'write-file-atomic'
+import index from './index.mjs'
 
 let commands = {}
 let resultArr = []
@@ -94,6 +95,8 @@ export default async function runCommand(commandStr, request) {
             commands[task.name](dataspace, task, request, metaProxy)
             //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
         
+            index.update(dataspace, meta)
+
             const uint8sab = serialize(dataspace, {meta, changes: true}) // serialize only changes
             response.data = uint8sab
             response.meta = {
