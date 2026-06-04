@@ -27,6 +27,7 @@ async function main(options) {
     const loadWorker    = options.loadWorker    || __dirname+'/src/load-worker.mjs'
     const commandWorker = options.commandWorker || __dirname+'/src/command-worker.mjs'
     const commandsFile  = options.commandsFile  || __dirname+'/src/commands.mjs'
+    const indexFile     = options.indexFile     || __dirname+'/src/index.mjs'
     const commandLog    = options.commandLog    || './command-log.jsontag'
     const commandStatus = options.commandStatus || './command-status.jsontag'
     const access        = options.access        || null
@@ -157,6 +158,7 @@ async function main(options) {
                             meta,
                             data:jsontagBuffers,
                             commandsFile,
+                            indexFile,
                             datafile
                         })
                         break;
@@ -292,6 +294,7 @@ async function main(options) {
                 meta,
                 data:jsontagBuffers,
                 commandsFile,
+                indexFile,
                 datafile                
             })
             let result

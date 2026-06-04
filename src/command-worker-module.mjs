@@ -3,9 +3,9 @@ import {getIndex, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import writeFileAtomic from 'write-file-atomic'
-import index from './index.mjs'
 
 let commands = {}
+let index = {}
 let resultArr = []
 let dataspace
 let datafile, basefile, extension
@@ -78,6 +78,9 @@ export async function initialize(task) {
     extension = datafile.split('.').pop()
     basefile = datafile.substring(0, datafile.length - (extension.length + 1)) //+1 for . character
     commands = await import(task.commandsFile).then(mod => {
+        return mod.default
+    })
+    index = await import(task.indexFile).then(mod => {
         return mod.default
     })
 }
