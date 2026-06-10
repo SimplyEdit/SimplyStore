@@ -183,7 +183,7 @@ async function main(options) {
                 reject(error)
                 worker.terminate()
             })
-            worker.postMessage({dataFile:datafile,schemaFile,commands})
+            worker.postMessage({dataFile:datafile,indexFile,schemaFile,commands})
         })
     }
 
