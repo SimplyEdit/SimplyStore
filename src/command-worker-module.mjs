@@ -1,5 +1,5 @@
 import JSONTag from '@muze-nl/jsontag'
-import {getIndex, resultSet} from '@muze-nl/od-jsontag/src/symbols.mjs'
+import {getIndex, resultSet, isChanged} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import writeFileAtomic from 'write-file-atomic'
@@ -98,8 +98,12 @@ export default async function runCommand(commandStr, request) {
             commands[task.name](dataspace, task, request, metaProxy)
             //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
         
-            index.update(dataspace, meta)
-
+            const changes = meta.resultArray.filter(e => e[isChanged])
+            //FIXME: new entities should also report isChanged = true
+            if (changes.length) {
+                changes.uuid = task.id
+                index.update(dataspace, meta, changes)
+            }
             const uint8sab = serialize(dataspace, {meta, changes: true}) // serialize only changes
             response.data = uint8sab
             response.meta = {

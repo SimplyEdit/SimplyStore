@@ -2,6 +2,7 @@ import { parentPort } from 'node:worker_threads'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import fs from 'fs'
+import path from 'path'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 
 const parser = new Parser()
@@ -14,6 +15,7 @@ parentPort.on('message', (files) => {
 
 	const extension = files.dataFile.split('.').pop()
 	const basefile = files.dataFile.substring(0, files.dataFile.length - (extension.length + 1)) //+1 for . character
+	meta.data = path.dirname(basefile)
 
 	let count = 0
 	let data

@@ -1,8 +1,8 @@
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
-import getIndex from '@muze-nl/od-jsontag/src/symbols'
+import { getIndex } from '@muze-nl/od-jsontag/src/symbols.mjs'
 
-export default idIndex = {
+export default {
 	create(data, meta) {
 		// jsontag parse automatically fills meta.index.id, so no need to create anything
 		// just store meta.index.id in index.id.json
@@ -14,20 +14,21 @@ export default idIndex = {
 			}
 		}
 		fs.writeFileSync(meta.data+'index.id.json', JSON.stringify(index))
-	}
-
+	},
 	update(data, meta, changes) {
+		if (!changes.length) {
+			return
+		}
 		const index = {}
 		for (const entry of changes) {
-			const id = JSONTag.getAttribute('id', entry)
+			const id = JSONTag.getAttribute(entry, 'id')
 			if (id) {
-				const entity = meta.index.id.get(id)?.deref()
-				index[id] = entity[getIndex]
+				const entity = meta.index.id.get(id)
+				index[id] = entry[getIndex]
 			}
 		}
-		fs.writeFileSync(meta.data+'index.id.'+changes.uuid+'.json', JSON.stringify(index))
-	}
-
+		fs.writeFileSync(meta.data+'/index.id.'+changes.uuid+'.json', JSON.stringify(index))
+	},
 	load(uuid=null) {
 		let filename
 		if (!uuid) {
