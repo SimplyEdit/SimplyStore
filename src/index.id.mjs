@@ -4,16 +4,21 @@ import { getIndex } from '@muze-nl/od-jsontag/src/symbols.mjs'
 
 export default {
 	create(data, meta) {
+		console.log('creating '+meta.data+'/index.id.json')
 		// jsontag parse automatically fills meta.index.id, so no need to create anything
 		// just store meta.index.id in index.id.json
 		const index = {}
-		for (const key in meta.index.id.keys()) {
-			const entity = meta.index.id.get(key)?.deref()
-			if (entity) {
-				index[key] = entity[getIndex]
+		for (const key of meta.index.id.keys()) {
+			if (!key) {
+				continue
 			}
+			const entity = meta.index.id.get(key)
+			if (!entity) {
+				continue
+			}
+			index[key] = entity[getIndex]
 		}
-		fs.writeFileSync(meta.data+'index.id.json', JSON.stringify(index))
+		fs.writeFileSync(meta.data+'/index.id.json', JSON.stringify(index))
 	},
 	update(data, meta, changes) {
 		if (!changes.length) {
@@ -23,7 +28,6 @@ export default {
 		for (const entry of changes) {
 			const id = JSONTag.getAttribute(entry, 'id')
 			if (id) {
-				const entity = meta.index.id.get(id)
 				index[id] = entry[getIndex]
 			}
 		}
