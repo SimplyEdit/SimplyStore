@@ -191,8 +191,6 @@ async function main(options) {
         let start = Date.now()
         if (!pool) {
             pool = queryWorkerPool
-        } else {
-            console.log(pool)
         }
         if ( !accept(req,res,
             ['application/jsontag','application/json','text/html','text/javascript','image/*'], 
@@ -224,7 +222,7 @@ async function main(options) {
             request.jsontag = true
         }
         try {
-            let result = await pool.run('query', request)
+            let result = await pool.run('query', request, { timeout })
             sendResponse(result, res)
         } catch(error) {
             sendError(error, res)
@@ -237,9 +235,12 @@ async function main(options) {
         return handleGetQuery(req, res, slowQueryWorkerPool)
     }
 
-    async function handlePostQuery(req,res,pool=null) {
+    async function handlePostQuery(req,res,pool=null, slowTimeout=null) {
         if (!pool) {
             pool = queryWorkerPool
+        }
+        if (!slowTimeout) {
+            slowTimeout = timeout
         }
         let start = Date.now()
         if ( !accept(req,res,
@@ -260,7 +261,7 @@ async function main(options) {
             request.jsontag = true
         }
         try {
-            let result = await pool.run('query', request)
+            let result = await pool.run('query', request, {slowTimeout})
             sendResponse(result, res)
         } catch(error) {
             sendError(error, res)
@@ -271,7 +272,7 @@ async function main(options) {
     }
 
     async function handleSlowPostQuery(req, res) {
-        return handlePostQuery(req, res, slowQueryWorkerPool)
+        return handlePostQuery(req, res, slowQueryWorkerPool, slowTimeout)
     }
 
     async function handlePostCommand(req, res) {
@@ -368,13 +369,15 @@ async function main(options) {
                             if (data.data) { // data has changed, commands may do other things instead of changing data
                                 jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
                                 Object.assign(meta, data.meta)
-                                queryWorkerPool.update({
+                                const updateTask = {
                                     name: 'update',
                                     req: {
                                         body: jsontagBuffers[jsontagBuffers.length-1], // only add the last change, update tasks for earlier changes have already been sent
                                         meta
                                     }
-                                })
+                                }
+                                queryWorkerPool.update(updateTask)
+                                slowQueryWorkerPool.update(updateTask)
                             }
                             appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                             mainResolve(s)

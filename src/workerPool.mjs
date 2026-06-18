@@ -68,9 +68,9 @@ export default class WorkerPool extends EventEmitter {
     worker.postMessage(this.initTask);
   }
 
-  async run(name, req) {
+  async run(name, req, options={}) {
     return new Promise((resolve, reject) => {
-      this.runTask({name,req}, (error, result) => {
+      this.runTask({name,req,...options}, (error, result) => {
         if (error) {
           return reject(error)
         }
