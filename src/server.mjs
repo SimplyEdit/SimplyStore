@@ -36,6 +36,9 @@ async function main(options) {
 
     server.get('/', serveHomepage)
 
+    console.log("Debug information:")
+    console.log("maxworkers: ", maxWorkers)
+
     // allow access to raw body, used to parse a query send as post body
     server.use(express.raw({
         type: () => true, // parse body on all requests
