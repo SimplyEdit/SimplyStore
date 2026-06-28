@@ -2,7 +2,9 @@
     "name": "Example SimplyStore",
     "main": "server.mjs",
     "scripts": {
-        "start": "node server.mjs"
+        "start": "node server.mjs",
+        "import": "node ./combine.mjs",
+        "build": "node ../scripts/convert.mjs swdb.jsontag data.jsontag ../src/index.mjs"
     },
     "dependencies": {
         "@muze-nl/jsontag": "^0.9.8",

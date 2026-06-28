@@ -25,55 +25,62 @@ if (schemaFile && schemaFile[0]!='/') {
 	schemaFile = process.cwd()+'/'+schemaFile
 }
 
-async function main() {
-	// now create indexes
-	console.log('Using index library:', indexFile)
-	
-	const index = await import(indexFile).then(mod => {
-	    return mod.default
-	})
+const index = await import(indexFile).then(mod => {
+    return mod.default
+})
 
-	let schema = {}
-	if (schemaFile) {
-		schema = JSONTag.parse(fs.readFileSync(schemaFile, 'utf-8'))
-	}
+// now create indexes
+console.log('Using index library:', indexFile)
 
-	// load file
-	let input = fs.readFileSync(inputFile, 'utf-8')
 
-	// parse jsontag
-	let data = JSONTag.parse(input)
-
-	console.log('input data parsed')
-	// write resultset to output
-	let strData = stringify(serialize(data))
-
-	console.log('od-jsontag created')
-
-	// indexes need the position data which is only available after
-	// parsing the od-jsontag data
-	const parser = new Parser('',false) // allow mutations
-	const odData = parser.parse(strData)
-
-	let meta = {
-		index: {
-			id: new Map()
-		},
-		schema,
-		resultArray: parser.meta.resultArray,
-		data: path.dirname(outputFile)
-	}
-	for (const ob of meta.resultArray) {
-		meta.index.id.set(JSONTag.getAttribute(ob, 'id'), ob)
-	}
-
-	index.create(odData, meta)
-	console.log('Indexes created')
-
-	strData = stringify(serialize(odData))
-
-	fs.writeFileSync(outputFile, strData)
-	console.log('Converted data written to ',outputFile)
+let schema = {}
+if (schemaFile) {
+	schema = JSONTag.parse(fs.readFileSync(schemaFile, 'utf-8'))
 }
 
-main()
+// load file
+let input = fs.readFileSync(inputFile, 'utf-8')
+
+// parse jsontag
+let data = JSONTag.parse(input)
+
+console.log('input data parsed')
+// write resultset to output
+let strData = stringify(serialize(data))
+
+console.log('od-jsontag created')
+
+// indexes need the position data which is only available after
+// parsing the od-jsontag data
+const parser = new Parser('https://localhost/',false) // allow mutations
+const odData = parser.parse(strData)
+
+console.log('offsets parsed')
+
+let meta = {
+	index: {
+		id: new Map()
+	},
+	schema,
+	resultArray: parser.meta.resultArray,
+	data: path.dirname(outputFile)
+}
+
+for (let ob of meta.resultArray) {
+	let id = JSONTag.getAttribute(ob, 'id')
+	if (id) {
+		meta.index.id.set(id, ob)
+	}
+}
+
+console.log('Indexing...')
+//FIXME: offset index can only be calculated by parsing serialized odData
+//but index.create updates that data, so previous information is no longer correct
+//TODO: split index creation in internal (updates odData) and external (creates index files)
+index.create(odData, meta)
+console.log('Indexes created')
+
+strData = stringify(serialize(odData))
+
+fs.writeFileSync(outputFile, strData)
+console.log('Converted data written to ',outputFile)

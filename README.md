@@ -3,10 +3,10 @@
 SimplyStore is a radically simpler backend storage server. It does not have a database, certainly no SQL or GraphQL, it is not REST. In return it has a well defined API that is automatically derived from your dataset. It supports JSONTag to allow for semantically meaningful data, without having to do the full switch to Linked Data and triple stores. The query format is javascript, you can post javascript queries that will run on the server. All data is read into memory and is available to these javascript queries without needing (or allowing) disk access or indexes.
 
 [JSONTag](https://github.com/muze-nl/jsontag) is an enhancement over JSON that allows you to tag JSON data with metadata using HTML-like tags.
-Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox. 
+Javascript queries are run in an [isolated-vm](https://www.npmjs.com/package/isolated-vm) sandbox. 
 You can query data using the [jaqt](https://github.com/muze-nl/jaqt/)  library.
 
-Note: _There are known security issues in VM2, so the project will switch to V8-isolate. For now make sure SimplyStore is not publically accessible, by adding an api gateway in front of it for example_
+Note: _The previous VM2 sandbox had known security issues, so SimplyStore now uses isolated-vm for stronger isolation._
 
 ## Table of Contents
 
@@ -160,7 +160,7 @@ In addition, SimplyStore is meant to be a real-world testcase for JSONTag.
 - [ ] improved developer experience, with online command editor and eslint
 - [ ] optional schema definitions and validation
 - [ ] allow custom templates, instead of the default index.html
-- [ ] switch from VM2 to V8-isolate or QuickJS, which is more secure
+- [x] switch from VM2 to isolated-vm, which is more secure
 
 <a name="license"></a>
 ## License
