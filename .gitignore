@@ -4,3 +4,6 @@ example/command-log.jsontag
 example/command-status.jsontag
 example/data.jsontag
 example/package-lock.json
+example/star-wars-dataset/
+.tap
+.nyc_output
