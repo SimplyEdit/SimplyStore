@@ -1,0 +1,12 @@
+# workspaces in simplystore
+
+The dataspace is loaded from multiple data files. A single origin data.jsontag and then multiple 'patch' files. Each file is read into a SharedArrayBuffer, and the root dataspace creates proxies for each object in that patch file that point to the correct spot in each SharedArrayBuffer.
+
+This means that it should be possible to create a root dataspace for each patch file, that only has the data from that patch file (and earlier). So this would allow us to implement a versioning system on top of SimplyStore. Each dataspace version must also have its own meta, specifically the meta.index.id, so that searching by id doesn't return a newer version of an object. This can probably be implemented with a changeset in the meta.index as well, although that would cost a little extra performance (multiple searches untill you find the patch where an object id is defined.)
+
+However, another option is to create separate workspaces, which have their own set of patch files. These won't be loaded by default, but only when you explicitly select a workspace. E.g. through a new route '/workspace/:workspace/query/' and similar for '.../command/'. When accessign such a workspace for the first time, a new load worker is started, which will find the branch command id for that workspace, kept on disk somewhere. And then use the dataspace version associated with that command as the starting point. Then it will load the command-log and command-status files located in the workspace directory and load all patch jsontag files in the workspace. The load worker returns this new dataspace (and meta) and the main server starts a single query or command worker to handle requests for that workspace.
+
+This should allow someone to start a new workspace, create as many changes as they like and request feedback from other people, by sharing the workspace URL. Finally it should be possible to merge the workspace into the main dataspace. Either by first merging all new patches in the main dataspace into the workspace, and then simply adding the workspace patches to main. Or by rerunning all commands on a fresh workspace and if that succeeds, adding the resulting patches to main.
+
+The UI could be a simple pulldown with all available workspaces. Each workspace is just a folder in the data folder. Probably with a meta.json file to indicate its starting command id and perhaps some metadata, who started this workspace, when, etc.
+
