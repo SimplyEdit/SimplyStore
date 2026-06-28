@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/assets/css/style.css">
+<title>SimplyStore</title>
+<body>
+	<h1>SimplyStore</h1>
+	<h2>In memory database and API</h2>
+	<p>This is a placeholder page. To run queries go to <a href="query/">the <code>/query</code> endpoint</a></p>
+	<p>You can override this placeholder page by adding this to your SimplyStore server code:</p>
+	<pre> 
+	import SimplyStore from '@muze-nl/simplystore'
+
+	SimplyStore.get('/', function(req, res) {
+	        res.setHeader('Content-Type', 'text/html')
+	        res.send('Your homepage content')
+	})
+
+	SimplyStore.run()
+	</pre>
+</body>
+
