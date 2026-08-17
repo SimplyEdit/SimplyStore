@@ -1,0 +1,9 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:REQ-001
+    a sd:Request ;
+    dcterms:identifier "REQ-001" ;
+    sd:repositoryPath ".spiral/requests/REQ-001.md" ;
+    sd:status sd:Active .

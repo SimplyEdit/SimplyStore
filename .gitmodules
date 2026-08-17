@@ -1,0 +1,3 @@
+[submodule ".spiral-core"]
+	path = .spiral-core
+	url = https://github.com/muze-labs/spiral-developer.git

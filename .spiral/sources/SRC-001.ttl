@@ -1,0 +1,11 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:SRC-001
+    a sd:Source ;
+    dcterms:identifier "SRC-001" ;
+    sd:repositoryPath ".spiral/sources/SRC-001.md" ;
+    sd:status sd:Active ;
+    sd:sourceAvailability sd:Referenced ;
+    sd:provenanceConfidence sd:Explicit .

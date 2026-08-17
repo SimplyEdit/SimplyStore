@@ -1,0 +1,10 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:UND-001
+    a sd:Understanding ;
+    dcterms:identifier "UND-001" ;
+    sd:repositoryPath ".spiral/understandings/UND-001.md" ;
+    sd:status sd:Active ;
+    sd:provenanceConfidence sd:Evidenced .

@@ -1,0 +1,9 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:CTX-001
+    a sd:ProjectContext ;
+    dcterms:identifier "CTX-001" ;
+    sd:repositoryPath ".spiral/project-context.md" ;
+    sd:status sd:Active .
