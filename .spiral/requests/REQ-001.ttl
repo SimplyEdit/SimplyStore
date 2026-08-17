@@ -6,4 +6,9 @@ project:REQ-001
     a sd:Request ;
     dcterms:identifier "REQ-001" ;
     sd:repositoryPath ".spiral/requests/REQ-001.md" ;
-    sd:status sd:Active .
+    sd:status sd:Active ;
+    sd:derivedFrom [
+        a sd:ArtifactReference ;
+        sd:artifact project:UND-001 ;
+        sd:gitCommit "154b682cd12890d31a9420e884ad078ed7ce1a8f"
+    ] .
