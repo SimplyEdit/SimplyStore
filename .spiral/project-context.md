@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-006.md` (`Durable Artifact Corruption Classification`).
+Current active Spiral cycle: `.spiral/cycles/CYC-007.md` (`Process Crash Fault Harness`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-006.md` (`Durable Artifact Corruption Classification`).
 
 ## Intended Users
 
@@ -71,7 +71,7 @@ For the current production-readiness phase, a developer evaluating SimplyStore s
 - run focused durability tests locally with ordinary project commands;
 - see explicit recovery failures for malformed, missing, truncated, or inconsistent durable artifacts covered so far;
 - trace each durability claim to evidence artifacts and code locations;
-- see known gaps called out plainly, especially full process crash injection, unawaited durable appends, idempotent retry behavior, VM2 security posture, and larger-system extension seams.
+- see known gaps called out plainly, especially remaining process crash boundaries, filesystem sync assumptions, idempotent retry behavior, VM2 security posture, and larger-system extension seams.
 
 This is not yet a claim that SimplyStore is production-safe for all workloads. It is a claim that production-readiness work is becoming legible and falsifiable to developers.
 
@@ -146,7 +146,8 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 |---|---|---|---|
 | VM2 has known security issues | Investigate | README | README says to keep SimplyStore away from public access until replacement |
 | Durability claims are not yet sufficiently proven | Investigate | Human input, README roadmap, `SRC-001`, `EVD-001` | Active first Spiral cycle area; target is recovery after crashes at any update point or explicit failure rather than silent corrupted-data use |
-| Command lifecycle commit boundaries are implicit | Investigate | `EVD-001` | Current accepted/done/status/changeset ordering needs executable fault evidence |
+| Command lifecycle commit boundaries are implicit | Investigate | `EVD-001`, `EVD-006` | First process-level fault boundary is covered; remaining accepted/write/done/status boundaries still need executable fault evidence |
+| Durable append promises are no longer fire-and-forget in the command path | Monitor | `IMP-002`, `EVD-006` | Command acceptance and command outcome appends are awaited; deeper filesystem/directory fsync assumptions remain future work |
 | Durable artifact corruption classes are only partly classified | Investigate | `DES-001`, `EVD-005` | Status/log parse and required-field failures are explicit; other inconsistency classes remain future work |
 | Dirty example/development datasets can now fail startup after missing committed changesets | Defer | Human example test after `CYC-006` | Need a future reset/clean script, and possibly explicit recovery tooling if the project chooses to support repair rather than fail-only behavior |
 | `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
@@ -189,7 +190,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Add a developer/operator script for resetting or cleaning local/example datasets after explicit recovery failures.
 - Decide later whether SimplyStore should ever attempt durable artifact recovery/repair, or only provide inspection and reset tooling.
 - Characterize the VM2 replacement risk as a candidate early Spiral cycle.
-- Add process-level fault tests around command acceptance, changeset write, status append, and restart recovery.
+- Extend process-level fault tests around command acceptance, changeset write, status append, and restart recovery.
 - Define larger-system integration options after the durability priority is better bounded.
 - Produce `DURABILITY.md` only when executable evidence supports the documented claims.
 
@@ -211,3 +212,4 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Durability invariant design: `.spiral/designs/DES-001.md`
 - Baseline archaeology evidence: `.spiral/evidence/EVD-001.md`
 - Durable artifact corruption classification evidence: `.spiral/evidence/EVD-005.md`
+- Process crash fault harness evidence: `.spiral/evidence/EVD-006.md`
