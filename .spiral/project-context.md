@@ -187,7 +187,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
 | Spiral intake can become stale | Monitor | Completed intake, CYC-009 | Reopen if audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change |
-| Command update crash matrix is incomplete | Investigate | Critical review before CYC-010, `DES-001` | Remaining command lifecycle crash boundaries need executable classification and independent reconstruction evidence |
+| Command update crash matrix is incomplete | Monitor | Critical review before CYC-010, `DES-001`, `IMP-004`, `EVD-009` | Main process crash matrix now covers acceptance, active, changeset, done, duplicate log, unsafe replay, and normal restart boundaries; filesystem/power-loss and adversarial storage risks remain |
 
 ## Reliable Feedback / Reality Sources
 
@@ -249,3 +249,4 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Durable artifact corruption classification evidence: `.spiral/evidence/EVD-005.md`
 - Process crash fault harness evidence: `.spiral/evidence/EVD-006.md`
 - Accepted command replay safety evidence: `.spiral/evidence/EVD-007.md`
+- Command crash matrix evidence: `.spiral/evidence/EVD-009.md`
