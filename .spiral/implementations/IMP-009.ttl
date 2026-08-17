@@ -1,0 +1,22 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-009
+    a sd:Implementation ;
+    dcterms:identifier "IMP-009" ;
+    sd:repositoryPath ".spiral/implementations/IMP-009.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "test/after-change-handlers.mjs" ;
+    sd:implementationLocation "package.json#scripts.test:handlers" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-002 ;
+        sd:gitCommit "8666d847940b490fdc0480f7d03574f1d763e86a"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-015 ;
+        sd:gitCommit "b906bd00f74b586ca9acec16cd9385b4504f5ce5"
+    ] ;
+    sd:implementationChangeKind sd:MixedChange .
