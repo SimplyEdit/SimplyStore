@@ -11,8 +11,5 @@ export function getRuntimeEnvironment(env = process.env) {
 }
 
 export function assertRuntimeEnvironmentConfiguration(env = process.env) {
-	const runtimeEnvironment = getRuntimeEnvironment(env)
-	if (env.SIMPLYSTORE_FAULT_POINT && runtimeEnvironment !== 'test') {
-		throw new Error('SIMPLYSTORE_FAULT_POINT is only allowed when SIMPLYSTORE_ENV=test')
-	}
+	getRuntimeEnvironment(env)
 }

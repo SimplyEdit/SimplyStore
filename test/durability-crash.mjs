@@ -9,6 +9,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import { faultPoint } from '../src/faults.mjs'
 import { assertRuntimeEnvironmentConfiguration, getRuntimeEnvironment } from '../src/runtime-environment.mjs'
 
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -150,16 +151,31 @@ async function queryPersons(port) {
 	return JSONTag.parse(await response.text())
 }
 
-test('runtime environment defaults to production and rejects production fault points', () => {
+test('runtime environment defaults to production and ignores production fault points', () => {
 	assert.equal(getRuntimeEnvironment({}), 'production')
-	assert.throws(
-		() => assertRuntimeEnvironmentConfiguration({SIMPLYSTORE_FAULT_POINT: 'before-command-done-status'}),
-		/SIMPLYSTORE_FAULT_POINT is only allowed/
-	)
+	assert.doesNotThrow(() => assertRuntimeEnvironmentConfiguration({}))
+	assert.doesNotThrow(() => assertRuntimeEnvironmentConfiguration({
+		SIMPLYSTORE_FAULT_POINT: 'before-command-done-status'
+	}))
 	assert.doesNotThrow(() => assertRuntimeEnvironmentConfiguration({
 		SIMPLYSTORE_ENV: 'test',
 		SIMPLYSTORE_FAULT_POINT: 'before-command-done-status'
 	}))
+	assert.throws(
+		() => assertRuntimeEnvironmentConfiguration({SIMPLYSTORE_ENV: 'prod'}),
+		/Invalid SIMPLYSTORE_ENV/
+	)
+})
+
+test('fault points are inert outside test environment', async () => {
+	assert.equal(await faultPoint('before-command-done-status', {
+		SIMPLYSTORE_ENV: 'production',
+		SIMPLYSTORE_FAULT_POINT: 'before-command-done-status'
+	}), false)
+	assert.equal(await faultPoint('before-command-done-status', {
+		SIMPLYSTORE_ENV: 'development',
+		SIMPLYSTORE_FAULT_POINT: 'before-command-done-status'
+	}), false)
 })
 
 test('crash before done status replays accepted command on restart', async t => {
