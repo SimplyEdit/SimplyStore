@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-005.md` (`Adopt Culture And Warning Profiles`).
+Current active Spiral cycle: `.spiral/cycles/CYC-006.md` (`Durable Artifact Corruption Classification`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-005.md` (`Adopt Culture And Warning Profiles`).
 
 ## Intended Users
 
@@ -48,8 +48,8 @@ A later/secondary direction is adding more options for including SimplyStore as 
 
 | Outcome / metric | Why it matters | Desired/acceptable level | Current evidence / unknown |
 |---|---|---|---|
-| Production readiness | Current human direction | Improve materially from experimental posture; exact acceptance pending intake | Human input / explicit |
-| Developer evaluation confidence | Primary production-readiness audience | Developers should be able to evaluate SimplyStore's limited durability claims from evidence, docs, and tests | Human input / explicit |
+| Production readiness | Current human direction | Improve materially from experimental posture while preserving simplicity; current first bar is developer evaluation confidence for bounded durability claims | Human input / explicit |
+| Developer evaluation confidence | Primary production-readiness audience | Developers should be able to evaluate SimplyStore's limited durability claims from invariants, executable tests, evidence artifacts, explicit failure behavior, and documented known gaps | Human input, `REQ-001`, `DES-001`, current durability tests / explicit and evidenced |
 | Curriculum-store support | Known downstream context | SimplyStore changes should consider `curriculum-store` as a real environment, without letting it silently define all project priorities | Human input and public lookup / explicit and evidenced |
 | Simplicity | Current human direction and project identity | Must remain a shaping constraint while production readiness improves; exact boundaries pending intake | Human input, README / explicit and evidenced |
 | Durability proof for ACID claims | First production-readiness priority | Survive crashes at any point in the update cycle and recover, or fail instead of silently using corrupted data; first work is baseline evidence and crash/fault-injection testing | Human input, README roadmap, `SRC-001` / explicit and evidenced |
@@ -62,6 +62,18 @@ A later/secondary direction is adding more options for including SimplyStore as 
 ## Project Posture
 
 Brownfield library moving from experimental toward production-ready. It should remain simple by design rather than becoming a general-purpose data platform. More precise current posture is pending guided intake.
+
+## Developer Evaluation Readiness Bar
+
+For the current production-readiness phase, a developer evaluating SimplyStore should be able to:
+
+- find the bounded durability invariants and understand what SimplyStore is and is not claiming;
+- run focused durability tests locally with ordinary project commands;
+- see explicit recovery failures for malformed, missing, truncated, or inconsistent durable artifacts covered so far;
+- trace each durability claim to evidence artifacts and code locations;
+- see known gaps called out plainly, especially full process crash injection, unawaited durable appends, idempotent retry behavior, VM2 security posture, and larger-system extension seams.
+
+This is not yet a claim that SimplyStore is production-safe for all workloads. It is a claim that production-readiness work is becoming legible and falsifiable to developers.
 
 ## Consequential Prior Decisions
 
@@ -135,9 +147,10 @@ Brownfield library moving from experimental toward production-ready. It should r
 | VM2 has known security issues | Investigate | README | README says to keep SimplyStore away from public access until replacement |
 | Durability claims are not yet sufficiently proven | Investigate | Human input, README roadmap, `SRC-001`, `EVD-001` | Active first Spiral cycle area; target is recovery after crashes at any update point or explicit failure rather than silent corrupted-data use |
 | Command lifecycle commit boundaries are implicit | Investigate | `EVD-001` | Current accepted/done/status/changeset ordering needs executable fault evidence |
+| Durable artifact corruption classes are only partly classified | Investigate | `DES-001`, `EVD-005` | Status/log parse and required-field failures are explicit; other inconsistency classes remain future work |
 | `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
-| Full Spiral intake not complete | Investigate | Current adoption state | Needed before first normal Spiral cycle |
+| Full Spiral intake not complete | Investigate | Current adoption state | Further intake can continue opportunistically as durability cycles reveal concrete questions |
 
 ## Reliable Feedback / Reality Sources
 
@@ -171,9 +184,7 @@ Brownfield library moving from experimental toward production-ready. It should r
 
 ## Later Possibilities
 
-- Complete guided brownfield intake.
-- Decide whether to adopt a Muze culture profile locally.
-- Decide whether to adopt a warning profile.
+- Continue guided brownfield intake as concrete durability, security, API, and downstream questions arise.
 - Characterize the VM2 replacement risk as a candidate early Spiral cycle.
 - Characterize and prove durability behavior as the likely first production-readiness cycle.
 - Define larger-system integration options after the durability priority is better bounded.
@@ -196,3 +207,4 @@ Brownfield library moving from experimental toward production-ready. It should r
 - Durability request: `.spiral/requests/REQ-001.md`
 - Durability invariant design: `.spiral/designs/DES-001.md`
 - Baseline archaeology evidence: `.spiral/evidence/EVD-001.md`
+- Durable artifact corruption classification evidence: `.spiral/evidence/EVD-005.md`

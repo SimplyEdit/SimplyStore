@@ -10,6 +10,7 @@ project:CTX-001
     sd:repositoryPath ".spiral/project-context.md" ;
     sd:status sd:Active ;
     sd:productionReadinessFocus "Primarily developers evaluating, using, or extending SimplyStore; secondarily the curriculum-store environment; operators are a tertiary audience." ;
+    sd:developerEvaluationReadinessBar "Developers should be able to evaluate bounded durability claims from invariants, executable tests, evidence artifacts, explicit failure behavior, and documented known gaps." ;
     sd:hasAudience project:AUD-DEVELOPERS, project:AUD-END-USERS, project:AUD-OPERATORS ;
     sd:hasDownstreamProject project:DOWNSTREAM-CURRICULUM-STORE ;
     sd:adoptsCulture [
