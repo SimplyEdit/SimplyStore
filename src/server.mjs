@@ -8,6 +8,7 @@ import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
+import { getCommittedCommandIds } from './recovery.mjs'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -45,7 +46,7 @@ async function main(options) {
     let status = loadCommandStatus(commandStatus)
 
     try {
-        let data = await loadData(Array.from(status.keys())) // command id's (keys) are used to generate filenames of changes
+        let data = await loadData(getCommittedCommandIds(status)) // only completed command ids are used to generate filenames of committed changes
         jsontagBuffers = [data.data]
         meta = data.meta
     } catch(err) {
@@ -96,12 +97,12 @@ async function main(options) {
         })
         console.error(`Port ${port} is already occupied, aborting.`)
         process.exit()
-    } catch(err) {
+    } catch {
         let result
         do {
             try {
                 result = await runNextCommand()
-            } catch(err) {
+            } catch {
                 // console.log(err) // ignore errors here, already logged to console
             }
         } while(result)
@@ -327,7 +328,7 @@ async function main(options) {
     }
 
     async function runNextCommand() {
-        return new Promise(async (mainResolve, mainReject) => {
+        return new Promise((mainResolve, mainReject) => {
             if (commandWorkerInstance) {
                 mainReject('commandWorker already running')
                 return
@@ -398,7 +399,10 @@ async function main(options) {
                 // so you can only get here from commandWorkerInstance.on() route
                 // which means that the commandWorkerInstance has finished running the previous command
                 if (commandWorkerInstance) {
-                    await commandWorkerInstance.terminate()
+                    commandWorkerInstance.terminate().then(() => {
+                        mainResolve(false)
+                    }, mainReject)
+                    return
                 }
                 mainResolve(false)
             }

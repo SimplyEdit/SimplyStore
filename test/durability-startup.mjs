@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import { getCommittedCommandIds } from '../src/recovery.mjs'
 
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const loadWorker = path.join(rootDir, 'src/load-worker.mjs')
@@ -71,9 +72,12 @@ tap.test('accepted command changeset is not treated as committed state on startu
 		data.persons.push({name: 'Ada'})
 	})
 
+	const status = new Map([
+		['accepted-command', {command: 'accepted-command', code: 202, status: 'accepted'}]
+	])
 	const result = await loadDataset({
 		...fixture,
-		commands: ['accepted-command']
+		commands: getCommittedCommandIds(status)
 	})
 	const data = parseOd(result.data)
 
@@ -82,11 +86,14 @@ tap.test('accepted command changeset is not treated as committed state on startu
 
 tap.test('done command with missing changeset refuses recovery instead of silently using base data', async t => {
 	const fixture = await makeFixture(t)
+	const status = new Map([
+		['done-command-with-missing-changeset', {command: 'done-command-with-missing-changeset', code: 200, status: 'done'}]
+	])
 
 	await t.rejects(
 		loadDataset({
 			...fixture,
-			commands: ['done-command-with-missing-changeset']
+			commands: getCommittedCommandIds(status)
 		}),
 		/missing changeset|inconsistent/i,
 		'done status without its changeset should be an explicit recovery failure'

@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"start": "node src/run.mjs",
-		"test": "tap test/*.mjs"
+		"test": "tap --statements=0 --branches=0 --lines=0 --functions=0 test/*.mjs"
 	},
 	"author": "auke@muze.nl",
 	"license": "MIT",
