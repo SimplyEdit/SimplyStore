@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-008.md` (`Accepted Command Replay Safety`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-007.md` (`Process Crash Fault Harness`).
+Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-008.md` (`Accepted Command Replay Safety`).
 
 ## Intended Users
 
