@@ -1,0 +1,14 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:EVD-012
+    a sd:VerificationEvidence ;
+    dcterms:identifier "EVD-012" ;
+    sd:repositoryPath ".spiral/evidence/EVD-012.md" ;
+    sd:status sd:Active ;
+    sd:verifies [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-007 ;
+        sd:gitCommit "570d35a4fa47db5edf4784c998ee441ce4f20821"
+    ] .
