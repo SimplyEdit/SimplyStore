@@ -4,7 +4,7 @@ import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import fs from 'fs'
 import path from 'path'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import { assertChangesetExists } from './recovery.mjs'
+import { assertChangesetExists, assertOdJsonTagFraming } from './recovery.mjs'
 
 const parser = new Parser()
 
@@ -31,11 +31,13 @@ parentPort.on('message', async (files) => {
 	// add version info in proxies with a symbol to get that information
 	if (fs.existsSync(files.dataFile)) {
 		jsontag = fs.readFileSync(files.dataFile)
+		assertOdJsonTagFraming(jsontag, files.dataFile, 'base OD-JSONTag data')
 		data = parser.parse(jsontag)
 	}
 	for (let command of files.commands) {
 		const changesetFile = assertChangesetExists(files.dataFile, command)
 		jsontag = fs.readFileSync(changesetFile)
+		assertOdJsonTagFraming(jsontag, changesetFile, 'changeset OD-JSONTag data')
 		data = parser.parse(jsontag)
 	}
 	if (files.schemaFile) {

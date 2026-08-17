@@ -171,3 +171,56 @@ export function assertChangesetExists(dataFile, commandId) {
 	}
 	return changesetPath
 }
+
+export function assertOdJsonTagFraming(buffer, file, recordKind = 'OD-JSONTag data') {
+	let offset = 0
+	while (offset < buffer.length) {
+		while (offset < buffer.length && (buffer[offset] === 10 || buffer[offset] === 13)) {
+			offset++
+		}
+		if (offset >= buffer.length) {
+			break
+		}
+		if (buffer[offset] === 43) {
+			offset++
+			const skipStart = offset
+			while (offset < buffer.length && buffer[offset] >= 48 && buffer[offset] <= 57) {
+				offset++
+			}
+			if (offset === skipStart || (offset < buffer.length && buffer[offset] !== 10 && buffer[offset] !== 13)) {
+				throw new RecoveryIntegrityError(`Invalid ${recordKind}: malformed skip record`, {
+					file,
+					recordKind
+				})
+			}
+			continue
+		}
+		if (buffer[offset] !== 40) {
+			throw new RecoveryIntegrityError(`Invalid ${recordKind}: expected record length`, {
+				file,
+				recordKind
+			})
+		}
+		offset++
+		const lengthStart = offset
+		while (offset < buffer.length && buffer[offset] >= 48 && buffer[offset] <= 57) {
+			offset++
+		}
+		if (offset === lengthStart || buffer[offset] !== 41) {
+			throw new RecoveryIntegrityError(`Invalid ${recordKind}: malformed record length`, {
+				file,
+				recordKind
+			})
+		}
+		const payloadLength = Number.parseInt(buffer.subarray(lengthStart, offset).toString('utf8'), 10)
+		offset++
+		const payloadEnd = offset + payloadLength
+		if (payloadEnd > buffer.length) {
+			throw new RecoveryIntegrityError(`Invalid ${recordKind}: truncated record payload`, {
+				file,
+				recordKind
+			})
+		}
+		offset = payloadEnd
+	}
+}

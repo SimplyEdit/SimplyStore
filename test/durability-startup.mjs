@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { Buffer } from 'node:buffer'
 import test from 'node:test'
 import fs from 'node:fs/promises'
 import os from 'node:os'
@@ -11,6 +12,8 @@ import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import {
 	activeCommandStatus,
 	getCommittedCommandIds,
+	getChangesetPath,
+	assertOdJsonTagFraming,
 	loadCommandLog,
 	loadCommandStatus,
 	pendingCommandStatus,
@@ -112,6 +115,73 @@ test('done command with missing changeset refuses recovery instead of silently u
 		/missing changeset|inconsistent/i,
 		'done status without its changeset should be an explicit recovery failure'
 	)
+})
+
+test('malformed base OD-JSONTag file refuses recovery', async t => {
+	const fixture = await makeFixture(t)
+	await fs.writeFile(fixture.dataFile, '{"persons":[]}')
+
+	await assert.rejects(
+		loadDataset({
+			...fixture,
+			commands: []
+		}),
+		/base OD-JSONTag data|expected record length/i
+	)
+})
+
+test('malformed committed changeset refuses recovery', async t => {
+	const fixture = await makeFixture(t)
+	const status = new Map([
+		['malformed-changeset', {command: 'malformed-changeset', code: 200, status: 'done'}]
+	])
+	await fs.writeFile(getChangesetPath(fixture.dataFile, 'malformed-changeset'), '{"persons":[{"name":"Bad"}]}')
+
+	await assert.rejects(
+		loadDataset({
+			...fixture,
+			commands: getCommittedCommandIds(status)
+		}),
+		/changeset OD-JSONTag data|expected record length/i
+	)
+})
+
+test('truncated committed changeset payload refuses recovery before lazy parsing can hide it', async t => {
+	const fixture = await makeFixture(t)
+	const commandId = 'truncated-changeset'
+	const status = new Map([
+		[commandId, {command: commandId, code: 200, status: 'done'}]
+	])
+	await writeChangeset(fixture.dataFile, commandId, data => {
+		data.persons.push({name: 'Truncated'})
+	})
+	const changesetPath = getChangesetPath(fixture.dataFile, commandId)
+	const changeset = await fs.readFile(changesetPath)
+	await fs.writeFile(changesetPath, changeset.subarray(0, changeset.length - 3))
+
+	await assert.rejects(
+		loadDataset({
+			...fixture,
+			commands: getCommittedCommandIds(status)
+		}),
+		/truncated record payload|changeset OD-JSONTag data/i
+	)
+})
+
+test('malformed uncommitted changeset is ignored during committed startup reconstruction', async t => {
+	const fixture = await makeFixture(t)
+	await fs.writeFile(getChangesetPath(fixture.dataFile, 'accepted-command'), '{"persons":[{"name":"Ignored"}]}')
+	const status = new Map([
+		['accepted-command', {command: 'accepted-command', code: 202, status: 'accepted'}]
+	])
+
+	const result = await loadDataset({
+		...fixture,
+		commands: getCommittedCommandIds(status)
+	})
+	const data = parseOd(result.data)
+
+	assert.equal(data.persons.length, 0)
 })
 
 test('durable status file selects only done command changesets for startup', async t => {
@@ -303,4 +373,28 @@ test('structurally invalid durable command log record refuses recovery', async t
 	assert.equal(error.lineNumber, 1)
 	assert.equal(error.recordKind, 'command log')
 	assert.match(error.message, /missing string field "id"/)
+})
+
+test('OD-JSONTag framing validation catches truncated lazy records', () => {
+	const buffer = Buffer.from('(16){"persons":[~1]}\n(14){"name":"Ada"', 'utf8')
+
+	let error
+	try {
+		assertOdJsonTagFraming(buffer, 'data.truncated.jsontag', 'changeset OD-JSONTag data')
+	} catch (caught) {
+		error = caught
+	}
+
+	assert.ok(error instanceof RecoveryIntegrityError)
+	assert.equal(error.file, 'data.truncated.jsontag')
+	assert.equal(error.recordKind, 'changeset OD-JSONTag data')
+	assert.match(error.message, /truncated record payload/)
+})
+
+test('OD-JSONTag framing validation accepts changeset skip records', () => {
+	const buffer = Buffer.from('(18){"persons":[~1-2]}\n+1\n(15){"name":"Once"}', 'utf8')
+
+	assert.doesNotThrow(() => {
+		assertOdJsonTagFraming(buffer, 'data.patch.jsontag', 'changeset OD-JSONTag data')
+	})
 })
