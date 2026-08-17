@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `999218568a07efbab478890824df66ca698f5c25`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-014.md` (`Spiral Core Plan Continuity Update`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-013.md` (`Retry And Idempotency Hardening`).
+Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-014.md` (`Spiral Core Plan Continuity Update`).
 
 ## Intake State
 
