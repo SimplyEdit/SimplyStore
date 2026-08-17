@@ -189,7 +189,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Spiral intake can become stale | Monitor | Completed intake, CYC-009 | Reopen if audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change |
 | Command update crash matrix is incomplete | Monitor | Critical review before CYC-010, `DES-001`, `IMP-004`, `EVD-009` | Main process crash matrix now covers acceptance, active, changeset, done, duplicate log, unsafe replay, and normal restart boundaries; filesystem/power-loss and adversarial storage risks remain |
 | Non-durability ACID claims lack focused evidence | Monitor | ACID planning check before CYC-011, `design/acid.md`, `IMP-005`, `EVD-010` | Smoke-level tests now cover atomicity, isolation, narrow consistency, and normal duplicate command ID idempotency; broad/domain consistency remains out of scope |
-| Corrupted or altered OD-JSONTag durable data can undermine recovery confidence | Investigate | Human direction before CYC-012, `DES-001` | Prioritize explicit startup failure or safe ignoring for corrupted/altered base and changeset files |
+| Corrupted or altered OD-JSONTag durable data can undermine recovery confidence | Monitor | Human direction before CYC-012, `DES-001`, `IMP-006`, `EVD-011` | Malformed/truncated base and committed changeset files now fail explicitly; malformed uncommitted changesets are ignored; well-formed tampering needs future integrity metadata |
 
 ## Reliable Feedback / Reality Sources
 
@@ -253,3 +253,4 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Accepted command replay safety evidence: `.spiral/evidence/EVD-007.md`
 - Command crash matrix evidence: `.spiral/evidence/EVD-009.md`
 - ACID baseline evidence: `.spiral/evidence/EVD-010.md`
+- Malformed OD-JSONTag storage evidence: `.spiral/evidence/EVD-011.md`
