@@ -7,4 +7,9 @@ project:UND-001
     dcterms:identifier "UND-001" ;
     sd:repositoryPath ".spiral/understandings/UND-001.md" ;
     sd:status sd:Active ;
-    sd:provenanceConfidence sd:Evidenced .
+    sd:provenanceConfidence sd:Evidenced ;
+    sd:interprets [
+        a sd:ArtifactReference ;
+        sd:artifact project:SRC-001 ;
+        sd:gitCommit "f2c3a597c12c2dbe6d7467582d5a3f4308acf02d"
+    ] .
