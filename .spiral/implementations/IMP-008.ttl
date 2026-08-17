@@ -1,0 +1,18 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-008
+    a sd:Implementation ;
+    dcterms:identifier "IMP-008" ;
+    sd:repositoryPath ".spiral/implementations/IMP-008.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation ".spiral-core" ;
+    sd:implementationLocation "AGENTS.md" ;
+    sd:implementationLocation ".spiral/project-context.md" ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-014 ;
+        sd:gitCommit "0951c2269b2efba2d441a0738d9d6ea1eb990bf3"
+    ] ;
+    sd:implementationChangeKind sd:BehaviorPreservingChange .
