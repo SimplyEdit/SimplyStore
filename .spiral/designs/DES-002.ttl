@@ -10,12 +10,12 @@ project:DES-002
     sd:derivedFrom [
         a sd:ArtifactReference ;
         sd:artifact project:REQ-001 ;
-        sd:gitCommit "dc0fb8a9537233f0ddc9ff75092b9a49b0edf2ba"
+        sd:gitCommit "6a9977eb22b0a610a82da5c52864e3bb72b164c9"
     ] ;
     sd:derivedFrom [
         a sd:ArtifactReference ;
         sd:artifact project:DES-001 ;
-        sd:gitCommit "bc06e4cd27e3fb2bace13ee85033846dd8092fec"
+        sd:gitCommit "85913e982e163c7b05a8e616c00e3f2014e775cc"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;
