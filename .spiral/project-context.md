@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `9958f0e296e84169c21c02aa478ac4aae5a06a41`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-010.md` (`Command Update Crash Matrix And Reconstruction Oracle`).
+Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-013.md` (`Retry And Idempotency Hardening`).
 
 ## Intake State
 
@@ -188,6 +188,9 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
 | Spiral intake can become stale | Monitor | Completed intake, CYC-009 | Reopen if audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change |
 | Command update crash matrix is incomplete | Monitor | Critical review before CYC-010, `DES-001`, `IMP-004`, `EVD-009` | Main process crash matrix now covers acceptance, active, changeset, done, duplicate log, unsafe replay, and normal restart boundaries; filesystem/power-loss and adversarial storage risks remain |
+| Non-durability ACID claims lack focused evidence | Monitor | ACID planning check before CYC-011, `design/acid.md`, `IMP-005`, `EVD-010` | Smoke-level tests now cover atomicity, isolation, narrow consistency, and normal duplicate command ID idempotency; broad/domain consistency remains out of scope |
+| Corrupted or altered OD-JSONTag durable data can undermine recovery confidence | Monitor | Human direction before CYC-012, `DES-001`, `IMP-006`, `EVD-011` | Malformed/truncated OD-JSONTag record framing in base and committed changeset files now fails explicitly; malformed-framing uncommitted changesets are ignored; full syntax validation and well-formed tampering need future integrity metadata |
+| Retried command IDs can mislead clients or enqueue duplicate transitions | Monitor | Original durability order in `SRC-001`, `DES-001`, `IMP-007`, `EVD-012` | Retries during active/done/recovered/unsafe states now return the current command status and do not enqueue duplicate transitions in the tested paths; duplicate payload mismatch semantics remain future API work |
 
 ## Reliable Feedback / Reality Sources
 
@@ -250,3 +253,6 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Process crash fault harness evidence: `.spiral/evidence/EVD-006.md`
 - Accepted command replay safety evidence: `.spiral/evidence/EVD-007.md`
 - Command crash matrix evidence: `.spiral/evidence/EVD-009.md`
+- ACID baseline evidence: `.spiral/evidence/EVD-010.md`
+- Malformed OD-JSONTag record-framing evidence: `.spiral/evidence/EVD-011.md`
+- Retry/idempotency status evidence: `.spiral/evidence/EVD-012.md`

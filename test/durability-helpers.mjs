@@ -24,7 +24,7 @@ export async function getOpenPort() {
 	return port
 }
 
-export async function makeServerFixture(t) {
+export async function makeServerFixture(t, options = {}) {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-crash-'))
 	t.after(() => fs.rm(dir, {recursive: true, force: true}))
 
@@ -35,14 +35,14 @@ export async function makeServerFixture(t) {
 	const commandStatus = path.join(dir, 'command-status.jsontag')
 	const runner = path.join(dir, 'run-server.mjs')
 
-	await fs.writeFile(datafile, serialize(JSONTag.parse('{"persons":[]}')))
-	await fs.writeFile(commandsFile, `export default {
+	await fs.writeFile(datafile, serialize(JSONTag.parse(options.initialData || '{"persons":[]}')))
+	await fs.writeFile(commandsFile, options.commandsSource || `export default {
 	addPerson: (dataspace, command) => {
 		dataspace.persons.push(command.value)
 	}
 }
 `)
-	await fs.writeFile(indexFile, 'export default { create() {}, update() {}, load() { return {} } }\n')
+	await fs.writeFile(indexFile, options.indexSource || 'export default { create() {}, update() {}, load() { return {} } }\n')
 	await fs.writeFile(runner, `import SimplyStore from ${JSON.stringify(serverModule)}
 
 const options = JSON.parse(process.env.SIMPLYSTORE_TEST_OPTIONS)

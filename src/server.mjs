@@ -412,7 +412,8 @@ async function main(options) {
             sendResponse({code: 422, body: JSON.stringify(error)}, res)
             return false
         } else if (status.has(command.id)) {
-            sendResponse({body: JSON.stringify(commandOK)}, res)
+            const currentStatus = Object.assign({command: command.id}, status.get(command.id))
+            sendResponse({body: JSON.stringify(currentStatus)}, res)
             return false
         } else if (!command.name) {
             error = {
@@ -426,8 +427,8 @@ async function main(options) {
         await appendFile(commandLog, JSONTag.stringify(command)) //FIXME: this loses request data
         await faultPoint('after-command-log-before-accepted-status')
         await appendFile(commandStatus, JSONTag.stringify(commandOK))
-        await faultPoint('after-command-accepted-status-before-response')
         status.set(command.id, commandOK) 
+        await faultPoint('after-command-accepted-status-before-response')
         sendResponse({code: 202, body: JSON.stringify(commandOK)}, res)
         return command.id
     }
