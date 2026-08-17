@@ -188,7 +188,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
 | Spiral intake can become stale | Monitor | Completed intake, CYC-009 | Reopen if audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change |
 | Command update crash matrix is incomplete | Monitor | Critical review before CYC-010, `DES-001`, `IMP-004`, `EVD-009` | Main process crash matrix now covers acceptance, active, changeset, done, duplicate log, unsafe replay, and normal restart boundaries; filesystem/power-loss and adversarial storage risks remain |
-| Non-durability ACID claims lack focused evidence | Investigate | ACID planning check before CYC-011, `design/acid.md` | Add smoke-level tests for atomicity, isolation, narrow consistency, and normal duplicate command ID idempotency |
+| Non-durability ACID claims lack focused evidence | Monitor | ACID planning check before CYC-011, `design/acid.md`, `IMP-005`, `EVD-010` | Smoke-level tests now cover atomicity, isolation, narrow consistency, and normal duplicate command ID idempotency; broad/domain consistency remains out of scope |
 
 ## Reliable Feedback / Reality Sources
 
@@ -251,3 +251,4 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Process crash fault harness evidence: `.spiral/evidence/EVD-006.md`
 - Accepted command replay safety evidence: `.spiral/evidence/EVD-007.md`
 - Command crash matrix evidence: `.spiral/evidence/EVD-009.md`
+- ACID baseline evidence: `.spiral/evidence/EVD-010.md`

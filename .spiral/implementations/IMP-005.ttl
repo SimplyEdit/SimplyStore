@@ -1,0 +1,23 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-005
+    a sd:Implementation ;
+    dcterms:identifier "IMP-005" ;
+    sd:repositoryPath ".spiral/implementations/IMP-005.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "package.json#scripts.test:acid" ;
+    sd:implementationLocation "test/acid-baseline.mjs" ;
+    sd:implementationLocation "test/durability-helpers.mjs#makeServerFixture" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-011 ;
+        sd:gitCommit "35a17acb56f663b0b9dd4e3481c334607a0dac0c"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-011 ;
+        sd:gitCommit "35a17acb56f663b0b9dd4e3481c334607a0dac0c"
+    ] ;
+    sd:implementationChangeKind sd:BehaviorPreservingChange .
