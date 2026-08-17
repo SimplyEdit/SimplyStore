@@ -125,6 +125,7 @@ Brownfield library moving from experimental toward production-ready. It should r
 | VM2 has known security issues | Investigate | README | README says to keep SimplyStore away from public access until replacement |
 | Durability claims are not yet sufficiently proven | Investigate | Human input, README roadmap, `SRC-001`, `EVD-001` | Active first Spiral cycle area; target is recovery after crashes at any update point or explicit failure rather than silent corrupted-data use |
 | Command lifecycle commit boundaries are implicit | Investigate | `EVD-001` | Current accepted/done/status/changeset ordering needs executable fault evidence |
+| `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
 | Full Spiral intake not complete | Investigate | Current adoption state | Needed before first normal Spiral cycle |
 
