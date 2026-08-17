@@ -56,6 +56,12 @@ async function postAndWait(port, command, expectedStatus = 'done') {
 	return waitForCommandStatus(port, command.id, expectedStatus)
 }
 
+async function postCommandStatus(port, command, expectedHttpStatus = 200) {
+	const response = await postCommand(port, command)
+	assert.equal(response.status, expectedHttpStatus)
+	return response.json()
+}
+
 async function queryResponse(port, body) {
 	return fetch(`http://127.0.0.1:${port}/query/`, {
 		method: 'POST',
@@ -147,6 +153,7 @@ test('idempotency: duplicate command ID is acknowledged but not applied twice', 
 		value: {name: 'Twice'}
 	})
 	assert.equal(duplicate.status, 200)
+	assert.equal((await duplicate.json()).status, 'done')
 
 	assert.deepEqual(await queryNames(port), ['Initial', 'Once'])
 	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial', 'Once'])
@@ -155,4 +162,33 @@ test('idempotency: duplicate command ID is acknowledged but not applied twice', 
 	const restarted = startServer(t, fixture, {port})
 	await waitForServer(restarted.child, restarted.getOutput, port)
 	assert.deepEqual(await queryNames(port), ['Initial', 'Once'])
+})
+
+test('idempotency: retry during active command reports current status and does not enqueue twice', async t => {
+	const fixture = await makeAcidFixture(t)
+	const port = await getOpenPort()
+	const server = startServer(t, fixture, {port})
+	await waitForServer(server.child, server.getOutput, port)
+
+	const commandResponse = await postCommand(port, {
+		id: 'active-retry',
+		name: 'slowAddPerson',
+		value: {name: 'Slow Once'},
+		delay: 750
+	})
+	assert.equal(commandResponse.status, 202)
+
+	await waitForCommandStatus(port, 'active-retry', 'active')
+	const retryStatus = await postCommandStatus(port, {
+		id: 'active-retry',
+		name: 'addPerson',
+		value: {name: 'Duplicate'}
+	})
+	assert.equal(retryStatus.command, 'active-retry')
+	assert.equal(retryStatus.status, 'active')
+
+	await waitForCommandStatus(port, 'active-retry', 'done')
+
+	assert.deepEqual(await queryNames(port), ['Initial', 'Slow Once'])
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial', 'Slow Once'])
 })

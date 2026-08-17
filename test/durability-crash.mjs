@@ -28,6 +28,12 @@ async function postCommandExpectingCrash(port, command) {
 	}
 }
 
+async function postCommandStatus(port, command, expectedHttpStatus = 200) {
+	const response = await postCommand(port, command)
+	assert.equal(response.status, expectedHttpStatus)
+	return response.json()
+}
+
 async function assertServerStateMatchesOracle(port, fixture, expectedNames) {
 	const persons = await queryPersons(port)
 	assert.deepEqual(persons.map(person => person.name), expectedNames)
@@ -166,6 +172,14 @@ test('accepted command crash boundaries replay to one committed state', async t 
 			const second = startServer(t, fixture, {port})
 			await waitForServer(second.child, second.getOutput, port)
 
+			const retryStatus = await postCommandStatus(port, {
+				id: command.id,
+				name: 'addPerson',
+				value: {name: `${faultPointName} duplicate`}
+			})
+			assert.equal(retryStatus.command, command.id)
+			assert.equal(retryStatus.status, 'done')
+
 			await assertServerStateMatchesOracle(port, fixture, [faultPointName])
 			assert.equal((await getCommandStatus(port, command.id)).status, 'done')
 		})
@@ -195,6 +209,14 @@ test('crash after done status but before query update recovers committed state w
 
 	const second = startServer(t, fixture, {port})
 	await waitForServer(second.child, second.getOutput, port)
+
+	const retryStatus = await postCommandStatus(port, {
+		id: command.id,
+		name: 'addPerson',
+		value: {name: 'Duplicate'}
+	})
+	assert.equal(retryStatus.command, command.id)
+	assert.equal(retryStatus.status, 'done')
 
 	await assertServerStateMatchesOracle(port, fixture, ['Committed'])
 	assert.equal((await readCommandStatusRecords(fixture)).filter(record => record.status === 'active').length, 1)
@@ -234,6 +256,15 @@ test('repeated active command crashes are marked unsafe instead of replaying for
 	const commandStatus = await getCommandStatus(port, commandId)
 	assert.equal(commandStatus.status, 'unsafe')
 	assert.equal(commandStatus.attempt, 2)
+
+	const retryStatus = await postCommandStatus(port, {
+		id: commandId,
+		name: 'addPerson',
+		value: {name: 'Retry'}
+	})
+	assert.equal(retryStatus.command, commandId)
+	assert.equal(retryStatus.status, 'unsafe')
+	assert.equal(retryStatus.attempt, 2)
 
 	await assertServerStateMatchesOracle(port, fixture, [])
 
