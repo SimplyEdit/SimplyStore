@@ -1,8 +1,12 @@
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
+import { appendFile } from './util.mjs'
 
 export const committedCommandStatus = 'done'
 export const pendingCommandStatus = 'accepted'
+export const activeCommandStatus = 'active'
+export const unsafeCommandStatus = 'unsafe'
+export const defaultMaxCommandCrashAttempts = 2
 
 export class RecoveryIntegrityError extends Error {
 	constructor(message, options = {}) {
@@ -100,6 +104,56 @@ export function loadCommandLog(status, commandLog, taskDefaults = {}) {
 		}
 	}
 	return commands
+}
+
+function readAttempt(record, fallback = 1) {
+	const attempt = Number(record?.attempt)
+	if (Number.isInteger(attempt) && attempt > 0) {
+		return attempt
+	}
+	return fallback
+}
+
+export async function recoverActiveCommands(status, commandStatusFile, options = {}) {
+	const maxCrashAttempts = options.maxCrashAttempts ?? defaultMaxCommandCrashAttempts
+
+	for (const [commandId, command] of status.entries()) {
+		if (command?.status !== activeCommandStatus) {
+			continue
+		}
+		const attempt = readAttempt(command)
+		let nextStatus
+		if (attempt >= maxCrashAttempts) {
+			nextStatus = {
+				command: commandId,
+				code: 500,
+				status: unsafeCommandStatus,
+				message: `Command marked unsafe after ${attempt} crashed active attempt(s)`,
+				attempt
+			}
+		} else {
+			nextStatus = {
+				command: commandId,
+				code: 202,
+				status: pendingCommandStatus,
+				message: `Retrying command after ${attempt} crashed active attempt(s)`,
+				attempt
+			}
+		}
+		status.set(commandId, nextStatus)
+		await appendFile(commandStatusFile, JSONTag.stringify(nextStatus))
+	}
+
+	return status
+}
+
+export function nextActiveCommandStatus(commandId, currentStatus) {
+	return {
+		command: commandId,
+		code: 102,
+		status: activeCommandStatus,
+		attempt: readAttempt(currentStatus, 0) + 1
+	}
 }
 
 export function getChangesetPath(dataFile, commandId) {

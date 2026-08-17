@@ -69,7 +69,8 @@ function startServer(t, fixture, options = {}) {
 				commandLog: fixture.commandLog,
 				commandStatus: fixture.commandStatus,
 				wwwroot: path.join(rootDir, 'www'),
-				maxWorkers: 1
+				maxWorkers: 1,
+				maxCommandCrashAttempts: options.maxCommandCrashAttempts
 			})
 		},
 		stdio: ['ignore', 'pipe', 'pipe']
@@ -151,6 +152,18 @@ async function queryPersons(port) {
 	return JSONTag.parse(await response.text())
 }
 
+async function getCommandStatus(port, commandId) {
+	const response = await fetch(`http://127.0.0.1:${port}/command/${commandId}`, {
+		headers: {
+			accept: 'application/json'
+		}
+	})
+	if (!response.ok) {
+		throw new Error(`Command status failed with ${response.status}: ${await response.text()}`)
+	}
+	return response.json()
+}
+
 test('runtime environment defaults to production and ignores production fault points', () => {
 	assert.equal(getRuntimeEnvironment({}), 'production')
 	assert.doesNotThrow(() => assertRuntimeEnvironmentConfiguration({}))
@@ -213,4 +226,52 @@ test('crash before done status replays accepted command on restart', async t => 
 
 	const statusFile = await fs.readFile(fixture.commandStatus, 'utf8')
 	assert.match(statusFile, /"status":"done"/)
+})
+
+test('repeated active command crashes are marked unsafe instead of replaying forever', async t => {
+	const fixture = await makeServerFixture(t)
+	const port = await getOpenPort()
+	const commandId = 'poison-command'
+	const crashOptions = {
+		port,
+		runtimeEnvironment: 'test',
+		faultPoint: 'before-command-done-status',
+		maxCommandCrashAttempts: 2
+	}
+
+	const first = startServer(t, fixture, crashOptions)
+	await waitForServer(first.child, first.getOutput, port)
+	try {
+		const response = await postCommand(port, {
+			id: commandId,
+			name: 'addPerson',
+			value: {name: 'Poison'}
+		})
+		assert.equal(response.status, 202)
+	} catch (error) {
+		assert.match(error.message, /fetch failed|terminated|socket|other side closed/i)
+	}
+
+	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
+
+	const second = startServer(t, fixture, crashOptions)
+	assert.equal((await waitForExit(second.child)).signal, 'SIGKILL')
+
+	const third = startServer(t, fixture, {
+		port,
+		maxCommandCrashAttempts: 2
+	})
+	await waitForServer(third.child, third.getOutput, port)
+
+	const commandStatus = await getCommandStatus(port, commandId)
+	assert.equal(commandStatus.status, 'unsafe')
+	assert.equal(commandStatus.attempt, 2)
+
+	const persons = await queryPersons(port)
+	assert.deepEqual(persons.map(person => person.name), [])
+
+	const statusFile = await fs.readFile(fixture.commandStatus, 'utf8')
+	assert.match(statusFile, /"status":"active","attempt":1/)
+	assert.match(statusFile, /"status":"active","attempt":2/)
+	assert.match(statusFile, /"status":"unsafe"/)
 })

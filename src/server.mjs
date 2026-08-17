@@ -8,7 +8,7 @@ import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
-import { getCommittedCommandIds, loadCommandLog, loadCommandStatus } from './recovery.mjs'
+import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, nextActiveCommandStatus, recoverActiveCommands } from './recovery.mjs'
 import { assertRuntimeEnvironmentConfiguration } from './runtime-environment.mjs'
 import { faultPoint } from './faults.mjs'
 
@@ -34,6 +34,7 @@ async function main(options) {
     const indexFile     = options.indexFile     || __dirname+'/src/index.mjs'
     const commandLog    = options.commandLog    || './command-log.jsontag'
     const commandStatus = options.commandStatus || './command-status.jsontag'
+    const maxCommandCrashAttempts = options.maxCommandCrashAttempts ?? 2
     const access        = options.access        || null
     const timeout       = options.timeout       || 1000
     const slowTimeout   = options.slowTimeout   || 10000
@@ -47,6 +48,9 @@ async function main(options) {
     }))
 
     let status = loadCommandStatus(commandStatus)
+    status = await recoverActiveCommands(status, commandStatus, {
+        maxCrashAttempts: maxCommandCrashAttempts
+    })
 
     try {
         let data = await loadData(getCommittedCommandIds(status)) // only completed command ids are used to generate filenames of committed changes
@@ -306,50 +310,56 @@ async function main(options) {
                     })
                     commandWorkerInstance.postMessage(command)
                 }
-                start(
-                    // resolve()
-                    async (data) => {
-                        let s
-                        if (!data || (data.code>=300 && data.code<=499)) {
-                            console.error('ERROR: SimplyStore cannot run command ', command.id, data)
-                            if (!data?.code) {
-                                s = {code: 500, status: "failed"}
-                            } else {
-                                s = {code: data.code, status: "failed", message: data.message, details: data.details}
-                            }
-                            status.set(command.id, s)
-                            await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                            mainReject(s)
-                        } else {
-                            await faultPoint('before-command-done-status')
-                            s = {code: 200, status: "done"}
-                            status.set(command.id, s)
-                            if (data.data) { // data has changed, commands may do other things instead of changing data
-                                jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
-                                Object.assign(meta, data.meta)
-                                const updateTask = {
-                                    name: 'update',
-                                    req: {
-                                        body: jsontagBuffers[jsontagBuffers.length-1], // only add the last change, update tasks for earlier changes have already been sent
-                                        meta
-                                    }
+                const activeStatus = nextActiveCommandStatus(command.id, status.get(command.id))
+                status.set(command.id, activeStatus)
+                void (async () => {
+                    await appendFile(commandStatus, JSONTag.stringify(activeStatus))
+                    start(
+                        // resolve()
+                        async (data) => {
+                            let s
+                            if (!data || (data.code>=300 && data.code<=499)) {
+                                console.error('ERROR: SimplyStore cannot run command ', command.id, data)
+                                if (!data?.code) {
+                                    s = {code: 500, status: "failed"}
+                                } else {
+                                    s = {code: data.code, status: "failed", message: data.message, details: data.details}
                                 }
-                                queryWorkerPool.update(updateTask)
-                                slowQueryWorkerPool.update(updateTask)
+                                status.set(command.id, s)
+                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                                mainReject(s)
+                            } else {
+                                await faultPoint('before-command-done-status')
+                                s = {code: 200, status: "done"}
+                                status.set(command.id, s)
+                                if (data.data) { // data has changed, commands may do other things instead of changing data
+                                    jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
+                                    Object.assign(meta, data.meta)
+                                    const updateTask = {
+                                        name: 'update',
+                                        req: {
+                                            body: jsontagBuffers[jsontagBuffers.length-1], // only add the last change, update tasks for earlier changes have already been sent
+                                            meta
+                                        }
+                                    }
+                                    queryWorkerPool.update(updateTask)
+                                    slowQueryWorkerPool.update(updateTask)
+                                }
+                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                                mainResolve(s)
                             }
+                        },
+                        //reject()
+                        async (error) => {
+                            let s = {status: "failed", code: error.code, message: error.message, details: error.details}
+                            status.set(command.id, s)
                             await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                            mainResolve(s)
+                            console.log('command error', command.id, error)
+                            mainReject(s)
                         }
-                    }, 
-                    //reject()
-                    async (error) => {
-                        let s = {status: "failed", code: error.code, message: error.message, details: error.details}
-                        status.set(command.id, s)
-                        await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                        console.log('command error', command.id, error)
-                        mainReject(s)
-                    }
-                )
+                    )
+                })().catch(mainReject)
+                return
             } else {
                 console.log('no pending commands')
                 // this code can never be triggered from the post(/command/) route, since it always adds a command to the queue

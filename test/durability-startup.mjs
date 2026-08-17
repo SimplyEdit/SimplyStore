@@ -8,7 +8,16 @@ import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, RecoveryIntegrityError } from '../src/recovery.mjs'
+import {
+	activeCommandStatus,
+	getCommittedCommandIds,
+	loadCommandLog,
+	loadCommandStatus,
+	pendingCommandStatus,
+	recoverActiveCommands,
+	RecoveryIntegrityError,
+	unsafeCommandStatus
+} from '../src/recovery.mjs'
 
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const loadWorker = path.join(rootDir, 'src/load-worker.mjs')
@@ -169,6 +178,49 @@ test('durable command log replays only accepted commands', async t => {
 		request: null
 	})
 	assert.equal(JSONTag.parse(commands[0].command).name, 'addPerson')
+})
+
+test('active command below crash threshold is accepted for replay on startup', async t => {
+	const fixture = await makeFixture(t)
+	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
+	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
+
+	await writeJsonTagLines(statusFile, [
+		{command: 'crashed-command', code: 102, status: activeCommandStatus, attempt: 1}
+	])
+	await writeJsonTagLines(commandLog, [
+		{id: 'crashed-command', name: 'addPerson', value: {name: 'Retry'}}
+	])
+
+	const status = loadCommandStatus(statusFile)
+	await recoverActiveCommands(status, statusFile, {maxCrashAttempts: 2})
+	const commands = loadCommandLog(status, commandLog)
+
+	assert.equal(status.get('crashed-command').status, pendingCommandStatus)
+	assert.equal(commands.length, 1)
+	assert.equal(commands[0].id, 'crashed-command')
+	assert.match(await fs.readFile(statusFile, 'utf8'), /"status":"accepted"/)
+})
+
+test('active command at crash threshold is marked unsafe and not replayed', async t => {
+	const fixture = await makeFixture(t)
+	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
+	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
+
+	await writeJsonTagLines(statusFile, [
+		{command: 'poison-command', code: 102, status: activeCommandStatus, attempt: 2}
+	])
+	await writeJsonTagLines(commandLog, [
+		{id: 'poison-command', name: 'addPerson', value: {name: 'Unsafe'}}
+	])
+
+	const status = loadCommandStatus(statusFile)
+	await recoverActiveCommands(status, statusFile, {maxCrashAttempts: 2})
+	const commands = loadCommandLog(status, commandLog)
+
+	assert.equal(status.get('poison-command').status, unsafeCommandStatus)
+	assert.equal(commands.length, 0)
+	assert.match(await fs.readFile(statusFile, 'utf8'), /"status":"unsafe"/)
 })
 
 test('malformed durable status record refuses recovery with explicit integrity error', async t => {
