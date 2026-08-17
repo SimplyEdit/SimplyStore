@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `9958f0e296e84169c21c02aa478ac4aae5a06a41`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-010.md` (`Command Update Crash Matrix And Reconstruction Oracle`).
+Current active Spiral cycle: `.spiral/cycles/CYC-011.md` (`ACID Non-Durability Baseline`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-010.md` (`Command Update Crash Matrix And Reconstruction Oracle`).
 
 ## Intake State
 
@@ -188,6 +188,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
 | Spiral intake can become stale | Monitor | Completed intake, CYC-009 | Reopen if audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change |
 | Command update crash matrix is incomplete | Monitor | Critical review before CYC-010, `DES-001`, `IMP-004`, `EVD-009` | Main process crash matrix now covers acceptance, active, changeset, done, duplicate log, unsafe replay, and normal restart boundaries; filesystem/power-loss and adversarial storage risks remain |
+| Non-durability ACID claims lack focused evidence | Investigate | ACID planning check before CYC-011, `design/acid.md` | Add smoke-level tests for atomicity, isolation, narrow consistency, and normal duplicate command ID idempotency |
 
 ## Reliable Feedback / Reality Sources
 
