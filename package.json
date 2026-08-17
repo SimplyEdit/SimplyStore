@@ -7,7 +7,8 @@
 		"start": "node src/run.mjs",
 		"test": "node --test test/durability-startup.mjs",
 		"test:acid": "node --test test/acid-baseline.mjs",
-		"test:durability": "node --test test/durability-crash.mjs"
+		"test:durability": "node --test test/durability-crash.mjs",
+		"test:handlers": "node --test test/after-change-handlers.mjs"
 	},
 	"author": "auke@muze.nl",
 	"license": "MIT",
