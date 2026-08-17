@@ -16,9 +16,9 @@ Repository/baseline: `https://github.com/simplyedit/simplystore`, local authorit
 
 Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spiral#`
 
-Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `9958f0e296e84169c21c02aa478ac4aae5a06a41`.
+Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `999218568a07efbab478890824df66ca698f5c25`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-013.md` (`Retry And Idempotency Hardening`).
+Current active Spiral cycle: `.spiral/cycles/CYC-014.md` (`Spiral Core Plan Continuity Update`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-013.md` (`Retry And Idempotency Hardening`).
 
 ## Intake State
 
@@ -62,6 +62,8 @@ Known from existing README/roadmap: the project is experimental, should not be t
 The first production-readiness priority is proving more of SimplyStore's ACID claims, specifically durability. The durability goal is for SimplyStore to survive crashes at any point in its update cycle and recover, or fail instead of silently using corrupted data.
 
 The current durability/extensibility source is `.spiral/sources/SRC-001.md`. The first ordered slice is baseline archaeology, followed by a crash/fault-injection harness, an independent reconstruction oracle, adversarial storage tests, retry/idempotency hardening, after-change handler contracts, handler failure evidence, optional integrity roots, integrity acceptance tests, property/randomized durability tests, destructive soak tests, a minimal post-commit extension seam, a demonstration derived store, and `DURABILITY.md`.
+
+Process continuity rule: before proposing the next durability/production-readiness cycle, re-read `.spiral/sources/SRC-001.md`, `.spiral/requests/REQ-001.md`, and `.spiral/designs/DES-001.md`; identify the current position in that ordered plan; compare the latest evidence with it; and explicitly classify the proposal as continue, revise, or deliberate deviation.
 
 A later/secondary direction is adding more options for including SimplyStore as part of a larger system. This should happen through minimal lifecycle seams, not by implementing Kafka, queues, topics, consumer groups, webhooks, a message bus, or an event-sourcing framework in SimplyStore core before evidence requires it.
 
@@ -134,14 +136,14 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 
 | Culture/profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `9958f0e296e84169c21c02aa478ac4aae5a06a41` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
-| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `9958f0e296e84169c21c02aa478ac4aae5a06a41` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
+| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
+| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
 
 ## Active Warning Profiles
 
 | Warning profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `9958f0e296e84169c21c02aa478ac4aae5a06a41` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
+| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
 
 ## Intake Risk-Discovery Profiles
 

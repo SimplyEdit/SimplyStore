@@ -30,7 +30,15 @@ SimplyStore is a brownfield project. The durable project context exists at:
 .spiral/project-context.md
 ```
 
-The full guided brownfield intake has not been completed yet. Before the next normal Spiral development cycle, establish and confirm the missing project frame with the human, then compare that frame with repository/runtime evidence and ask the human to prioritize candidate risks or gaps.
+The full guided brownfield intake is complete and human-confirmed as of 2026-08-17. Reopen intake only when `.spiral/project-context.md` says it is `Stale` or when the audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change.
+
+SimplyStore has a governing durability/extensibility direction in:
+
+- `.spiral/sources/SRC-001.md`
+- `.spiral/requests/REQ-001.md`
+- `.spiral/designs/DES-001.md`
+
+Before proposing a next durability/production-readiness cycle, re-read those durable references, identify the current position in the ordered plan, reconcile the latest evidence with that plan, and state whether the proposal continues, revises, or deliberately deviates from it.
 
 Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifacts and companion Turtle resources only when they are causally useful for an actual cycle, decision, implementation, evidence, acceptance, or lesson.
 
@@ -40,4 +48,5 @@ Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifa
 - For ordinary repository-changing Spiral cycle work, create one dedicated branch from the authoritative branch, normally `spiral/CYC-###-short-goal`.
 - Preserve Git history as evidence. Do not amend, rebase, squash, reset, or force-push causal cycle history.
 - Before consequential product changes from direct human input, present the Spiral checkpoint: **My understanding / Current effective behavior / Evidenced gap / Material assumptions**, then wait for confirmation or correction.
+- When a governing multi-cycle plan exists, do not choose the next cycle from the newest discovery alone; explicitly classify the next proposal as `continue`, `revise`, or `deliberate deviation`.
 - Keep brownfield investigation proportional. Learn enough about the relevant behavior before changing it, and separate explicit, evidenced, inferred, and unknown knowledge.
