@@ -1,0 +1,41 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-001
+    a sd:Implementation ;
+    dcterms:identifier "IMP-001" ;
+    sd:repositoryPath ".spiral/implementations/IMP-001.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "src/recovery.mjs#getCommittedCommandIds" ;
+    sd:implementationLocation "src/recovery.mjs#loadCommandStatus" ;
+    sd:implementationLocation "src/recovery.mjs#loadCommandLog" ;
+    sd:implementationLocation "src/recovery.mjs#RecoveryIntegrityError" ;
+    sd:implementationLocation "src/recovery.mjs#assertChangesetExists" ;
+    sd:implementationLocation "src/server.mjs#main" ;
+    sd:implementationLocation "src/load-worker.mjs" ;
+    sd:implementationLocation "test/durability-startup.mjs" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-001 ;
+        sd:gitCommit "bc06e4cd27e3fb2bace13ee85033846dd8092fec"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-001 ;
+        sd:gitCommit "d0bf8478fe07b3cc9171edf6752af8a66db0e20b"
+    ], [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-001 ;
+        sd:gitCommit "72b2ad9d675fd49032d8ed5be8fa998be6141f51"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-004 ;
+        sd:gitCommit "f1f6c3912dcced1419f43d10ee7a4701df7b2d50"
+    ], [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-006 ;
+        sd:gitCommit "72b2ad9d675fd49032d8ed5be8fa998be6141f51"
+    ] ;
+    sd:implementationChangeKind sd:MixedChange .

@@ -1,0 +1,27 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-002
+    a sd:Implementation ;
+    dcterms:identifier "IMP-002" ;
+    sd:repositoryPath ".spiral/implementations/IMP-002.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "src/runtime-environment.mjs#getRuntimeEnvironment" ;
+    sd:implementationLocation "src/runtime-environment.mjs#assertRuntimeEnvironmentConfiguration" ;
+    sd:implementationLocation "src/faults.mjs#faultPoint" ;
+    sd:implementationLocation "src/server.mjs#main" ;
+    sd:implementationLocation "src/server.mjs#checkCommand" ;
+    sd:implementationLocation "src/server.mjs#runNextCommand" ;
+    sd:implementationLocation "test/durability-crash.mjs" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-001 ;
+        sd:gitCommit "bc06e4cd27e3fb2bace13ee85033846dd8092fec"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-007 ;
+        sd:gitCommit "da55e78ec53465e1b02aaac1bf69c25c409ed89d"
+    ] ;
+    sd:implementationChangeKind sd:MixedChange .

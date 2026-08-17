@@ -1,0 +1,15 @@
+import process from 'node:process'
+
+const runtimeEnvironments = new Set(['production', 'development', 'test'])
+
+export function getRuntimeEnvironment(env = process.env) {
+	const runtimeEnvironment = env.SIMPLYSTORE_ENV || 'production'
+	if (!runtimeEnvironments.has(runtimeEnvironment)) {
+		throw new Error(`Invalid SIMPLYSTORE_ENV: ${runtimeEnvironment}`)
+	}
+	return runtimeEnvironment
+}
+
+export function assertRuntimeEnvironmentConfiguration(env = process.env) {
+	getRuntimeEnvironment(env)
+}

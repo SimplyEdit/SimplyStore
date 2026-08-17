@@ -5,7 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"start": "node src/run.mjs",
-		"test": "tap test/*.mjs"
+		"test": "node --test test/durability-startup.mjs",
+		"test:durability": "node --test test/durability-crash.mjs"
 	},
 	"author": "auke@muze.nl",
 	"license": "MIT",
@@ -28,8 +29,7 @@
 		"@eslint/js": "^9.36.0",
 		"eslint": "^9.36.0",
 		"globals": "^16.4.0",
-		"process": "^0.11.10",
-		"tap": "^21.1.0"
+		"process": "^0.11.10"
 	},
 	"files": [
 		"README.md",

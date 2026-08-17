@@ -1,0 +1,55 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+@prefix culture: <https://muze.nl/ns/spiral-developer/culture/> .
+@prefix spiral: <https://muze.nl/projects/spiral-developer/> .
+
+project:CTX-001
+    a sd:ProjectContext ;
+    dcterms:identifier "CTX-001" ;
+    sd:repositoryPath ".spiral/project-context.md" ;
+    sd:status sd:Active ;
+    sd:productionReadinessFocus "Primarily developers evaluating, using, or extending SimplyStore; secondarily the curriculum-store environment; operators are a tertiary audience." ;
+    sd:developerEvaluationReadinessBar "Developers should be able to evaluate bounded durability claims from invariants, executable tests, evidence artifacts, explicit failure behavior, and documented known gaps." ;
+    sd:hasAudience project:AUD-DEVELOPERS, project:AUD-END-USERS, project:AUD-OPERATORS ;
+    sd:hasDownstreamProject project:DOWNSTREAM-CURRICULUM-STORE ;
+    sd:adoptsCulture [
+        a sd:ArtifactReference ;
+        sd:artifact culture:CUL-MUZE-001 ;
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41"
+    ], [
+        a sd:ArtifactReference ;
+        sd:artifact culture:CUL-MUZE-LIB-001 ;
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41"
+    ] ;
+    sd:adoptsWarningProfile [
+        a sd:ArtifactReference ;
+        sd:artifact spiral:WPF-HUMAN-001 ;
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41"
+    ] .
+
+project:AUD-DEVELOPERS
+    a sd:ProjectAudience ;
+    dcterms:identifier "developers" ;
+    sd:priority "primary" ;
+    dcterms:description "Developers using, evaluating, or extending SimplyStore." .
+
+project:AUD-END-USERS
+    a sd:ProjectAudience ;
+    dcterms:identifier "end-users" ;
+    sd:priority "secondary" ;
+    dcterms:description "End users interacting with systems built on SimplyStore, including query and command UI users where relevant." .
+
+project:AUD-OPERATORS
+    a sd:ProjectAudience ;
+    dcterms:identifier "operators" ;
+    sd:priority "tertiary" ;
+    dcterms:description "Operators running SimplyStore-backed systems." .
+
+project:DOWNSTREAM-CURRICULUM-STORE
+    a sd:DownstreamProject ;
+    dcterms:identifier "slonl/curriculum-store" ;
+    dcterms:source <https://github.com/slonl/curriculum-store> ;
+    sd:publicContext <https://opendata.slo.nl/curriculum/> ;
+    sd:confidence "Human input plus public lookup on 2026-08-17; exact runtime dependency relationship has not been inspected." ;
+    dcterms:description "Known downstream SimplyStore server with curriculum data, part of the SLO OpenData curriculum context according to human input." .

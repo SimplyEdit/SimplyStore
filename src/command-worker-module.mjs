@@ -3,6 +3,7 @@ import {getIndex, resultSet, isChanged} from '@muze-nl/od-jsontag/src/symbols.mj
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import writeFileAtomic from 'write-file-atomic'
+import { faultPoint } from './faults.mjs'
 
 let commands = {}
 let index = {}
@@ -114,7 +115,9 @@ export default async function runCommand(commandStr, request) {
             //TODO: write data every x commands or x minutes, in seperate thread?
 
             let newfilename = basefile + '.' + task.id + '.' + extension
+            await faultPoint('before-command-changeset-write')
             await writeFileAtomic(newfilename, uint8sab)
+            await faultPoint('after-command-changeset-write')
             meta.parts++
             response.meta.parts = meta.parts
             let end = Date.now()
