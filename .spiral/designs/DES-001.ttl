@@ -6,4 +6,9 @@ project:DES-001
     a sd:Design ;
     dcterms:identifier "DES-001" ;
     sd:repositoryPath ".spiral/designs/DES-001.md" ;
-    sd:status sd:Active .
+    sd:status sd:Active ;
+    sd:derivedFrom [
+        a sd:ArtifactReference ;
+        sd:artifact project:REQ-001 ;
+        sd:gitCommit "6a9977eb22b0a610a82da5c52864e3bb72b164c9"
+    ] .
