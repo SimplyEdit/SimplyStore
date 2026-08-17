@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-006.md` (`Durable Artifact Corruption Classification`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-005.md` (`Adopt Culture And Warning Profiles`).
+Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-006.md` (`Durable Artifact Corruption Classification`).
 
 ## Intended Users
 
@@ -148,6 +148,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Durability claims are not yet sufficiently proven | Investigate | Human input, README roadmap, `SRC-001`, `EVD-001` | Active first Spiral cycle area; target is recovery after crashes at any update point or explicit failure rather than silent corrupted-data use |
 | Command lifecycle commit boundaries are implicit | Investigate | `EVD-001` | Current accepted/done/status/changeset ordering needs executable fault evidence |
 | Durable artifact corruption classes are only partly classified | Investigate | `DES-001`, `EVD-005` | Status/log parse and required-field failures are explicit; other inconsistency classes remain future work |
+| Dirty example/development datasets can now fail startup after missing committed changesets | Defer | Human example test after `CYC-006` | Need a future reset/clean script, and possibly explicit recovery tooling if the project chooses to support repair rather than fail-only behavior |
 | `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
 | Full Spiral intake not complete | Investigate | Current adoption state | Further intake can continue opportunistically as durability cycles reveal concrete questions |
@@ -185,8 +186,10 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 ## Later Possibilities
 
 - Continue guided brownfield intake as concrete durability, security, API, and downstream questions arise.
+- Add a developer/operator script for resetting or cleaning local/example datasets after explicit recovery failures.
+- Decide later whether SimplyStore should ever attempt durable artifact recovery/repair, or only provide inspection and reset tooling.
 - Characterize the VM2 replacement risk as a candidate early Spiral cycle.
-- Characterize and prove durability behavior as the likely first production-readiness cycle.
+- Add process-level fault tests around command acceptance, changeset write, status append, and restart recovery.
 - Define larger-system integration options after the durability priority is better bounded.
 - Produce `DURABILITY.md` only when executable evidence supports the documented claims.
 
