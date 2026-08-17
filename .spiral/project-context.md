@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-004.md` (`Full Startup Recovery Harness`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-003.md` (`Startup Recovery Repair`).
+Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-004.md` (`Full Startup Recovery Harness`).
 
 ## Intended Users
 
