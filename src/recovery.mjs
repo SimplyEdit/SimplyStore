@@ -83,6 +83,7 @@ export function loadCommandLog(status, commandLog, taskDefaults = {}) {
 	if (!fs.existsSync(commandLog)) {
 		return commands
 	}
+	const queuedCommandIds = new Set()
 	const log = fs.readFileSync(commandLog, 'utf-8')
 	if (log) {
 		const lines = log.split("\n")
@@ -93,7 +94,8 @@ export function loadCommandLog(status, commandLog, taskDefaults = {}) {
 			const command = parseDurableRecord(commandLog, line, index + 1, 'command log')
 			assertStringField(command, 'id', commandLog, index + 1, 'command log')
 			const state = status.get(command.id)?.status
-			if (state === pendingCommandStatus) {
+			if (state === pendingCommandStatus && !queuedCommandIds.has(command.id)) {
+				queuedCommandIds.add(command.id)
 				commands.push({
 					...taskDefaults,
 					id: command.id,

@@ -1,167 +1,50 @@
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
 import fs from 'node:fs/promises'
-import net from 'node:net'
-import os from 'node:os'
 import path from 'node:path'
-import process from 'node:process'
 import test from 'node:test'
-import { fileURLToPath } from 'node:url'
-import JSONTag from '@muze-nl/jsontag'
-import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import { faultPoint } from '../src/faults.mjs'
 import { assertRuntimeEnvironmentConfiguration, getRuntimeEnvironment } from '../src/runtime-environment.mjs'
+import {
+	getCommandStatus,
+	getOpenPort,
+	makeServerFixture,
+	postCommand,
+	queryPersons,
+	readCommandLogRecords,
+	readCommandStatusRecords,
+	reconstructCommittedPersonNames,
+	startServer,
+	stopServer,
+	waitForExit,
+	waitForServer
+} from './durability-helpers.mjs'
 
-const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-const serverModule = path.join(rootDir, 'src/server.mjs')
-
-async function getOpenPort() {
-	const probe = net.createServer()
-	await new Promise((resolve, reject) => {
-		probe.once('error', reject)
-		probe.listen(0, '127.0.0.1', resolve)
-	})
-	const port = probe.address().port
-	await new Promise(resolve => probe.close(resolve))
-	return port
-}
-
-async function makeServerFixture(t) {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-crash-'))
-	t.after(() => fs.rm(dir, {recursive: true, force: true}))
-
-	const datafile = path.join(dir, 'data.jsontag')
-	const commandsFile = path.join(dir, 'commands.mjs')
-	const indexFile = path.join(dir, 'index.mjs')
-	const commandLog = path.join(dir, 'command-log.jsontag')
-	const commandStatus = path.join(dir, 'command-status.jsontag')
-	const runner = path.join(dir, 'run-server.mjs')
-
-	await fs.writeFile(datafile, serialize(JSONTag.parse('{"persons":[]}')))
-	await fs.writeFile(commandsFile, `export default {
-	addPerson: (dataspace, command) => {
-		dataspace.persons.push(command.value)
+async function postCommandExpectingCrash(port, command) {
+	try {
+		const response = await postCommand(port, command)
+		assert.equal(response.status, 202)
+	} catch (error) {
+		assert.match(error.message, /fetch failed|terminated|socket|other side closed|aborted/i)
 	}
 }
-`)
-	await fs.writeFile(indexFile, 'export default { create() {}, update() {}, load() { return {} } }\n')
-	await fs.writeFile(runner, `import SimplyStore from ${JSON.stringify(serverModule)}
 
-const options = JSON.parse(process.env.SIMPLYSTORE_TEST_OPTIONS)
-SimplyStore.run(options)
-`)
-
-	return {dir, datafile, commandsFile, indexFile, commandLog, commandStatus, runner}
+async function assertServerStateMatchesOracle(port, fixture, expectedNames) {
+	const persons = await queryPersons(port)
+	assert.deepEqual(persons.map(person => person.name), expectedNames)
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), expectedNames)
 }
 
-function startServer(t, fixture, options = {}) {
-	const child = spawn(process.execPath, [fixture.runner], {
-		cwd: fixture.dir,
-		env: {
-			...process.env,
-			SIMPLYSTORE_ENV: options.runtimeEnvironment || 'production',
-			SIMPLYSTORE_FAULT_POINT: options.faultPoint || '',
-			SIMPLYSTORE_TEST_OPTIONS: JSON.stringify({
-				port: options.port,
-				datafile: fixture.datafile,
-				commandsFile: fixture.commandsFile,
-				indexFile: fixture.indexFile,
-				commandLog: fixture.commandLog,
-				commandStatus: fixture.commandStatus,
-				wwwroot: path.join(rootDir, 'www'),
-				maxWorkers: 1,
-				maxCommandCrashAttempts: options.maxCommandCrashAttempts
-			})
-		},
-		stdio: ['ignore', 'pipe', 'pipe']
-	})
-
-	let output = ''
-	child.stdout.on('data', data => {
-		output += data
-	})
-	child.stderr.on('data', data => {
-		output += data
-	})
-
-	const stop = () => {
-		if (!child.killed && child.exitCode === null) {
-			child.kill('SIGTERM')
+async function waitForCommandStatus(port, commandId, expectedStatus) {
+	const deadline = Date.now() + 5000
+	let lastStatus
+	while (Date.now() < deadline) {
+		lastStatus = await getCommandStatus(port, commandId)
+		if (lastStatus.status === expectedStatus) {
+			return lastStatus
 		}
+		await new Promise(resolve => setTimeout(resolve, 25))
 	}
-	t.after(stop)
-
-	return {child, getOutput: () => output}
-}
-
-async function waitForServer(child, getOutput, port) {
-	await new Promise((resolve, reject) => {
-		const timeout = setTimeout(() => {
-			reject(new Error(`Server did not start on port ${port}:\n${getOutput()}`))
-		}, 5000)
-		const onExit = (code, signal) => {
-			clearTimeout(timeout)
-			reject(new Error(`Server exited before startup (${code || signal}):\n${getOutput()}`))
-		}
-		const checkReady = () => {
-			if (getOutput().includes(`SimplyStore listening on port ${port}`)) {
-				clearTimeout(timeout)
-				child.off('exit', onExit)
-				resolve()
-				return
-			}
-			setTimeout(checkReady, 25)
-		}
-		child.once('exit', onExit)
-		checkReady()
-	})
-}
-
-async function waitForExit(child) {
-	return new Promise(resolve => {
-		if (child.exitCode !== null || child.signalCode) {
-			resolve({code: child.exitCode, signal: child.signalCode})
-			return
-		}
-		child.once('exit', (code, signal) => resolve({code, signal}))
-	})
-}
-
-async function postCommand(port, command) {
-	return fetch(`http://127.0.0.1:${port}/command`, {
-		method: 'POST',
-		headers: {
-			accept: 'application/json',
-			'content-type': 'application/jsontag'
-		},
-		body: JSONTag.stringify(command)
-	})
-}
-
-async function queryPersons(port) {
-	const response = await fetch(`http://127.0.0.1:${port}/query/`, {
-		method: 'POST',
-		headers: {
-			'content-type': 'text/plain'
-		},
-		body: 'data.persons'
-	})
-	if (!response.ok) {
-		throw new Error(`Query failed with ${response.status}: ${await response.text()}`)
-	}
-	return JSONTag.parse(await response.text())
-}
-
-async function getCommandStatus(port, commandId) {
-	const response = await fetch(`http://127.0.0.1:${port}/command/${commandId}`, {
-		headers: {
-			accept: 'application/json'
-		}
-	})
-	if (!response.ok) {
-		throw new Error(`Command status failed with ${response.status}: ${await response.text()}`)
-	}
-	return response.json()
+	assert.fail(`Timed out waiting for ${commandId} to become ${expectedStatus}; latest status: ${JSON.stringify(lastStatus)}`)
 }
 
 test('runtime environment defaults to production and ignores production fault points', () => {
@@ -191,41 +74,131 @@ test('fault points are inert outside test environment', async () => {
 	}), false)
 })
 
-test('crash before done status replays accepted command on restart', async t => {
+test('crash after command log but before accepted status is not committed', async t => {
 	const fixture = await makeServerFixture(t)
 	const port = await getOpenPort()
+	const command = {
+		id: 'crash-after-log',
+		name: 'addPerson',
+		value: {name: 'After Log'}
+	}
+
 	const first = startServer(t, fixture, {
 		port,
 		runtimeEnvironment: 'test',
-		faultPoint: 'before-command-done-status'
+		faultPoint: 'after-command-log-before-accepted-status'
 	})
 	await waitForServer(first.child, first.getOutput, port)
-
-	try {
-		const response = await postCommand(port, {
-			id: 'crash-before-done',
-			name: 'addPerson',
-			value: {name: 'Ada'}
-		})
-		assert.equal(response.status, 202)
-	} catch (error) {
-		assert.match(error.message, /fetch failed|terminated|socket|other side closed/i)
-	}
-
-	const crash = await waitForExit(first.child)
-	assert.equal(crash.signal, 'SIGKILL')
-
-	const changeset = path.join(fixture.dir, 'data.crash-before-done.jsontag')
-	await assert.doesNotReject(fs.access(changeset), 'command worker wrote a changeset before the injected crash')
+	await postCommandExpectingCrash(port, command)
+	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
 
 	const second = startServer(t, fixture, {port})
 	await waitForServer(second.child, second.getOutput, port)
 
-	const persons = await queryPersons(port)
-	assert.deepEqual(persons.map(person => person.name), ['Ada'])
+	await assertServerStateMatchesOracle(port, fixture, [])
+	assert.deepEqual(await readCommandStatusRecords(fixture), [])
+	assert.equal((await readCommandLogRecords(fixture)).length, 1)
+})
 
-	const statusFile = await fs.readFile(fixture.commandStatus, 'utf8')
-	assert.match(statusFile, /"status":"done"/)
+test('duplicate command log records do not replay an accepted command twice', async t => {
+	const fixture = await makeServerFixture(t)
+	const port = await getOpenPort()
+	const command = {
+		id: 'duplicate-log-command',
+		name: 'addPerson',
+		value: {name: 'Once'}
+	}
+
+	const first = startServer(t, fixture, {
+		port,
+		runtimeEnvironment: 'test',
+		faultPoint: 'after-command-log-before-accepted-status'
+	})
+	await waitForServer(first.child, first.getOutput, port)
+	await postCommandExpectingCrash(port, command)
+	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
+
+	const second = startServer(t, fixture, {
+		port,
+		runtimeEnvironment: 'test',
+		faultPoint: 'after-command-accepted-status-before-response'
+	})
+	await waitForServer(second.child, second.getOutput, port)
+	await postCommandExpectingCrash(port, command)
+	assert.equal((await waitForExit(second.child)).signal, 'SIGKILL')
+
+	const third = startServer(t, fixture, {port})
+	await waitForServer(third.child, third.getOutput, port)
+
+	await assertServerStateMatchesOracle(port, fixture, ['Once'])
+	assert.equal((await readCommandLogRecords(fixture)).length, 2)
+	assert.equal((await readCommandStatusRecords(fixture)).filter(record => record.status === 'done').length, 1)
+})
+
+test('accepted command crash boundaries replay to one committed state', async t => {
+	const replayFaultPoints = [
+		'after-command-accepted-status-before-response',
+		'after-active-status-before-command-worker',
+		'before-command-changeset-write',
+		'after-command-changeset-write',
+		'before-command-done-status'
+	]
+
+	for (const faultPointName of replayFaultPoints) {
+		await t.test(faultPointName, async t => {
+			const fixture = await makeServerFixture(t)
+			const port = await getOpenPort()
+			const command = {
+				id: faultPointName,
+				name: 'addPerson',
+				value: {name: faultPointName}
+			}
+
+			const first = startServer(t, fixture, {
+				port,
+				runtimeEnvironment: 'test',
+				faultPoint: faultPointName
+			})
+			await waitForServer(first.child, first.getOutput, port)
+			await postCommandExpectingCrash(port, command)
+			assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
+
+			const second = startServer(t, fixture, {port})
+			await waitForServer(second.child, second.getOutput, port)
+
+			await assertServerStateMatchesOracle(port, fixture, [faultPointName])
+			assert.equal((await getCommandStatus(port, command.id)).status, 'done')
+		})
+	}
+})
+
+test('crash after done status but before query update recovers committed state without replay', async t => {
+	const fixture = await makeServerFixture(t)
+	const port = await getOpenPort()
+	const command = {
+		id: 'done-before-query-update',
+		name: 'addPerson',
+		value: {name: 'Committed'}
+	}
+
+	const first = startServer(t, fixture, {
+		port,
+		runtimeEnvironment: 'test',
+		faultPoint: 'after-command-done-status-before-query-update'
+	})
+	await waitForServer(first.child, first.getOutput, port)
+	await postCommandExpectingCrash(port, command)
+	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
+
+	const statusAfterCrash = await readCommandStatusRecords(fixture)
+	assert.equal(statusAfterCrash.at(-1).status, 'done')
+
+	const second = startServer(t, fixture, {port})
+	await waitForServer(second.child, second.getOutput, port)
+
+	await assertServerStateMatchesOracle(port, fixture, ['Committed'])
+	assert.equal((await readCommandStatusRecords(fixture)).filter(record => record.status === 'active').length, 1)
+	assert.equal((await getCommandStatus(port, command.id)).status, 'done')
 })
 
 test('repeated active command crashes are marked unsafe instead of replaying forever', async t => {
@@ -241,16 +214,11 @@ test('repeated active command crashes are marked unsafe instead of replaying for
 
 	const first = startServer(t, fixture, crashOptions)
 	await waitForServer(first.child, first.getOutput, port)
-	try {
-		const response = await postCommand(port, {
-			id: commandId,
-			name: 'addPerson',
-			value: {name: 'Poison'}
-		})
-		assert.equal(response.status, 202)
-	} catch (error) {
-		assert.match(error.message, /fetch failed|terminated|socket|other side closed/i)
-	}
+	await postCommandExpectingCrash(port, {
+		id: commandId,
+		name: 'addPerson',
+		value: {name: 'Poison'}
+	})
 
 	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
 
@@ -267,11 +235,35 @@ test('repeated active command crashes are marked unsafe instead of replaying for
 	assert.equal(commandStatus.status, 'unsafe')
 	assert.equal(commandStatus.attempt, 2)
 
-	const persons = await queryPersons(port)
-	assert.deepEqual(persons.map(person => person.name), [])
+	await assertServerStateMatchesOracle(port, fixture, [])
 
 	const statusFile = await fs.readFile(fixture.commandStatus, 'utf8')
 	assert.match(statusFile, /"status":"active","attempt":1/)
 	assert.match(statusFile, /"status":"active","attempt":2/)
 	assert.match(statusFile, /"status":"unsafe"/)
+})
+
+test('normal restart preserves committed state according to reconstruction oracle', async t => {
+	const fixture = await makeServerFixture(t)
+	const port = await getOpenPort()
+	const first = startServer(t, fixture, {port})
+	await waitForServer(first.child, first.getOutput, port)
+
+	const response = await postCommand(port, {
+		id: 'normal-command',
+		name: 'addPerson',
+		value: {name: 'Normal'}
+	})
+	assert.equal(response.status, 202)
+	await waitForCommandStatus(port, 'normal-command', 'done')
+
+	const changeset = path.join(fixture.dir, 'data.normal-command.jsontag')
+	await assert.doesNotReject(fs.access(changeset))
+	await assertServerStateMatchesOracle(port, fixture, ['Normal'])
+
+	await stopServer(first.child)
+	const second = startServer(t, fixture, {port})
+	await waitForServer(second.child, second.getOutput, port)
+
+	await assertServerStateMatchesOracle(port, fixture, ['Normal'])
 })

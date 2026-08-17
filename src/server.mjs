@@ -8,7 +8,7 @@ import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
-import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, nextActiveCommandStatus, recoverActiveCommands } from './recovery.mjs'
+import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, nextActiveCommandStatus, pendingCommandStatus, recoverActiveCommands } from './recovery.mjs'
 import { assertRuntimeEnvironmentConfiguration } from './runtime-environment.mjs'
 import { faultPoint } from './faults.mjs'
 
@@ -294,6 +294,10 @@ async function main(options) {
                 return
             }
             let command = commandQueue.shift()
+            while (command && status.get(command.id)?.status !== pendingCommandStatus) {
+                console.log('skipping non-pending command', command.id)
+                command = commandQueue.shift()
+            }
             if (command) {
                 console.log('starting command',command.id)
                 let start = (resolve, reject) => {
@@ -314,6 +318,7 @@ async function main(options) {
                 status.set(command.id, activeStatus)
                 void (async () => {
                     await appendFile(commandStatus, JSONTag.stringify(activeStatus))
+                    await faultPoint('after-active-status-before-command-worker')
                     start(
                         // resolve()
                         async (data) => {
@@ -331,6 +336,8 @@ async function main(options) {
                             } else {
                                 await faultPoint('before-command-done-status')
                                 s = {code: 200, status: "done"}
+                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                                await faultPoint('after-command-done-status-before-query-update')
                                 status.set(command.id, s)
                                 if (data.data) { // data has changed, commands may do other things instead of changing data
                                     jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
@@ -345,7 +352,6 @@ async function main(options) {
                                     queryWorkerPool.update(updateTask)
                                     slowQueryWorkerPool.update(updateTask)
                                 }
-                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                                 mainResolve(s)
                             }
                         },
@@ -418,7 +424,9 @@ async function main(options) {
             return false      
         }
         await appendFile(commandLog, JSONTag.stringify(command)) //FIXME: this loses request data
+        await faultPoint('after-command-log-before-accepted-status')
         await appendFile(commandStatus, JSONTag.stringify(commandOK))
+        await faultPoint('after-command-accepted-status-before-response')
         status.set(command.id, commandOK) 
         sendResponse({code: 202, body: JSON.stringify(commandOK)}, res)
         return command.id
