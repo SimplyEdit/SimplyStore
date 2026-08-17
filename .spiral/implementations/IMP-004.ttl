@@ -16,16 +16,16 @@ project:IMP-004
     sd:implements [
         a sd:ArtifactReference ;
         sd:artifact project:DES-001 ;
-        sd:gitCommit "bc06e4cd27e3fb2bace13ee85033846dd8092fec"
+        sd:gitCommit "85913e982e163c7b05a8e616c00e3f2014e775cc"
     ] ;
     sd:transforms [
         a sd:ArtifactReference ;
-        sd:artifact project:IMP-003 ;
-        sd:gitCommit "0fa4c441e8e8cb27562486c225bb02e8038d564e"
+        sd:artifact project:IMP-004 ;
+        sd:gitCommit "36bb7b1013c2de219d4a730556ae9ab98cea7113"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;
-        sd:artifact project:CYC-010 ;
-        sd:gitCommit "a4d034dc8fbb1123e7c3c1643b0440be63a4ece4"
+        sd:artifact project:CYC-016 ;
+        sd:gitCommit "36fc816a6357b57f99843359aeb4a2329677d6c1"
     ] ;
-    sd:implementationChangeKind sd:MixedChange .
+    sd:implementationChangeKind sd:BehaviorPreservingChange .
