@@ -22,13 +22,19 @@ Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles
 
 ## Intended Users
 
-Pending guided brownfield intake.
+Primary audience: developers using or extending SimplyStore.
+
+Secondary audience: end users interacting with systems built on SimplyStore, including query/command UI users where relevant.
+
+Tertiary audience: operators running SimplyStore-backed systems.
 
 Known from existing README: SimplyStore is a Node.js/Express library for serving in-memory datasets through a derived API and JavaScript query endpoint.
 
+Current known downstream project: `slonl/curriculum-store`, described publicly as a SimplyStore server with curriculum data. Human context says this is part of the SLO OpenData curriculum system at `https://opendata.slo.nl/curriculum/`. Public lookup confirmed the repository and OpenData page exist on 2026-08-17; the exact runtime dependency relationship has not been inspected.
+
 ## Current Direction
 
-SimplyStore should become more production ready and less experimental while keeping its focus on simplicity.
+SimplyStore should become more production ready and less experimental while keeping its focus on simplicity. Production readiness is currently aimed primarily at developers evaluating SimplyStore, secondarily at the `curriculum-store` environment, and later at proposed changes coming from that downstream use.
 
 Known from existing README/roadmap: the project is experimental, should not be treated as production-ready by default, and has a known direction to replace VM2 with a safer isolate-based query runtime.
 
@@ -43,6 +49,8 @@ A later/secondary direction is adding more options for including SimplyStore as 
 | Outcome / metric | Why it matters | Desired/acceptable level | Current evidence / unknown |
 |---|---|---|---|
 | Production readiness | Current human direction | Improve materially from experimental posture; exact acceptance pending intake | Human input / explicit |
+| Developer evaluation confidence | Primary production-readiness audience | Developers should be able to evaluate SimplyStore's limited durability claims from evidence, docs, and tests | Human input / explicit |
+| Curriculum-store support | Known downstream context | SimplyStore changes should consider `curriculum-store` as a real environment, without letting it silently define all project priorities | Human input and public lookup / explicit and evidenced |
 | Simplicity | Current human direction and project identity | Must remain a shaping constraint while production readiness improves; exact boundaries pending intake | Human input, README / explicit and evidenced |
 | Durability proof for ACID claims | First production-readiness priority | Survive crashes at any point in the update cycle and recover, or fail instead of silently using corrupted data; first work is baseline evidence and crash/fault-injection testing | Human input, README roadmap, `SRC-001` / explicit and evidenced |
 | Integration into larger systems | Secondary direction after durability | Add minimal lifecycle seams for derived stores and post-commit observers; do not add broad messaging/event machinery without evidence | Human input, `SRC-001` / explicit |
@@ -72,6 +80,7 @@ Brownfield library moving from experimental toward production-ready. It should r
 | Term | Meaning | Source/confidence |
 |---|---|---|
 | SimplyStore | Backend storage server/library with a derived API over in-memory data | README / evidenced |
+| curriculum-store | Downstream SimplyStore server with curriculum data, part of the SLO OpenData curriculum context according to human input | Human input, public GitHub/OpenData lookup / explicit and evidenced |
 | JSONTag | JSON enhancement that adds metadata with HTML-like tags | README / evidenced |
 | JAQT | Query helper library used by SimplyStore examples | README, `package.json` / evidenced |
 | Dataspace | Object or array containing the data SimplyStore serves | README / evidenced |
@@ -138,6 +147,8 @@ Brownfield library moving from experimental toward production-ready. It should r
 | README and docs | Stated public intent and usage | May be stale |
 | Example app | Demonstrable usage behavior | Representativeness unknown |
 | Human maintainer | Purpose, priorities, constraints, and tolerated risks | Needs guided intake |
+| `slonl/curriculum-store` | Real downstream usage and proposed integration pressure | Dependency/runtime relationship not yet inspected |
+| SLO OpenData curriculum page | Public context for downstream system | Only page existence/context verified; operational details unknown |
 
 ## Areas Needing Affinity / Human Guidance
 
@@ -146,6 +157,7 @@ Brownfield library moving from experimental toward production-ready. It should r
 | Security posture and VM2 migration | Required replacement strategy and acceptable interim risk | Human maintainer, tests, dependency docs |
 | Durability behavior and ACID claim boundary | Which update-cycle phases can crash, how recovery behaves, and how corrupted data is detected or rejected | Human maintainer, tests, code, runtime probes |
 | Larger-system integration options | Whether this means embedding, middleware, lifecycle hooks, adapters, package API, deployment modes, or something else | Human maintainer, examples, downstream usage |
+| curriculum-store integration | Which SimplyStore guarantees and extension points matter to the known downstream project | Human maintainer, `slonl/curriculum-store`, SLO OpenData context |
 | API compatibility expectations | What downstream users depend on | Human maintainer, issues, package consumers |
 | Dataset scale/performance expectations | Whether README's 1GB target is current | Human maintainer, benchmarks if present |
 
