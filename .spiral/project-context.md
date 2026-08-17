@@ -16,9 +16,30 @@ Repository/baseline: `https://github.com/simplyedit/simplystore`, local authorit
 
 Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spiral#`
 
-Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
+Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `9958f0e296e84169c21c02aa478ac4aae5a06a41`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-008.md` (`Accepted Command Replay Safety`).
+Current active Spiral cycle: `.spiral/cycles/CYC-009.md` (`Spiral Core Guardrail Update`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-008.md` (`Accepted Command Replay Safety`).
+
+## Intake State
+
+Status: **Incomplete**
+
+Human-confirmed complete on:
+
+| Required topic | Disposition | Notes / source |
+|---|---|---|
+| Purpose, users/stakeholders, goals | Covered | Intended users and current direction sections; human input on production-readiness audience and durability priority |
+| Current posture | Pending | Brownfield library moving from experimental toward production-ready; more precise posture still needs confirmation |
+| Important outcomes / metrics | Covered with unknowns | Project goals table; concrete thresholds remain unknown where stated |
+| Consequential prior decisions / reversibility | Covered with unknowns | Consequential prior decisions table; reversibility remains unknown for several legacy choices |
+| Invariants / commitments | Pending | Simplicity, MIT licensing, non-goals, and durability fail-safe direction are recorded; API/downstream compatibility commitments need confirmation |
+| Known / tolerated problems | Covered | Known/tolerated problems and risks table |
+| Reliable feedback / reality sources | Covered | Reliable feedback / reality sources table |
+| Knowledge gaps / affinity needs | Covered | Areas needing affinity / human guidance table |
+| Relevant future direction | Covered | Current direction and later possibilities sections |
+| Risk-discovery / metric-profile disposition | Covered | Intake risk-discovery and metric-profile tables |
+
+While intake remains incomplete, user-visible process updates should keep the remaining pending topics visible.
 
 ## Intended Users
 
@@ -101,14 +122,14 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 
 | Culture/profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `08154063554ef288c9b7567d34018dbffea401e2` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
-| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `08154063554ef288c9b7567d34018dbffea401e2` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
+| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `9958f0e296e84169c21c02aa478ac4aae5a06a41` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
+| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `9958f0e296e84169c21c02aa478ac4aae5a06a41` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
 
 ## Active Warning Profiles
 
 | Warning profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `08154063554ef288c9b7567d34018dbffea401e2` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
+| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `9958f0e296e84169c21c02aa478ac4aae5a06a41` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
 
 ## Intake Risk-Discovery Profiles
 
@@ -153,7 +174,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Accepted commands can become restart-loop risks when they repeatedly crash during automatic replay | Monitor | `IMP-003`, `EVD-007` | Active command attempts are now recorded durably; after the configured crash threshold, the command is marked `unsafe` and no longer replayed automatically |
 | `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
-| Full Spiral intake not complete | Investigate | Current adoption state | Further intake can continue opportunistically as durability cycles reveal concrete questions |
+| Spiral intake is explicitly incomplete | Investigate | Current adoption state, CYC-009 | Remaining pending topics are current posture details and invariants/commitments that downstream users depend on |
 
 ## Reliable Feedback / Reality Sources
 

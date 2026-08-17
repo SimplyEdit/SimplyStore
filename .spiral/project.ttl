@@ -16,16 +16,16 @@ project:CTX-001
     sd:adoptsCulture [
         a sd:ArtifactReference ;
         sd:artifact culture:CUL-MUZE-001 ;
-        sd:gitCommit "08154063554ef288c9b7567d34018dbffea401e2"
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41"
     ], [
         a sd:ArtifactReference ;
         sd:artifact culture:CUL-MUZE-LIB-001 ;
-        sd:gitCommit "08154063554ef288c9b7567d34018dbffea401e2"
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41"
     ] ;
     sd:adoptsWarningProfile [
         a sd:ArtifactReference ;
         sd:artifact spiral:WPF-HUMAN-001 ;
-        sd:gitCommit "08154063554ef288c9b7567d34018dbffea401e2"
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41"
     ] .
 
 project:AUD-DEVELOPERS
