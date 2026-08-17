@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `9958f0e296e84169c21c02aa478ac4aae5a06a41`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-009.md` (`Spiral Core Guardrail Update`).
+Current active Spiral cycle: `.spiral/cycles/CYC-010.md` (`Command Update Crash Matrix And Reconstruction Oracle`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-009.md` (`Spiral Core Guardrail Update`).
 
 ## Intake State
 
@@ -187,6 +187,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
 | Spiral intake can become stale | Monitor | Completed intake, CYC-009 | Reopen if audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change |
+| Command update crash matrix is incomplete | Investigate | Critical review before CYC-010, `DES-001` | Remaining command lifecycle crash boundaries need executable classification and independent reconstruction evidence |
 
 ## Reliable Feedback / Reality Sources
 
