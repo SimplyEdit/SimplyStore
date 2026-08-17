@@ -258,3 +258,4 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - ACID baseline evidence: `.spiral/evidence/EVD-010.md`
 - Malformed OD-JSONTag record-framing evidence: `.spiral/evidence/EVD-011.md`
 - Retry/idempotency status evidence: `.spiral/evidence/EVD-012.md`
+- Spiral core plan-continuity update evidence: `.spiral/evidence/EVD-013.md`
