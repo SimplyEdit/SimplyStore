@@ -18,28 +18,28 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `9958f0e296e84169c21c02aa478ac4aae5a06a41`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-009.md` (`Spiral Core Guardrail Update`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-008.md` (`Accepted Command Replay Safety`).
+Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-009.md` (`Spiral Core Guardrail Update`).
 
 ## Intake State
 
-Status: **Incomplete**
+Status: **Complete**
 
-Human-confirmed complete on:
+Human-confirmed complete on: 2026-08-17
 
 | Required topic | Disposition | Notes / source |
 |---|---|---|
 | Purpose, users/stakeholders, goals | Covered | Intended users and current direction sections; human input on production-readiness audience and durability priority |
-| Current posture | Pending | Brownfield library moving from experimental toward production-ready; more precise posture still needs confirmation |
+| Current posture | Covered | Brownfield reusable Node.js library moving from experimental toward developer-evaluable production readiness; not yet an established production service |
 | Important outcomes / metrics | Covered with unknowns | Project goals table; concrete thresholds remain unknown where stated |
 | Consequential prior decisions / reversibility | Covered with unknowns | Consequential prior decisions table; reversibility remains unknown for several legacy choices |
-| Invariants / commitments | Pending | Simplicity, MIT licensing, non-goals, and durability fail-safe direction are recorded; API/downstream compatibility commitments need confirmation |
+| Invariants / commitments | Covered | Simplicity, durable format stability, JavaScript query API stability, REST API stability, MIT licensing, non-goals, and durability fail-safe direction are recorded |
 | Known / tolerated problems | Covered | Known/tolerated problems and risks table |
 | Reliable feedback / reality sources | Covered | Reliable feedback / reality sources table |
 | Knowledge gaps / affinity needs | Covered | Areas needing affinity / human guidance table |
 | Relevant future direction | Covered | Current direction and later possibilities sections |
 | Risk-discovery / metric-profile disposition | Covered | Intake risk-discovery and metric-profile tables |
 
-While intake remains incomplete, user-visible process updates should keep the remaining pending topics visible.
+Future work should reopen intake as `Stale` if SimplyStore's audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change.
 
 ## Intended Users
 
@@ -72,17 +72,29 @@ A later/secondary direction is adding more options for including SimplyStore as 
 | Production readiness | Current human direction | Improve materially from experimental posture while preserving simplicity; current first bar is developer evaluation confidence for bounded durability claims | Human input / explicit |
 | Developer evaluation confidence | Primary production-readiness audience | Developers should be able to evaluate SimplyStore's limited durability claims from invariants, executable tests, evidence artifacts, explicit failure behavior, and documented known gaps | Human input, `REQ-001`, `DES-001`, current durability tests / explicit and evidenced |
 | Curriculum-store support | Known downstream context | SimplyStore changes should consider `curriculum-store` as a real environment, without letting it silently define all project priorities | Human input and public lookup / explicit and evidenced |
-| Simplicity | Current human direction and project identity | Must remain a shaping constraint while production readiness improves; exact boundaries pending intake | Human input, README / explicit and evidenced |
+| Simplicity | Current human direction and project identity | Must remain a shaping constraint while production readiness improves; do not add database/message-bus/event-sourcing machinery without evidence | Human input, README, completed intake / explicit and evidenced |
 | Durability proof for ACID claims | First production-readiness priority | Survive crashes at any point in the update cycle and recover, or fail instead of silently using corrupted data; first work is baseline evidence and crash/fault-injection testing | Human input, README roadmap, `SRC-001` / explicit and evidenced |
 | Integration into larger systems | Secondary direction after durability | Add minimal lifecycle seams for derived stores and post-commit observers; do not add broad messaging/event machinery without evidence | Human input, `SRC-001` / explicit |
-| Usable self-describing API over simple datasets | Stated project purpose | Pending intake | README |
-| JSONTag-based semantic data support | Central differentiator | Pending intake | README |
+| Usable self-describing API over simple datasets | Stated project purpose | Preserve existing public behavior unless a cycle explicitly justifies and evaluates a breaking change | README, completed intake |
+| JSONTag-based semantic data support | Central differentiator | Preserve compatibility expectations unless a cycle explicitly justifies and evaluates a breaking change | README, completed intake |
 | Safe query execution | JavaScript queries run against provided data | VM2 is known unsafe; target replacement pending | README |
-| Dataset scale expectations | README states a test goal around 1GB in memory | Pending intake | README |
+| Dataset scale expectations | README states a test goal around 1GB in memory | Unknown; not a current intake driver | README |
 
 ## Project Posture
 
-Brownfield library moving from experimental toward production-ready. It should remain simple by design rather than becoming a general-purpose data platform. More precise current posture is pending guided intake.
+Brownfield reusable Node.js library moving from experimental toward developer-evaluable production readiness. It is not yet an established production service; the current hardening focus is bounded durability evidence and minimal extensibility while preserving simplicity.
+
+## Important Invariants And Commitments
+
+| Invariant / commitment | Practical meaning | Source/confidence |
+|---|---|---|
+| Simplicity remains central | Production readiness should not turn SimplyStore into a conventional database, event-sourcing framework, message bus, or broad data platform | Human input / explicit |
+| Durable on-disk format must not silently change | Any on-disk format change needs an explicit cycle that treats migration, compatibility, and failure behavior as part of the work | Human input / explicit |
+| JavaScript query API must not silently change | Query API compatibility matters to developers and downstream users; breaking changes need explicit justification and evaluation | Human input / explicit |
+| REST API must not silently change | REST behavior is part of the public integration surface; breaking changes need explicit justification and evaluation | Human input / explicit |
+| Existing public data behavior should be preserved by default | Behavior changes need a cycle-level reason and evidence, especially where `curriculum-store` or other downstream users may depend on it | Human input / explicit |
+| Durability claims require executable evidence | SimplyStore should survive crashes at any update point and recover, or fail instead of silently using corrupted data | Human input / explicit |
+| Production safety must not be overclaimed | VM2 and other known risks remain relevant until explicitly addressed | README, human direction / evidenced |
 
 ## Developer Evaluation Readiness Bar
 
@@ -143,7 +155,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Profile / custom metric lens | Use / exclude / defer | Applicability here | Why |
 |---|---|---|---|
 | `.spiral-core/profiles/metrics/exploratory-product.md` | Candidate for intake | Likely relevant | README describes project as experimental |
-| `.spiral-core/profiles/metrics/established-service.md` | Defer unless human says this is service-like | Unknown | Current posture not confirmed |
+| `.spiral-core/profiles/metrics/established-service.md` | Defer | Not current posture | SimplyStore is currently being made developer-evaluable, not treated as an established production service |
 
 ## Important Current Constraints
 
@@ -174,7 +186,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Accepted commands can become restart-loop risks when they repeatedly crash during automatic replay | Monitor | `IMP-003`, `EVD-007` | Active command attempts are now recorded durably; after the configured crash threshold, the command is marked `unsafe` and no longer replayed automatically |
 | `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
-| Spiral intake is explicitly incomplete | Investigate | Current adoption state, CYC-009 | Remaining pending topics are current posture details and invariants/commitments that downstream users depend on |
+| Spiral intake can become stale | Monitor | Completed intake, CYC-009 | Reopen if audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change |
 
 ## Reliable Feedback / Reality Sources
 
@@ -183,7 +195,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Automated tests | Current intended behavior covered by tests | Coverage unknown |
 | README and docs | Stated public intent and usage | May be stale |
 | Example app | Demonstrable usage behavior | Representativeness unknown |
-| Human maintainer | Purpose, priorities, constraints, and tolerated risks | Needs guided intake |
+| Human maintainer | Purpose, priorities, constraints, and tolerated risks | Intake completed on 2026-08-17; future changes can make it stale |
 | `slonl/curriculum-store` | Real downstream usage and proposed integration pressure | Dependency/runtime relationship not yet inspected |
 | SLO OpenData curriculum page | Public context for downstream system | Only page existence/context verified; operational details unknown |
 
