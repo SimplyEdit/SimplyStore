@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import { getCommittedCommandIds, loadCommandLog, loadCommandStatus } from '../src/recovery.mjs'
+import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, RecoveryIntegrityError } from '../src/recovery.mjs'
 
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const loadWorker = path.join(rootDir, 'src/load-worker.mjs')
@@ -163,4 +163,94 @@ tap.test('durable command log replays only accepted commands', async t => {
 	t.equal(commands[0].id, 'accepted-command')
 	t.match(commands[0], taskDefaults)
 	t.equal(JSONTag.parse(commands[0].command).name, 'addPerson')
+})
+
+tap.test('malformed durable status record refuses recovery with explicit integrity error', async t => {
+	const fixture = await makeFixture(t)
+	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
+	await fs.writeFile(statusFile, '{"command":"truncated"\n')
+
+	let error
+	try {
+		loadCommandStatus(statusFile)
+	} catch (caught) {
+		error = caught
+	}
+
+	t.type(error, RecoveryIntegrityError)
+	t.match(error, {
+		file: statusFile,
+		lineNumber: 1,
+		recordKind: 'command status'
+	})
+	t.match(error.message, /Invalid command status record/)
+})
+
+tap.test('structurally invalid durable status record refuses recovery', async t => {
+	const fixture = await makeFixture(t)
+	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
+	await writeJsonTagLines(statusFile, [
+		{code: 202, status: 'accepted'}
+	])
+
+	let error
+	try {
+		loadCommandStatus(statusFile)
+	} catch (caught) {
+		error = caught
+	}
+
+	t.type(error, RecoveryIntegrityError)
+	t.match(error, {
+		file: statusFile,
+		lineNumber: 1,
+		recordKind: 'command status'
+	})
+	t.match(error.message, /missing string field "command"/)
+})
+
+tap.test('malformed durable command log record refuses recovery with explicit integrity error', async t => {
+	const fixture = await makeFixture(t)
+	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
+	const status = new Map()
+	await fs.writeFile(commandLog, '{"id":"truncated"\n')
+
+	let error
+	try {
+		loadCommandLog(status, commandLog)
+	} catch (caught) {
+		error = caught
+	}
+
+	t.type(error, RecoveryIntegrityError)
+	t.match(error, {
+		file: commandLog,
+		lineNumber: 1,
+		recordKind: 'command log'
+	})
+	t.match(error.message, /Invalid command log record/)
+})
+
+tap.test('structurally invalid durable command log record refuses recovery', async t => {
+	const fixture = await makeFixture(t)
+	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
+	const status = new Map()
+	await writeJsonTagLines(commandLog, [
+		{name: 'addPerson', value: {name: 'No id'}}
+	])
+
+	let error
+	try {
+		loadCommandLog(status, commandLog)
+	} catch (caught) {
+		error = caught
+	}
+
+	t.type(error, RecoveryIntegrityError)
+	t.match(error, {
+		file: commandLog,
+		lineNumber: 1,
+		recordKind: 'command log'
+	})
+	t.match(error.message, /missing string field "id"/)
 })

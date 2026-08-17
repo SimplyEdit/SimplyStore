@@ -4,14 +4,59 @@ import JSONTag from '@muze-nl/jsontag'
 export const committedCommandStatus = 'done'
 export const pendingCommandStatus = 'accepted'
 
+export class RecoveryIntegrityError extends Error {
+	constructor(message, options = {}) {
+		const location = options.file && options.lineNumber
+			? ` (${options.file}:${options.lineNumber})`
+			: ''
+		super(`${message}${location}`, {cause: options.cause})
+		this.name = 'RecoveryIntegrityError'
+		this.file = options.file
+		this.lineNumber = options.lineNumber
+		this.recordKind = options.recordKind
+	}
+}
+
+function parseDurableRecord(file, line, lineNumber, recordKind) {
+	try {
+		const record = JSONTag.parse(line)
+		if (!record || typeof record !== 'object' || Array.isArray(record)) {
+			throw new Error(`${recordKind} record must be an object`)
+		}
+		return record
+	} catch (cause) {
+		throw new RecoveryIntegrityError(`Invalid ${recordKind} record`, {
+			file,
+			lineNumber,
+			recordKind,
+			cause
+		})
+	}
+}
+
+function assertStringField(record, field, file, lineNumber, recordKind) {
+	if (typeof record[field] !== 'string' || record[field] === '') {
+		throw new RecoveryIntegrityError(`Invalid ${recordKind} record: missing string field "${field}"`, {
+			file,
+			lineNumber,
+			recordKind
+		})
+	}
+}
+
 export function loadCommandStatus(commandStatusFile, logger = console) {
 	const status = new Map()
 	if (fs.existsSync(commandStatusFile)) {
 		const file = fs.readFileSync(commandStatusFile, 'utf-8')
 		if (file) {
-			const lines = file.split("\n").filter(Boolean)
-			for (const line of lines) {
-				const command = JSONTag.parse(line)
+			const lines = file.split("\n")
+			for (const [index, line] of lines.entries()) {
+				if (!line) {
+					continue
+				}
+				const command = parseDurableRecord(commandStatusFile, line, index + 1, 'command status')
+				assertStringField(command, 'command', commandStatusFile, index + 1, 'command status')
+				assertStringField(command, 'status', commandStatusFile, index + 1, 'command status')
 				status.set(command.command, command)
 			}
 		} else {
@@ -36,9 +81,13 @@ export function loadCommandLog(status, commandLog, taskDefaults = {}) {
 	}
 	const log = fs.readFileSync(commandLog, 'utf-8')
 	if (log) {
-		const lines = log.split("\n").filter(Boolean)
-		for (const line of lines) {
-			const command = JSONTag.parse(line)
+		const lines = log.split("\n")
+		for (const [index, line] of lines.entries()) {
+			if (!line) {
+				continue
+			}
+			const command = parseDurableRecord(commandLog, line, index + 1, 'command log')
+			assertStringField(command, 'id', commandLog, index + 1, 'command log')
 			const state = status.get(command.id)?.status
 			if (state === pendingCommandStatus) {
 				commands.push({
