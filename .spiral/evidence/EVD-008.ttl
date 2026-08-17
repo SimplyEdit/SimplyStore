@@ -10,5 +10,5 @@ project:EVD-008
     sd:verifies [
         a sd:ArtifactReference ;
         sd:artifact project:CYC-009 ;
-        sd:gitCommit "c8e55be"
+        sd:gitCommit "c8e55bea77daea4b1ef70aabac153be7ca8ca7b0"
     ] .
