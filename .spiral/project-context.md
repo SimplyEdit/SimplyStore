@@ -97,6 +97,7 @@ Brownfield reusable Node.js library moving from experimental toward developer-ev
 | Existing public data behavior should be preserved by default | Behavior changes need a cycle-level reason and evidence, especially where `curriculum-store` or other downstream users may depend on it | Human input / explicit |
 | Durability claims require executable evidence | SimplyStore should survive crashes at any update point and recover, or fail instead of silently using corrupted data | Human input / explicit |
 | Production safety must not be overclaimed | VM2 and other known risks remain relevant until explicitly addressed | README, human direction / evidenced |
+| Handler phases must not stay implicit | Future after-change handlers, derived stores, and integrity finalizers need explicit mutation permissions and commit semantics | `DES-002` / evidenced |
 
 ## Developer Evaluation Readiness Bar
 
@@ -193,6 +194,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Non-durability ACID claims lack focused evidence | Monitor | ACID planning check before CYC-011, `design/acid.md`, `IMP-005`, `EVD-010` | Smoke-level tests now cover atomicity, isolation, narrow consistency, and normal duplicate command ID idempotency; broad/domain consistency remains out of scope |
 | Corrupted or altered OD-JSONTag durable data can undermine recovery confidence | Monitor | Human direction before CYC-012, `DES-001`, `IMP-006`, `EVD-011` | Malformed/truncated OD-JSONTag record framing in base and committed changeset files now fails explicitly; malformed-framing uncommitted changesets are ignored; full syntax validation and well-formed tampering need future integrity metadata |
 | Retried command IDs can mislead clients or enqueue duplicate transitions | Monitor | Original durability order in `SRC-001`, `DES-001`, `IMP-007`, `EVD-012` | Retries during active/done/recovered/unsafe states now return the current command status and do not enqueue duplicate transitions in the tested paths; duplicate payload mismatch semantics remain future API work |
+| Legacy index hooks have implicit mutation and external-write semantics | Investigate | `DES-002`, CYC-015 characterization | Current `index.update()` can mutate canonical state, blocks commit on failure, and can leave external derived files behind when it writes before throwing |
 
 ## Reliable Feedback / Reality Sources
 
@@ -250,6 +252,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Durability understanding: `.spiral/understandings/UND-001.md`
 - Durability request: `.spiral/requests/REQ-001.md`
 - Durability invariant design: `.spiral/designs/DES-001.md`
+- After-change handler contract direction: `.spiral/designs/DES-002.md`
 - Baseline archaeology evidence: `.spiral/evidence/EVD-001.md`
 - Durable artifact corruption classification evidence: `.spiral/evidence/EVD-005.md`
 - Process crash fault harness evidence: `.spiral/evidence/EVD-006.md`
