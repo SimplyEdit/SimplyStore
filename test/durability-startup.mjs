@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import { getCommittedCommandIds } from '../src/recovery.mjs'
+import { getCommittedCommandIds, loadCommandLog, loadCommandStatus } from '../src/recovery.mjs'
 
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const loadWorker = path.join(rootDir, 'src/load-worker.mjs')
@@ -29,6 +29,10 @@ async function makeFixture(t) {
 	await fs.writeFile(indexFile, 'export default { create() {}, update() {}, load() { return {} } }\n')
 
 	return {dir, dataFile, indexFile}
+}
+
+async function writeJsonTagLines(file, records) {
+	await fs.writeFile(file, records.map(record => JSONTag.stringify(record)).join('\n') + '\n')
 }
 
 async function writeChangeset(dataFile, commandId, change) {
@@ -98,4 +102,65 @@ tap.test('done command with missing changeset refuses recovery instead of silent
 		/missing changeset|inconsistent/i,
 		'done status without its changeset should be an explicit recovery failure'
 	)
+})
+
+tap.test('durable status file selects only done command changesets for startup', async t => {
+	const fixture = await makeFixture(t)
+	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
+
+	await writeChangeset(fixture.dataFile, 'accepted-command', data => {
+		data.persons.push({name: 'Accepted'})
+	})
+	await writeChangeset(fixture.dataFile, 'done-command', data => {
+		data.persons.push({name: 'Done'})
+	})
+
+	await writeJsonTagLines(statusFile, [
+		{command: 'accepted-command', code: 202, status: 'accepted'},
+		{command: 'done-command', code: 202, status: 'accepted'},
+		{command: 'done-command', code: 200, status: 'done'},
+		{command: 'failed-command', code: 202, status: 'accepted'},
+		{command: 'failed-command', code: 500, status: 'failed'}
+	])
+
+	const status = loadCommandStatus(statusFile)
+	const result = await loadDataset({
+		...fixture,
+		commands: getCommittedCommandIds(status)
+	})
+	const data = parseOd(result.data)
+
+	t.same(data.persons.map(person => person.name), ['Done'])
+})
+
+tap.test('durable command log replays only accepted commands', async t => {
+	const fixture = await makeFixture(t)
+	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
+	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
+
+	await writeJsonTagLines(statusFile, [
+		{command: 'accepted-command', code: 202, status: 'accepted'},
+		{command: 'done-command', code: 200, status: 'done'},
+		{command: 'failed-command', code: 500, status: 'failed'}
+	])
+	await writeJsonTagLines(commandLog, [
+		{id: 'accepted-command', name: 'addPerson', value: {name: 'Accepted'}},
+		{id: 'done-command', name: 'addPerson', value: {name: 'Done'}},
+		{id: 'failed-command', name: 'addPerson', value: {name: 'Failed'}}
+	])
+
+	const taskDefaults = {
+		meta: {source: 'test-meta'},
+		data: ['test-data'],
+		commandsFile: '/commands.mjs',
+		indexFile: '/index.mjs',
+		datafile: fixture.dataFile
+	}
+	const status = loadCommandStatus(statusFile)
+	const commands = loadCommandLog(status, commandLog, taskDefaults)
+
+	t.equal(commands.length, 1)
+	t.equal(commands[0].id, 'accepted-command')
+	t.match(commands[0], taskDefaults)
+	t.equal(JSONTag.parse(commands[0].command).name, 'addPerson')
 })

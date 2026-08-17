@@ -8,7 +8,7 @@ import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
-import { getCommittedCommandIds } from './recovery.mjs'
+import { getCommittedCommandIds, loadCommandLog, loadCommandStatus } from './recovery.mjs'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -54,7 +54,13 @@ async function main(options) {
         process.exit(1)
     }
 
-    let commandQueue = loadCommandLog(status, commandLog)
+    let commandQueue = loadCommandLog(status, commandLog, {
+        meta,
+        data:jsontagBuffers,
+        commandsFile,
+        indexFile,
+        datafile
+    })
 
     const queryWorkerInitTask = () => { 
         return {
@@ -118,59 +124,6 @@ async function main(options) {
     function serveHomepage(req, res) {
         res.setHeader('content-type', 'text/html');
         res.send(fs.readFileSync(wwwroot+'/home.html'))
-    }
-
-    function loadCommandStatus(commandStatusFile) {
-        let status = new Map()
-        if (fs.existsSync(commandStatusFile)) {
-            let file = fs.readFileSync(commandStatusFile, 'utf-8')
-            if (file) {
-                let lines = file.split("\n").filter(Boolean) //filter clears empty lines
-                for(let line of lines) {
-                    let command = JSONTag.parse(line)
-                    status.set(command.command, command)
-                }
-            } else {
-                console.error('Could not open command status',commandStatusFile)
-            }
-        } else {
-            console.log('no command status', commandStatusFile)
-        }
-        return status
-    }
-
-    function loadCommandLog(status, commandLog) {
-        let commands = []
-        if (!fs.existsSync(commandLog)) {
-            return commands
-        }
-        let log = fs.readFileSync(commandLog, 'utf-8')
-        if (log) {
-            let lines = log.split("\n").filter(Boolean)
-            for(let line of lines) {
-                let command = JSONTag.parse(line)
-                let state = status.get(command.id)?.status
-                switch(state) {
-                    case 'accepted': // enqueue
-                        commands.push({
-                            id: command.id,
-                            command: line,
-                            request: null,
-                            meta,
-                            data:jsontagBuffers,
-                            commandsFile,
-                            indexFile,
-                            datafile
-                        })
-                        break;
-                    case 'done': // do nothing
-                        break;
-                    default: // error, do nothing
-                        break;
-                } 
-            }
-        }
-        return commands
     }
 
     function loadData(commands) {
