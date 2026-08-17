@@ -9,6 +9,8 @@ import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
 import { getCommittedCommandIds, loadCommandLog, loadCommandStatus } from './recovery.mjs'
+import { assertRuntimeEnvironmentConfiguration } from './runtime-environment.mjs'
+import { faultPoint } from './faults.mjs'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -16,6 +18,7 @@ let jsontagBuffers = null
 let meta = {}
 
 async function main(options) {
+    assertRuntimeEnvironmentConfiguration()
     if (!options) {
         options = {}
     }  
@@ -230,7 +233,7 @@ async function main(options) {
     }
 
     async function handlePostCommand(req, res) {
-        let commandId = checkCommand(req, res)
+        let commandId = await checkCommand(req, res)
         if (!commandId) {
             return
         }
@@ -259,7 +262,7 @@ async function main(options) {
         } catch(err) {
             let s = {code:err.code||500, status:'failed', message:err.message, details:err.details}
             status.set(commandId, s)
-            appendFile(commandStatus, JSONTag.stringify(Object.assign({command:commandId}, s)))
+            await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:commandId}, s)))
             console.error('ERROR: SimplyStore cannot run command ', commandId, err)
         }
     }
@@ -305,7 +308,7 @@ async function main(options) {
                 }
                 start(
                     // resolve()
-                    (data) => {
+                    async (data) => {
                         let s
                         if (!data || (data.code>=300 && data.code<=499)) {
                             console.error('ERROR: SimplyStore cannot run command ', command.id, data)
@@ -315,9 +318,10 @@ async function main(options) {
                                 s = {code: data.code, status: "failed", message: data.message, details: data.details}
                             }
                             status.set(command.id, s)
-                            appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                            await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                             mainReject(s)
                         } else {
+                            await faultPoint('before-command-done-status')
                             s = {code: 200, status: "done"}
                             status.set(command.id, s)
                             if (data.data) { // data has changed, commands may do other things instead of changing data
@@ -333,15 +337,15 @@ async function main(options) {
                                 queryWorkerPool.update(updateTask)
                                 slowQueryWorkerPool.update(updateTask)
                             }
-                            appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                            await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                             mainResolve(s)
                         }
                     }, 
                     //reject()
-                    (error) => {
+                    async (error) => {
                         let s = {status: "failed", code: error.code, message: error.message, details: error.details}
                         status.set(command.id, s)
-                        appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                        await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
                         console.log('command error', command.id, error)
                         mainReject(s)
                     }
@@ -362,7 +366,7 @@ async function main(options) {
         })
     }
 
-    function checkCommand(req, res) {
+    async function checkCommand(req, res) {
         let error, command, commandOK
         let commandStr = req.body.toString() // raw body through express.raw()
         try {
@@ -403,8 +407,8 @@ async function main(options) {
             sendResponse({code:422, body: JSON.stringify(error)}, res)
             return false      
         }
-        appendFile(commandLog, JSONTag.stringify(command)) //FIXME: this loses request data
-        appendFile(commandStatus, JSONTag.stringify(commandOK))
+        await appendFile(commandLog, JSONTag.stringify(command)) //FIXME: this loses request data
+        await appendFile(commandStatus, JSONTag.stringify(commandOK))
         status.set(command.id, commandOK) 
         sendResponse({code: 202, body: JSON.stringify(commandOK)}, res)
         return command.id
