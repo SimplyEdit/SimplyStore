@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-004.md` (`Full Startup Recovery Harness`).
+Current active Spiral cycle: `.spiral/cycles/CYC-005.md` (`Adopt Culture And Warning Profiles`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-004.md` (`Full Startup Recovery Harness`).
 
 ## Intended Users
 
@@ -80,20 +80,21 @@ Brownfield library moving from experimental toward production-ready. It should r
 
 | Culture/profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| None explicitly adopted yet | Pending intake | Unknown | Spiral requires explicit adoption | Unknown |
+| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `08154063554ef288c9b7567d34018dbffea401e2` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
+| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `08154063554ef288c9b7567d34018dbffea401e2` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
 
 ## Active Warning Profiles
 
 | Warning profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| None explicitly adopted yet | Pending intake | Unknown | Spiral requires explicit adoption | Unknown |
+| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `08154063554ef288c9b7567d34018dbffea401e2` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
 
 ## Intake Risk-Discovery Profiles
 
 | Profile / custom lens | Use / exclude / defer | Applicability here | Why |
 |---|---|---|---|
-| `.spiral-core/profiles/risk-discovery/brownfield-general.md` | Candidate for intake | Likely relevant | Existing project adopting Spiral |
-| `.spiral-core/profiles/risk-discovery/user-facing-interaction.md` | Candidate for intake | Possibly relevant | Query UI and API behavior exist |
+| `.spiral-core/profiles/risk-discovery/brownfield-general.md` | Use | Relevant | Existing project adopting Spiral with important legacy behavior and weak characterization |
+| `.spiral-core/profiles/risk-discovery/user-facing-interaction.md` | Use, narrowed to API/query/command interaction | Relevant | Query UI and API behavior exist; durability failures can create hard-to-recover user-visible states |
 
 ## Intake Metric Profiles
 
