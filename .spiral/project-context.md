@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `9958f0e296e84169c21c02aa478ac4aae5a06a41`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-012.md` (`Adversarial OD-JSONTag Storage Classification`).
+Current active Spiral cycle: `.spiral/cycles/CYC-013.md` (`Retry And Idempotency Hardening`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-012.md` (`Adversarial OD-JSONTag Storage Classification`).
 
 ## Intake State
 
