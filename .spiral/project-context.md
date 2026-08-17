@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-007.md` (`Process Crash Fault Harness`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-006.md` (`Durable Artifact Corruption Classification`).
+Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-007.md` (`Process Crash Fault Harness`).
 
 ## Intended Users
 

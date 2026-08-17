@@ -6,4 +6,4 @@ project:CYC-007
     a sd:Cycle ;
     dcterms:identifier "CYC-007" ;
     sd:repositoryPath ".spiral/cycles/CYC-007.md" ;
-    sd:status sd:Active .
+    sd:status sd:Accepted .
