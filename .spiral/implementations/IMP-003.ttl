@@ -1,0 +1,28 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-003
+    a sd:Implementation ;
+    dcterms:identifier "IMP-003" ;
+    sd:repositoryPath ".spiral/implementations/IMP-003.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "src/recovery.mjs#activeCommandStatus" ;
+    sd:implementationLocation "src/recovery.mjs#unsafeCommandStatus" ;
+    sd:implementationLocation "src/recovery.mjs#recoverActiveCommands" ;
+    sd:implementationLocation "src/recovery.mjs#nextActiveCommandStatus" ;
+    sd:implementationLocation "src/server.mjs#main" ;
+    sd:implementationLocation "src/server.mjs#runNextCommand" ;
+    sd:implementationLocation "test/durability-startup.mjs" ;
+    sd:implementationLocation "test/durability-crash.mjs" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-001 ;
+        sd:gitCommit "bc06e4cd27e3fb2bace13ee85033846dd8092fec"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-008 ;
+        sd:gitCommit "0fa4c441e8e8cb27562486c225bb02e8038d564e"
+    ] ;
+    sd:implementationChangeKind sd:MixedChange .

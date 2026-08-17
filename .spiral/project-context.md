@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-007.md` (`Process Crash Fault Harness`).
+Current active Spiral cycle: `.spiral/cycles/CYC-008.md` (`Accepted Command Replay Safety`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-007.md` (`Process Crash Fault Harness`).
 
 ## Intended Users
 
@@ -150,6 +150,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Durable append promises are no longer fire-and-forget in the command path | Monitor | `IMP-002`, `EVD-006` | Command acceptance and command outcome appends are awaited; deeper filesystem/directory fsync assumptions remain future work |
 | Durable artifact corruption classes are only partly classified | Investigate | `DES-001`, `EVD-005` | Status/log parse and required-field failures are explicit; other inconsistency classes remain future work |
 | Dirty example/development datasets can now fail startup after missing committed changesets | Defer | Human example test after `CYC-006` | Need a future reset/clean script, and possibly explicit recovery tooling if the project chooses to support repair rather than fail-only behavior |
+| Accepted commands can become restart-loop risks when they repeatedly crash during automatic replay | Monitor | `IMP-003`, `EVD-007` | Active command attempts are now recorded durably; after the configured crash threshold, the command is marked `unsafe` and no longer replayed automatically |
 | `runNextCommand()` has likely dead worker-termination branch | Defer | Human/code review during `CYC-003` | Final `mainResolve(false)` appears correct; redundant branch should be cleaned in a later behavior-preserving slice |
 | Larger-system inclusion options are underdefined | Defer | Human input, `SRC-001` | Secondary direction after durability proof; should start with minimal lifecycle seams |
 | Full Spiral intake not complete | Investigate | Current adoption state | Further intake can continue opportunistically as durability cycles reveal concrete questions |
@@ -213,3 +214,4 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Baseline archaeology evidence: `.spiral/evidence/EVD-001.md`
 - Durable artifact corruption classification evidence: `.spiral/evidence/EVD-005.md`
 - Process crash fault harness evidence: `.spiral/evidence/EVD-006.md`
+- Accepted command replay safety evidence: `.spiral/evidence/EVD-007.md`
