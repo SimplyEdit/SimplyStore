@@ -1,10 +1,11 @@
-import tap from 'tap'
+import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import fs from 'node:fs/promises'
 import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
+import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
@@ -26,7 +27,7 @@ async function getOpenPort() {
 
 async function makeServerFixture(t) {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-crash-'))
-	t.teardown(() => fs.rm(dir, {recursive: true, force: true}))
+	t.after(() => fs.rm(dir, {recursive: true, force: true}))
 
 	const datafile = path.join(dir, 'data.jsontag')
 	const commandsFile = path.join(dir, 'commands.mjs')
@@ -86,7 +87,7 @@ function startServer(t, fixture, options = {}) {
 			child.kill('SIGTERM')
 		}
 	}
-	t.teardown(stop)
+	t.after(stop)
 
 	return {child, getOutput: () => output}
 }
@@ -149,20 +150,19 @@ async function queryPersons(port) {
 	return JSONTag.parse(await response.text())
 }
 
-tap.test('runtime environment defaults to production and rejects production fault points', t => {
-	t.equal(getRuntimeEnvironment({}), 'production')
-	t.throws(
+test('runtime environment defaults to production and rejects production fault points', () => {
+	assert.equal(getRuntimeEnvironment({}), 'production')
+	assert.throws(
 		() => assertRuntimeEnvironmentConfiguration({SIMPLYSTORE_FAULT_POINT: 'before-command-done-status'}),
 		/SIMPLYSTORE_FAULT_POINT is only allowed/
 	)
-	t.doesNotThrow(() => assertRuntimeEnvironmentConfiguration({
+	assert.doesNotThrow(() => assertRuntimeEnvironmentConfiguration({
 		SIMPLYSTORE_ENV: 'test',
 		SIMPLYSTORE_FAULT_POINT: 'before-command-done-status'
 	}))
-	t.end()
 })
 
-tap.test('crash before done status replays accepted command on restart', async t => {
+test('crash before done status replays accepted command on restart', async t => {
 	const fixture = await makeServerFixture(t)
 	const port = await getOpenPort()
 	const first = startServer(t, fixture, {
@@ -178,23 +178,23 @@ tap.test('crash before done status replays accepted command on restart', async t
 			name: 'addPerson',
 			value: {name: 'Ada'}
 		})
-		t.equal(response.status, 202)
+		assert.equal(response.status, 202)
 	} catch (error) {
-		t.match(error.message, /fetch failed|terminated|socket|other side closed/i)
+		assert.match(error.message, /fetch failed|terminated|socket|other side closed/i)
 	}
 
 	const crash = await waitForExit(first.child)
-	t.equal(crash.signal, 'SIGKILL')
+	assert.equal(crash.signal, 'SIGKILL')
 
 	const changeset = path.join(fixture.dir, 'data.crash-before-done.jsontag')
-	await t.resolves(fs.access(changeset), 'command worker wrote a changeset before the injected crash')
+	await assert.doesNotReject(fs.access(changeset), 'command worker wrote a changeset before the injected crash')
 
 	const second = startServer(t, fixture, {port})
 	await waitForServer(second.child, second.getOutput, port)
 
 	const persons = await queryPersons(port)
-	t.same(persons.map(person => person.name), ['Ada'])
+	assert.deepEqual(persons.map(person => person.name), ['Ada'])
 
 	const statusFile = await fs.readFile(fixture.commandStatus, 'utf8')
-	t.match(statusFile, /"status":"done"/)
+	assert.match(statusFile, /"status":"done"/)
 })

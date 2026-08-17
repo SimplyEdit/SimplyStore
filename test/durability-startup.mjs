@@ -1,4 +1,5 @@
-import tap from 'tap'
+import assert from 'node:assert/strict'
+import test from 'node:test'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -19,7 +20,7 @@ function parseOd(buffer) {
 
 async function makeFixture(t) {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-durability-'))
-	t.teardown(() => fs.rm(dir, {recursive: true, force: true}))
+	t.after(() => fs.rm(dir, {recursive: true, force: true}))
 
 	const dataFile = path.join(dir, 'data.jsontag')
 	const indexFile = path.join(dir, 'index.mjs')
@@ -70,7 +71,7 @@ function loadDataset({dataFile, indexFile, commands}) {
 	})
 }
 
-tap.test('accepted command changeset is not treated as committed state on startup', async t => {
+test('accepted command changeset is not treated as committed state on startup', async t => {
 	const fixture = await makeFixture(t)
 	await writeChangeset(fixture.dataFile, 'accepted-command', data => {
 		data.persons.push({name: 'Ada'})
@@ -85,16 +86,16 @@ tap.test('accepted command changeset is not treated as committed state on startu
 	})
 	const data = parseOd(result.data)
 
-	t.same(data.persons, [], 'accepted-but-not-done changesets must not become visible after restart')
+	assert.equal(data.persons.length, 0, 'accepted-but-not-done changesets must not become visible after restart')
 })
 
-tap.test('done command with missing changeset refuses recovery instead of silently using base data', async t => {
+test('done command with missing changeset refuses recovery instead of silently using base data', async t => {
 	const fixture = await makeFixture(t)
 	const status = new Map([
 		['done-command-with-missing-changeset', {command: 'done-command-with-missing-changeset', code: 200, status: 'done'}]
 	])
 
-	await t.rejects(
+	await assert.rejects(
 		loadDataset({
 			...fixture,
 			commands: getCommittedCommandIds(status)
@@ -104,7 +105,7 @@ tap.test('done command with missing changeset refuses recovery instead of silent
 	)
 })
 
-tap.test('durable status file selects only done command changesets for startup', async t => {
+test('durable status file selects only done command changesets for startup', async t => {
 	const fixture = await makeFixture(t)
 	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
 
@@ -130,10 +131,10 @@ tap.test('durable status file selects only done command changesets for startup',
 	})
 	const data = parseOd(result.data)
 
-	t.same(data.persons.map(person => person.name), ['Done'])
+	assert.deepEqual(data.persons.map(person => person.name), ['Done'])
 })
 
-tap.test('durable command log replays only accepted commands', async t => {
+test('durable command log replays only accepted commands', async t => {
 	const fixture = await makeFixture(t)
 	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
 	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
@@ -159,13 +160,18 @@ tap.test('durable command log replays only accepted commands', async t => {
 	const status = loadCommandStatus(statusFile)
 	const commands = loadCommandLog(status, commandLog, taskDefaults)
 
-	t.equal(commands.length, 1)
-	t.equal(commands[0].id, 'accepted-command')
-	t.match(commands[0], taskDefaults)
-	t.equal(JSONTag.parse(commands[0].command).name, 'addPerson')
+	assert.equal(commands.length, 1)
+	assert.equal(commands[0].id, 'accepted-command')
+	assert.deepEqual(commands[0], {
+		...taskDefaults,
+		id: 'accepted-command',
+		command: JSONTag.stringify({id: 'accepted-command', name: 'addPerson', value: {name: 'Accepted'}}),
+		request: null
+	})
+	assert.equal(JSONTag.parse(commands[0].command).name, 'addPerson')
 })
 
-tap.test('malformed durable status record refuses recovery with explicit integrity error', async t => {
+test('malformed durable status record refuses recovery with explicit integrity error', async t => {
 	const fixture = await makeFixture(t)
 	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
 	await fs.writeFile(statusFile, '{"command":"truncated"\n')
@@ -177,16 +183,14 @@ tap.test('malformed durable status record refuses recovery with explicit integri
 		error = caught
 	}
 
-	t.type(error, RecoveryIntegrityError)
-	t.match(error, {
-		file: statusFile,
-		lineNumber: 1,
-		recordKind: 'command status'
-	})
-	t.match(error.message, /Invalid command status record/)
+	assert.ok(error instanceof RecoveryIntegrityError)
+	assert.equal(error.file, statusFile)
+	assert.equal(error.lineNumber, 1)
+	assert.equal(error.recordKind, 'command status')
+	assert.match(error.message, /Invalid command status record/)
 })
 
-tap.test('structurally invalid durable status record refuses recovery', async t => {
+test('structurally invalid durable status record refuses recovery', async t => {
 	const fixture = await makeFixture(t)
 	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
 	await writeJsonTagLines(statusFile, [
@@ -200,16 +204,14 @@ tap.test('structurally invalid durable status record refuses recovery', async t 
 		error = caught
 	}
 
-	t.type(error, RecoveryIntegrityError)
-	t.match(error, {
-		file: statusFile,
-		lineNumber: 1,
-		recordKind: 'command status'
-	})
-	t.match(error.message, /missing string field "command"/)
+	assert.ok(error instanceof RecoveryIntegrityError)
+	assert.equal(error.file, statusFile)
+	assert.equal(error.lineNumber, 1)
+	assert.equal(error.recordKind, 'command status')
+	assert.match(error.message, /missing string field "command"/)
 })
 
-tap.test('malformed durable command log record refuses recovery with explicit integrity error', async t => {
+test('malformed durable command log record refuses recovery with explicit integrity error', async t => {
 	const fixture = await makeFixture(t)
 	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
 	const status = new Map()
@@ -222,16 +224,14 @@ tap.test('malformed durable command log record refuses recovery with explicit in
 		error = caught
 	}
 
-	t.type(error, RecoveryIntegrityError)
-	t.match(error, {
-		file: commandLog,
-		lineNumber: 1,
-		recordKind: 'command log'
-	})
-	t.match(error.message, /Invalid command log record/)
+	assert.ok(error instanceof RecoveryIntegrityError)
+	assert.equal(error.file, commandLog)
+	assert.equal(error.lineNumber, 1)
+	assert.equal(error.recordKind, 'command log')
+	assert.match(error.message, /Invalid command log record/)
 })
 
-tap.test('structurally invalid durable command log record refuses recovery', async t => {
+test('structurally invalid durable command log record refuses recovery', async t => {
 	const fixture = await makeFixture(t)
 	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
 	const status = new Map()
@@ -246,11 +246,9 @@ tap.test('structurally invalid durable command log record refuses recovery', asy
 		error = caught
 	}
 
-	t.type(error, RecoveryIntegrityError)
-	t.match(error, {
-		file: commandLog,
-		lineNumber: 1,
-		recordKind: 'command log'
-	})
-	t.match(error.message, /missing string field "id"/)
+	assert.ok(error instanceof RecoveryIntegrityError)
+	assert.equal(error.file, commandLog)
+	assert.equal(error.lineNumber, 1)
+	assert.equal(error.recordKind, 'command log')
+	assert.match(error.message, /missing string field "id"/)
 })
