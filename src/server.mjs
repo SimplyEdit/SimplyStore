@@ -8,14 +8,37 @@ import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
-import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, nextActiveCommandStatus, pendingCommandStatus, recoverActiveCommands } from './recovery.mjs'
+import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, nextActiveCommandStatus, pendingCommandStatus, recoverActiveCommands, unsafeCommandStatus } from './recovery.mjs'
 import { assertRuntimeEnvironmentConfiguration } from './runtime-environment.mjs'
 import { faultPoint } from './faults.mjs'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+const defaultCommandTimeout = 30000
+const defaultLoadTimeout = 30000
 let jsontagBuffers = null
 let meta = {}
+
+class WorkerTimeoutError extends Error {
+    constructor(workerKind, timeout) {
+        super(`${workerKind} timed out after ${timeout}ms`)
+        this.name = 'WorkerTimeoutError'
+        this.code = 504
+        this.timeout = timeout
+        this.workerKind = workerKind
+    }
+}
+
+function normalizeWorkerTimeout(name, value, defaultValue) {
+    if (value === 0 || value === false || value === null || value === Infinity) {
+        return 0
+    }
+    const timeout = value ?? defaultValue
+    if (!Number.isFinite(timeout) || timeout < 0) {
+        throw new Error(`${name} must be a non-negative finite number, 0, false, null, or Infinity`)
+    }
+    return timeout
+}
 
 async function main(options) {
     assertRuntimeEnvironmentConfiguration()
@@ -38,6 +61,8 @@ async function main(options) {
     const access        = options.access        || null
     const timeout       = options.timeout       || 1000
     const slowTimeout   = options.slowTimeout   || 10000
+    const commandTimeout = normalizeWorkerTimeout('commandTimeout', options.commandTimeout, defaultCommandTimeout)
+    const loadTimeout    = normalizeWorkerTimeout('loadTimeout', options.loadTimeout, defaultLoadTimeout)
 
     server.get('/', serveHomepage)
 
@@ -90,6 +115,7 @@ async function main(options) {
     let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
     let slowQueryWorkerPool = new WorkerPool(1, queryWorker, slowQueryWorkerInitTask())
     let commandWorkerInstance
+    let commandRunnerActive = false
 
     server.get('/query/', (req,next) => handleGetQuery(req,next))
     server.get('/query/*remainder', (req,next) => handleGetQuery(req,next))
@@ -111,14 +137,11 @@ async function main(options) {
         console.error(`Port ${port} is already occupied, aborting.`)
         process.exit()
     } catch {
-        let result
-        do {
-            try {
-                result = await runNextCommand()
-            } catch {
-                // console.log(err) // ignore errors here, already logged to console
-            }
-        } while(result)
+        try {
+            await drainCommandQueue()
+        } catch {
+            // console.log(err) // ignore errors here, already logged to console
+        }
         server.listen(port, () => {
             console.log('SimplyStore listening on port '+port)
             let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
@@ -136,15 +159,36 @@ async function main(options) {
     function loadData(commands) {
         return new Promise((resolve,reject) => {
             let worker = new Worker(loadWorker)
+            let settled = false
+            let timeoutId
+            const finish = async (settle, value) => {
+                if (settled) {
+                    return
+                }
+                settled = true
+                if (timeoutId) {
+                    clearTimeout(timeoutId)
+                }
+                await worker.terminate()
+                settle(value)
+            }
+            if (loadTimeout) {
+                timeoutId = setTimeout(() => {
+                    const error = new WorkerTimeoutError('load worker', loadTimeout)
+                    void finish(reject, error)
+                }, loadTimeout)
+            }
             worker.on('message', result => {
-                resolve(result)
-                worker.terminate()
+                void finish(resolve, result)
             })
             worker.on('error', error => {
-                reject(error)
-                worker.terminate()
+                void finish(reject, error)
             })
-            worker.postMessage({dataFile:datafile,indexFile,schemaFile,commands})
+            try {
+                worker.postMessage({dataFile:datafile,indexFile,schemaFile,commands})
+            } catch (error) {
+                void finish(reject, error)
+            }
         })
     }
 
@@ -259,10 +303,7 @@ async function main(options) {
                 indexFile,
                 datafile                
             })
-            let result
-            do {
-                result = await runNextCommand()
-            } while(result)
+            await drainCommandQueue()
         } catch(err) {
             let s = {code:err.code||500, status:'failed', message:err.message, details:err.details}
             status.set(commandId, s)
@@ -287,10 +328,25 @@ async function main(options) {
         }
     }
 
+    async function drainCommandQueue() {
+        if (commandRunnerActive) {
+            return
+        }
+        commandRunnerActive = true
+        try {
+            let result
+            do {
+                result = await runNextCommand()
+            } while(result)
+        } finally {
+            commandRunnerActive = false
+        }
+    }
+
     async function runNextCommand() {
         return new Promise((mainResolve, mainReject) => {
             if (commandWorkerInstance) {
-                mainReject('commandWorker already running')
+                mainResolve(false)
                 return
             }
             let command = commandQueue.shift()
@@ -301,18 +357,49 @@ async function main(options) {
             if (command) {
                 console.log('starting command',command.id)
                 let start = (resolve, reject) => {
-                    commandWorkerInstance = new Worker(commandWorker)
-                    commandWorkerInstance.on('message', async result => {
-                        await commandWorkerInstance.terminate()
-                        commandWorkerInstance = null
-                        resolve(result)
+                    const worker = new Worker(commandWorker)
+                    commandWorkerInstance = worker
+                    let settled = false
+                    let timeoutId
+                    const finish = async (settle, value) => {
+                        if (settled) {
+                            return
+                        }
+                        settled = true
+                        if (timeoutId) {
+                            clearTimeout(timeoutId)
+                        }
+                        await worker.terminate()
+                        if (commandWorkerInstance === worker) {
+                            commandWorkerInstance = null
+                        }
+                        settle(value)
+                    }
+                    if (commandTimeout) {
+                        timeoutId = setTimeout(() => {
+                            const error = new WorkerTimeoutError('command worker', commandTimeout)
+                            void finish(resolve, {
+                                code: error.code,
+                                status: unsafeCommandStatus,
+                                message: error.message,
+                                details: {
+                                    timeout: error.timeout,
+                                    workerKind: error.workerKind
+                                }
+                            })
+                        }, commandTimeout)
+                    }
+                    worker.on('message', result => {
+                        void finish(resolve, result)
                     })
-                    commandWorkerInstance.on('error', async error => {
-                        await commandWorkerInstance.terminate()
-                        commandWorkerInstance = null
-                        reject(error)
+                    worker.on('error', error => {
+                        void finish(reject, error)
                     })
-                    commandWorkerInstance.postMessage(command)
+                    try {
+                        worker.postMessage(command)
+                    } catch (error) {
+                        void finish(reject, error)
+                    }
                 }
                 const activeStatus = nextActiveCommandStatus(command.id, status.get(command.id))
                 status.set(command.id, activeStatus)
@@ -323,7 +410,18 @@ async function main(options) {
                         // resolve()
                         async (data) => {
                             let s
-                            if (!data || (data.code>=300 && data.code<=499)) {
+                            if (data?.status === unsafeCommandStatus) {
+                                s = {
+                                    code: data.code || 504,
+                                    status: unsafeCommandStatus,
+                                    message: data.message,
+                                    details: data.details,
+                                    attempt: activeStatus.attempt
+                                }
+                                status.set(command.id, s)
+                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
+                                mainResolve(s)
+                            } else if (!data || (data.code>=300 && data.code<=499)) {
                                 console.error('ERROR: SimplyStore cannot run command ', command.id, data)
                                 if (!data?.code) {
                                     s = {code: 500, status: "failed"}
