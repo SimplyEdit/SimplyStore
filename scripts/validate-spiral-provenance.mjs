@@ -291,12 +291,14 @@ function validateBranchCycle() {
 		throw new Error(`Expected CYC-016 branch, got ${branch}`)
 	}
 	const context = fs.readFileSync(path.join(root, '.spiral/project-context.md'), 'utf8')
-	if (!context.includes('Current active Spiral cycle: `.spiral/cycles/CYC-016.md`')) {
-		throw new Error('project context does not point at CYC-016')
+	const contextNamesCyc016 = context.includes('Current active Spiral cycle: `.spiral/cycles/CYC-016.md`')
+		|| context.includes('Latest accepted Spiral cycle: `.spiral/cycles/CYC-016.md`')
+	if (!contextNamesCyc016) {
+		throw new Error('project context does not identify CYC-016 as active or latest accepted')
 	}
 	const cycle = currentGraph.get('CYC-016')
-	if (!cycle || cycle.status !== 'Active') {
-		throw new Error('CYC-016 TTL is not active')
+	if (!cycle || !['Active', 'Accepted'].includes(cycle.status)) {
+		throw new Error('CYC-016 TTL is neither active nor accepted')
 	}
 	return branch
 }

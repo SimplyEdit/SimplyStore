@@ -27,6 +27,11 @@ project:IMP-010
     sd:implementationLocation ".spiral/evidence/EVD-008.md" ;
     sd:implementationLocation ".spiral/evidence/EVD-008.ttl" ;
     sd:implementationLocation "scripts/validate-spiral-provenance.mjs" ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-010 ;
+        sd:gitCommit "2006532235a6e6fb7366747026d6849827fcad4a"
+    ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;
         sd:artifact project:CYC-016 ;
