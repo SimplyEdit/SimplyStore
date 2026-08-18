@@ -68,7 +68,10 @@ export function startServer(t, fixture, options = {}) {
 				commandStatus: fixture.commandStatus,
 				wwwroot: path.join(rootDir, 'www'),
 				maxWorkers: 1,
-				maxCommandCrashAttempts: options.maxCommandCrashAttempts
+				maxCommandCrashAttempts: options.maxCommandCrashAttempts,
+				commandTimeout: options.commandTimeout,
+				loadTimeout: options.loadTimeout,
+				loadWorker: options.loadWorker
 			})
 		},
 		stdio: ['ignore', 'pipe', 'pipe']

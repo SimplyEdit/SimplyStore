@@ -274,6 +274,87 @@ test('repeated active command crashes are marked unsafe instead of replaying for
 	assert.match(statusFile, /"status":"unsafe"/)
 })
 
+test('hanging command times out unsafe and later accepted command commits', async t => {
+	const fixture = await makeServerFixture(t, {
+		commandsSource: `export default {
+	hang: () => {
+		while (true) {}
+	},
+	addPerson: (dataspace, command) => {
+		dataspace.persons.push(command.value)
+	}
+}
+`
+	})
+	const port = await getOpenPort()
+	const running = startServer(t, fixture, {
+		port,
+		commandTimeout: 100
+	})
+	await waitForServer(running.child, running.getOutput, port)
+
+	const timeoutResponse = await postCommand(port, {
+		id: 'timeout-command',
+		name: 'hang'
+	})
+	assert.equal(timeoutResponse.status, 202)
+
+	const queuedResponse = await postCommand(port, {
+		id: 'after-timeout',
+		name: 'addPerson',
+		value: {name: 'After Timeout'}
+	})
+	assert.equal(queuedResponse.status, 202)
+
+	const timeoutStatus = await waitForCommandStatus(port, 'timeout-command', 'unsafe')
+	assert.equal(timeoutStatus.code, 504)
+	assert.equal(timeoutStatus.attempt, 1)
+	assert.match(timeoutStatus.message, /command worker timed out after 100ms/)
+
+	await waitForCommandStatus(port, 'after-timeout', 'done')
+
+	const retryStatus = await postCommandStatus(port, {
+		id: 'timeout-command',
+		name: 'addPerson',
+		value: {name: 'Retry'}
+	})
+	assert.equal(retryStatus.command, 'timeout-command')
+	assert.equal(retryStatus.status, 'unsafe')
+	assert.equal(retryStatus.attempt, 1)
+
+	await assertServerStateMatchesOracle(port, fixture, ['After Timeout'])
+
+	const statusRecords = await readCommandStatusRecords(fixture)
+	assert.deepEqual(
+		statusRecords
+			.filter(record => record.command === 'timeout-command')
+			.map(record => record.status),
+		['accepted', 'active', 'unsafe']
+	)
+})
+
+test('hanging load worker fails startup explicitly', async t => {
+	const fixture = await makeServerFixture(t)
+	const loadWorker = path.join(fixture.dir, 'hang-load-worker.mjs')
+	await fs.writeFile(loadWorker, `import { parentPort } from 'node:worker_threads'
+
+parentPort.on('message', () => {
+	while (true) {}
+})
+`)
+	const port = await getOpenPort()
+	const running = startServer(t, fixture, {
+		port,
+		loadWorker,
+		loadTimeout: 100
+	})
+
+	const exit = await waitForExit(running.child)
+	assert.equal(exit.code, 1)
+	assert.match(running.getOutput(), /load worker timed out after 100ms/)
+	assert.doesNotMatch(running.getOutput(), /SimplyStore listening/)
+})
+
 test('normal restart preserves committed state according to reconstruction oracle', async t => {
 	const fixture = await makeServerFixture(t)
 	const port = await getOpenPort()
