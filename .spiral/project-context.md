@@ -16,7 +16,7 @@ Repository/baseline: `https://github.com/simplyedit/simplystore`, local authorit
 
 Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spiral#`
 
-Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `999218568a07efbab478890824df66ca698f5c25`.
+Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `3111b784531e327da75801f5ba8b61e891341d5f`.
 
 Current active Spiral cycle: `.spiral/cycles/CYC-016.md` (`Causal Provenance Graph Repair`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-015.md` (`After-Change Handler Contract Archaeology`). CYC-016 intentionally branches from CYC-015 to validate recent after-change/index characterization provenance.
 
@@ -64,6 +64,10 @@ The first production-readiness priority is proving more of SimplyStore's ACID cl
 The current durability/extensibility source is `.spiral/sources/SRC-001.md`. The first ordered slice is baseline archaeology, followed by a crash/fault-injection harness, an independent reconstruction oracle, adversarial storage tests, retry/idempotency hardening, after-change handler contracts, handler failure evidence, optional integrity roots, integrity acceptance tests, property/randomized durability tests, destructive soak tests, a minimal post-commit extension seam, a demonstration derived store, and `DURABILITY.md`.
 
 Process continuity rule: before proposing the next durability/production-readiness cycle, re-read `.spiral/sources/SRC-001.md`, `.spiral/requests/REQ-001.md`, and `.spiral/designs/DES-001.md`; identify the current position in that ordered plan; compare the latest evidence with it; and explicitly classify the proposal as continue, revise, or deliberate deviation.
+
+Current Spiral collaboration rule: treat planning, evaluation, and ambiguous human suggestions as discourse until a sufficiently explicit commitment exists. Human confirmation of a cycle goal is the commitment boundary for execution within that goal; later tentative comments should not silently become scope expansion. Before commitment, surface material ambiguities, contradictions, unsupported premises, or alternative framings when resolving them differently could materially change downstream work.
+
+Current Spiral risk-selection rule: when choosing the next risk to reduce, consider uncertainty, downstream leverage, late-discovery cost, and cheap falsifiability. Existing blocker/near-term/deferred/existential horizons remain useful disposition metadata, but they are not a scoring model or a substitute for asking what later work depends on an assumption.
 
 A later/secondary direction is adding more options for including SimplyStore as part of a larger system. This should happen through minimal lifecycle seams, not by implementing Kafka, queues, topics, consumer groups, webhooks, a message bus, or an event-sourcing framework in SimplyStore core before evidence requires it.
 
@@ -137,14 +141,14 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 
 | Culture/profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
-| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
+| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
+| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
 
 ## Active Warning Profiles
 
 | Warning profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
+| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
 
 ## Intake Risk-Discovery Profiles
 

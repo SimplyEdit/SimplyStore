@@ -10,9 +10,14 @@ project:IMP-008
     sd:implementationLocation ".spiral-core" ;
     sd:implementationLocation "AGENTS.md" ;
     sd:implementationLocation ".spiral/project-context.md" ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-008 ;
+        sd:gitCommit "f1ee9cdc220562a7aa1d09bda867f9c55398795d"
+    ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;
-        sd:artifact project:CYC-014 ;
-        sd:gitCommit "0951c2269b2efba2d441a0738d9d6ea1eb990bf3"
+        sd:artifact project:CYC-016 ;
+        sd:gitCommit "36fc816a6357b57f99843359aeb4a2329677d6c1"
     ] ;
     sd:implementationChangeKind sd:BehaviorPreservingChange .
