@@ -1,0 +1,16 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+sd:derivedFrom rdfs:subPropertyOf sd:causalReference .
+sd:interprets rdfs:subPropertyOf sd:causalReference .
+sd:satisfies rdfs:subPropertyOf sd:causalReference .
+sd:supports rdfs:subPropertyOf sd:causalReference .
+sd:constrainedBy rdfs:subPropertyOf sd:causalReference .
+sd:shapedBy rdfs:subPropertyOf sd:causalReference .
+sd:adoptsCulture rdfs:subPropertyOf sd:causalReference .
+sd:adoptsWarningProfile rdfs:subPropertyOf sd:causalReference .
+sd:implements rdfs:subPropertyOf sd:causalReference .
+sd:verifies rdfs:subPropertyOf sd:causalReference .
+sd:accepts rdfs:subPropertyOf sd:causalReference .
+sd:observes rdfs:subPropertyOf sd:causalReference .
+sd:supersedes rdfs:subPropertyOf sd:causalReference .

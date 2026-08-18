@@ -11,11 +11,12 @@ project:IMP-20260818-09ZEF-1
     sd:implementationLocation "AGENTS.md" ;
     sd:implementationLocation ".spiral/project-context.md" ;
     sd:implementationLocation ".github/workflows/spiral-integration.yml" ;
+    sd:implementationLocation ".spiral/vocabulary.ttl" ;
     sd:implementationLocation "scripts/validate-spiral-provenance.mjs" ;
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-20260818-09ZEF-1 ;
-        sd:gitCommit "278a9cacc55464644276f3ef904a646b91998300"
+        sd:gitCommit "569e0eaab953b6294ba1c9e04204b25f95612df4"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;

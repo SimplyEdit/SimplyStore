@@ -34,4 +34,4 @@ jobs:
           --head '${{ github.event.pull_request.head.sha }}'
 
       - if: github.event_name == 'merge_group'
-        run: node .spiral-core/bin/spiral.mjs validate
+        run: python .spiral-core/bin/spiral-rdf.py --repo . --tree '${{ github.sha }}'

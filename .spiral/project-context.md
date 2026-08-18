@@ -56,7 +56,11 @@ node .spiral-core/bin/spiral.mjs validate integration --base master --head <cand
 
 or use a hosting/CI check that validates the exact prospective merged or merge-queue result. `.github/workflows/spiral-integration.yml` was added in CYC-018 as the repository adapter for pull requests and GitHub merge groups. Repository hosting settings still need to make the check required if it is meant to block merges.
 
-Local validator dependency: the current Spiral CLI requires Python `rdflib` from `.spiral-core/requirements.txt`. This local environment currently lacks `rdflib`, `python3-venv`, `uv`, and `pipx`, and PEP 668 blocks user-site pip installs. CI installs the dependency explicitly; local validation requires a prepared Python environment.
+Local validator dependency: the current Spiral CLI requires Python `rdflib` from `.spiral-core/requirements.txt`. This local environment can run validation with a temporary virtual environment whose `bin` directory is first on `PATH`. CI installs the dependency explicitly.
+
+Local validator limitation: `node .spiral-core/bin/spiral.mjs validate` currently scans the `.spiral-core` submodule's own Turtle files and reports duplicate legacy artifact identifiers. Use prospective tree/integration validation for SimplyStore until upstream validator behavior excludes nested process repositories.
+
+Local vocabulary: `.spiral/vocabulary.ttl` carries the minimal Spiral relation hierarchy needed for tree-based validation of this consuming repository. Without it, integration validation sees the `.spiral-core` submodule only as a Git gitlink and cannot derive `sd:causalReference` subproperties from the core ontology.
 
 Artifact allocation: new Spiral artifacts after CYC-018 should use distributed-safe IDs allocated by:
 
