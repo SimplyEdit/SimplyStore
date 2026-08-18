@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `999218568a07efbab478890824df66ca698f5c25`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-016.md` (`Causal Provenance Graph Repair`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-014.md` (`Spiral Core Plan Continuity Update`). CYC-015 remains open on the branch ancestry because CYC-016 intentionally branches from it to validate recent after-change/index characterization provenance.
+Current active Spiral cycle: `.spiral/cycles/CYC-016.md` (`Causal Provenance Graph Repair`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-015.md` (`After-Change Handler Contract Archaeology`). CYC-016 intentionally branches from CYC-015 to validate recent after-change/index characterization provenance.
 
 ## Intake State
 
