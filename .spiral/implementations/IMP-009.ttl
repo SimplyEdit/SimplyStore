@@ -2,18 +2,22 @@
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
 
-project:IMP-008
+project:IMP-009
     a sd:Implementation ;
-    dcterms:identifier "IMP-008" ;
-    sd:repositoryPath ".spiral/implementations/IMP-008.md" ;
+    dcterms:identifier "IMP-009" ;
+    sd:repositoryPath ".spiral/implementations/IMP-009.md" ;
     sd:status sd:Active ;
-    sd:implementationLocation ".spiral-core" ;
-    sd:implementationLocation "AGENTS.md" ;
-    sd:implementationLocation ".spiral/project-context.md" ;
+    sd:implementationLocation "test/after-change-handlers.mjs" ;
+    sd:implementationLocation "package.json#scripts.test:handlers" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-002 ;
+        sd:gitCommit "50155591f6e294be5fec3f93fa95406c11128e63"
+    ] ;
     sd:transforms [
         a sd:ArtifactReference ;
-        sd:artifact project:IMP-008 ;
-        sd:gitCommit "f1ee9cdc220562a7aa1d09bda867f9c55398795d"
+        sd:artifact project:IMP-009 ;
+        sd:gitCommit "313b5b71016067388c542120712082d6023d87d4"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;

@@ -47,6 +47,10 @@ Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifa
 - Treat `master` as the authoritative branch unless the human states otherwise.
 - For ordinary repository-changing Spiral cycle work, create one dedicated branch from the authoritative branch, normally `spiral/CYC-###-short-goal`.
 - Preserve Git history as evidence. Do not amend, rebase, squash, reset, or force-push causal cycle history.
+- Treat planning, evaluation, and ambiguous human suggestions as discourse until there is an explicit commitment. Do not turn tentative comments into scope or architecture merely because they are implementable.
+- Treat human confirmation of a sufficiently explicit cycle goal as the commitment boundary for execution within that goal and its non-goals.
+- Surface material ambiguity, contradiction, unsupported premise, or alternative framing before commitment when resolving it differently would plausibly change what is built, tested, accepted, or treated as the problem.
 - Before consequential product changes from direct human input, present the Spiral checkpoint: **My understanding / Current effective behavior / Evidenced gap / Material assumptions**, then wait for confirmation or correction.
 - When a governing multi-cycle plan exists, do not choose the next cycle from the newest discovery alone; explicitly classify the next proposal as `continue`, `revise`, or `deliberate deviation`.
+- When risk influences the next cycle, prefer reducing uncertain assumptions with high downstream leverage, high late-discovery cost, and cheap falsifiability. Use blocker/near-term/deferred/existential horizons as disposition metadata, not as a substitute for leverage reasoning.
 - Keep brownfield investigation proportional. Learn enough about the relevant behavior before changing it, and separate explicit, evidenced, inferred, and unknown knowledge.

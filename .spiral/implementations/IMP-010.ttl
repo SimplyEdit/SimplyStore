@@ -1,0 +1,40 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-010
+    a sd:Implementation ;
+    dcterms:identifier "IMP-010" ;
+    sd:repositoryPath ".spiral/implementations/IMP-010.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation ".spiral/sources/SRC-001.md" ;
+    sd:implementationLocation ".spiral/sources/SRC-001.ttl" ;
+    sd:implementationLocation ".spiral/understandings/UND-001.md" ;
+    sd:implementationLocation ".spiral/understandings/UND-001.ttl" ;
+    sd:implementationLocation ".spiral/requests/REQ-001.md" ;
+    sd:implementationLocation ".spiral/requests/REQ-001.ttl" ;
+    sd:implementationLocation ".spiral/designs/DES-001.md" ;
+    sd:implementationLocation ".spiral/designs/DES-001.ttl" ;
+    sd:implementationLocation ".spiral/designs/DES-002.md" ;
+    sd:implementationLocation ".spiral/designs/DES-002.ttl" ;
+    sd:implementationLocation ".spiral/implementations/IMP-001.ttl" ;
+    sd:implementationLocation ".spiral/implementations/IMP-002.ttl" ;
+    sd:implementationLocation ".spiral/implementations/IMP-003.ttl" ;
+    sd:implementationLocation ".spiral/implementations/IMP-004.ttl" ;
+    sd:implementationLocation ".spiral/implementations/IMP-006.ttl" ;
+    sd:implementationLocation ".spiral/implementations/IMP-007.ttl" ;
+    sd:implementationLocation ".spiral/implementations/IMP-009.ttl" ;
+    sd:implementationLocation ".spiral/evidence/EVD-008.md" ;
+    sd:implementationLocation ".spiral/evidence/EVD-008.ttl" ;
+    sd:implementationLocation "scripts/validate-spiral-provenance.mjs" ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-010 ;
+        sd:gitCommit "2006532235a6e6fb7366747026d6849827fcad4a"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-016 ;
+        sd:gitCommit "36fc816a6357b57f99843359aeb4a2329677d6c1"
+    ] ;
+    sd:implementationChangeKind sd:BehaviorPreservingChange .

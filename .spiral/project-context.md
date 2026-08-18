@@ -16,9 +16,9 @@ Repository/baseline: `https://github.com/simplyedit/simplystore`, local authorit
 
 Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spiral#`
 
-Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `999218568a07efbab478890824df66ca698f5c25`.
+Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `3111b784531e327da75801f5ba8b61e891341d5f`.
 
-Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-014.md` (`Spiral Core Plan Continuity Update`).
+Current active Spiral cycle: none. Latest accepted Spiral cycle: `.spiral/cycles/CYC-016.md` (`Causal Provenance Graph Repair`). CYC-016 intentionally branches from CYC-015 to validate recent after-change/index characterization provenance; both cycles are now accepted.
 
 ## Intake State
 
@@ -65,6 +65,10 @@ The current durability/extensibility source is `.spiral/sources/SRC-001.md`. The
 
 Process continuity rule: before proposing the next durability/production-readiness cycle, re-read `.spiral/sources/SRC-001.md`, `.spiral/requests/REQ-001.md`, and `.spiral/designs/DES-001.md`; identify the current position in that ordered plan; compare the latest evidence with it; and explicitly classify the proposal as continue, revise, or deliberate deviation.
 
+Current Spiral collaboration rule: treat planning, evaluation, and ambiguous human suggestions as discourse until a sufficiently explicit commitment exists. Human confirmation of a cycle goal is the commitment boundary for execution within that goal; later tentative comments should not silently become scope expansion. Before commitment, surface material ambiguities, contradictions, unsupported premises, or alternative framings when resolving them differently could materially change downstream work.
+
+Current Spiral risk-selection rule: when choosing the next risk to reduce, consider uncertainty, downstream leverage, late-discovery cost, and cheap falsifiability. Existing blocker/near-term/deferred/existential horizons remain useful disposition metadata, but they are not a scoring model or a substitute for asking what later work depends on an assumption.
+
 A later/secondary direction is adding more options for including SimplyStore as part of a larger system. This should happen through minimal lifecycle seams, not by implementing Kafka, queues, topics, consumer groups, webhooks, a message bus, or an event-sourcing framework in SimplyStore core before evidence requires it.
 
 ## Project Goals And Important Outcomes
@@ -97,6 +101,7 @@ Brownfield reusable Node.js library moving from experimental toward developer-ev
 | Existing public data behavior should be preserved by default | Behavior changes need a cycle-level reason and evidence, especially where `curriculum-store` or other downstream users may depend on it | Human input / explicit |
 | Durability claims require executable evidence | SimplyStore should survive crashes at any update point and recover, or fail instead of silently using corrupted data | Human input / explicit |
 | Production safety must not be overclaimed | VM2 and other known risks remain relevant until explicitly addressed | README, human direction / evidenced |
+| Handler phases must not stay implicit | Future after-change handlers, derived stores, and integrity finalizers need explicit mutation permissions and commit semantics | `DES-002` / evidenced |
 
 ## Developer Evaluation Readiness Bar
 
@@ -136,14 +141,14 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 
 | Culture/profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
-| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
+| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
+| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
 
 ## Active Warning Profiles
 
 | Warning profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `999218568a07efbab478890824df66ca698f5c25` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
+| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
 
 ## Intake Risk-Discovery Profiles
 
@@ -193,6 +198,8 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Non-durability ACID claims lack focused evidence | Monitor | ACID planning check before CYC-011, `design/acid.md`, `IMP-005`, `EVD-010` | Smoke-level tests now cover atomicity, isolation, narrow consistency, and normal duplicate command ID idempotency; broad/domain consistency remains out of scope |
 | Corrupted or altered OD-JSONTag durable data can undermine recovery confidence | Monitor | Human direction before CYC-012, `DES-001`, `IMP-006`, `EVD-011` | Malformed/truncated OD-JSONTag record framing in base and committed changeset files now fails explicitly; malformed-framing uncommitted changesets are ignored; full syntax validation and well-formed tampering need future integrity metadata |
 | Retried command IDs can mislead clients or enqueue duplicate transitions | Monitor | Original durability order in `SRC-001`, `DES-001`, `IMP-007`, `EVD-012` | Retries during active/done/recovered/unsafe states now return the current command status and do not enqueue duplicate transitions in the tested paths; duplicate payload mismatch semantics remain future API work |
+| Legacy index hooks have implicit mutation and external-write semantics | Investigate | `DES-002`, CYC-015 characterization | Current `index.update()` can mutate canonical state, blocks commit on failure, and can leave external derived files behind when it writes before throwing |
+| Command timeouts can leave command progress ambiguous without a process crash | Defer | Human risk assessment question on 2026-08-18, `DES-001` durability invariants | Current evidence covers process crashes and slow active-command retry behavior, but not a command worker or command handler that times out while the server process survives. Assess after the current cycle: terminal status, replay behavior, client timeout semantics, and restart-loop risk need explicit classification. |
 
 ## Reliable Feedback / Reality Sources
 
@@ -250,6 +257,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Durability understanding: `.spiral/understandings/UND-001.md`
 - Durability request: `.spiral/requests/REQ-001.md`
 - Durability invariant design: `.spiral/designs/DES-001.md`
+- After-change handler contract direction: `.spiral/designs/DES-002.md`
 - Baseline archaeology evidence: `.spiral/evidence/EVD-001.md`
 - Durable artifact corruption classification evidence: `.spiral/evidence/EVD-005.md`
 - Process crash fault harness evidence: `.spiral/evidence/EVD-006.md`
@@ -259,3 +267,4 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 - Malformed OD-JSONTag record-framing evidence: `.spiral/evidence/EVD-011.md`
 - Retry/idempotency status evidence: `.spiral/evidence/EVD-012.md`
 - Spiral core plan-continuity update evidence: `.spiral/evidence/EVD-013.md`
+- Legacy index handler lifecycle evidence: `.spiral/evidence/EVD-014.md`

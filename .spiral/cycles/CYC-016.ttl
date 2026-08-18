@@ -1,0 +1,9 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:CYC-016
+    a sd:Cycle ;
+    dcterms:identifier "CYC-016" ;
+    sd:repositoryPath ".spiral/cycles/CYC-016.md" ;
+    sd:status sd:Accepted .
