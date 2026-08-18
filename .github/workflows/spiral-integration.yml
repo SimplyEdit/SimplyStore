@@ -1,0 +1,37 @@
+name: Spiral integration
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+
+jobs:
+  spiral-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+
+      - run: pip install -r .spiral-core/requirements.txt
+
+      - if: github.event_name == 'pull_request'
+        run: >-
+          node .spiral-core/bin/spiral.mjs validate integration
+          --base '${{ github.event.pull_request.base.sha }}'
+          --head '${{ github.event.pull_request.head.sha }}'
+
+      - if: github.event_name == 'merge_group'
+        run: node .spiral-core/bin/spiral.mjs validate

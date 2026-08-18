@@ -16,7 +16,7 @@ Repository/baseline: `https://github.com/simplyedit/simplystore`, local authorit
 
 Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spiral#`
 
-Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `3111b784531e327da75801f5ba8b61e891341d5f`.
+Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `b24a5e8e301437561f2ed7e60486014cebae12c6`.
 
 Current active Spiral cycle: `.spiral/cycles/CYC-018.md` (`Spiral Core Process Update`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-017.md` (`Command And Load Worker Timeout Semantics`).
 
@@ -38,8 +38,33 @@ Human-confirmed complete on: 2026-08-17
 | Knowledge gaps / affinity needs | Covered | Areas needing affinity / human guidance table |
 | Relevant future direction | Covered | Current direction and later possibilities sections |
 | Risk-discovery / metric-profile disposition | Covered | Intake risk-discovery and metric-profile tables |
+| Integration context / pre-merge Spiral validation | Covered with unknowns | Spiral integration context section; GitHub check added, required-branch protection/merge queue status unknown |
 
 Future work should reopen intake as `Stale` if SimplyStore's audience, production-readiness target, downstream commitments, or API/disk-format compatibility expectations materially change.
+
+## Spiral Integration Context
+
+Authoritative integration branch/ref: `master`.
+
+Review/integration boundary: normal pull request or equivalent human review, followed by a history-preserving merge commit. Squash and rebase merges are not appropriate for Spiral cycle history because semantic commit hashes are causal evidence.
+
+Pre-merge Spiral validation boundary: before integrating an accepted cycle branch, validate the actual candidate against the current `master` target with:
+
+```text
+node .spiral-core/bin/spiral.mjs validate integration --base master --head <candidate>
+```
+
+or use a hosting/CI check that validates the exact prospective merged or merge-queue result. `.github/workflows/spiral-integration.yml` was added in CYC-018 as the repository adapter for pull requests and GitHub merge groups. Repository hosting settings still need to make the check required if it is meant to block merges.
+
+Local validator dependency: the current Spiral CLI requires Python `rdflib` from `.spiral-core/requirements.txt`. This local environment currently lacks `rdflib`, `python3-venv`, `uv`, and `pipx`, and PEP 668 blocks user-site pip installs. CI installs the dependency explicitly; local validation requires a prepared Python environment.
+
+Artifact allocation: new Spiral artifacts after CYC-018 should use distributed-safe IDs allocated by:
+
+```text
+node .spiral-core/bin/spiral.mjs allocate <TYPE>
+```
+
+Legacy sequential artifact IDs remain valid and should not be renamed. CYC-018 itself was opened with the legacy sequential ID before this core update was adopted. This checkout has worktree-local allocator namespace `09ZEF` under `.git/spiral`; that namespace is private local allocation state, not shared project content and not actor identity.
 
 ## Intended Users
 
@@ -141,14 +166,14 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 
 | Culture/profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
-| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
+| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `b24a5e8e301437561f2ed7e60486014cebae12c6` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
+| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `b24a5e8e301437561f2ed7e60486014cebae12c6` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
 
 ## Active Warning Profiles
 
 | Warning profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `3111b784531e327da75801f5ba8b61e891341d5f` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
+| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `b24a5e8e301437561f2ed7e60486014cebae12c6` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
 
 ## Intake Risk-Discovery Profiles
 
@@ -199,7 +224,8 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Corrupted or altered OD-JSONTag durable data can undermine recovery confidence | Monitor | Human direction before CYC-012, `DES-001`, `IMP-006`, `EVD-011` | Malformed/truncated OD-JSONTag record framing in base and committed changeset files now fails explicitly; malformed-framing uncommitted changesets are ignored; full syntax validation and well-formed tampering need future integrity metadata |
 | Retried command IDs can mislead clients or enqueue duplicate transitions | Monitor | Original durability order in `SRC-001`, `DES-001`, `IMP-007`, `EVD-012` | Retries during active/done/recovered/unsafe states now return the current command status and do not enqueue duplicate transitions in the tested paths; duplicate payload mismatch semantics remain future API work |
 | Legacy index hooks have implicit mutation and external-write semantics | Investigate | `DES-002`, CYC-015 characterization | Current `index.update()` can mutate canonical state, blocks commit on failure, and can leave external derived files behind when it writes before throwing |
-| Command timeouts can leave command progress ambiguous without a process crash | Defer | Human risk assessment question on 2026-08-18, `DES-001` durability invariants | Current evidence covers process crashes and slow active-command retry behavior, but not a command worker or command handler that times out while the server process survives. Assess after the current cycle: terminal status, replay behavior, client timeout semantics, and restart-loop risk need explicit classification. |
+| Command and load worker timeouts can leave progress ambiguous without a process crash | Monitor | `DES-003`, `IMP-011`, `EVD-018` | CYC-017 added parent-side command/load worker timeouts. Hanging commands become terminal `unsafe`, duplicate command IDs return that status, later queued commands can commit, and hanging load fails startup explicitly. Timeout defaults and documentation remain future polish. |
+| Spiral integration validation is not yet known to be required by repository hosting | Monitor | CYC-018 process update | `.github/workflows/spiral-integration.yml` exists after CYC-018, but branch protection/required-check settings are outside the repository tree and remain unknown. |
 
 ## Reliable Feedback / Reality Sources
 

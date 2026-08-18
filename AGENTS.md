@@ -21,6 +21,9 @@ For initial or reframed brownfield work, also read:
 - `.spiral-core/prompts/repository-bootstrap.md`
 - `.spiral-core/docs/brownfield-intake.md`
 - `.spiral-core/prompts/brownfield-intake.md`
+- `.spiral-core/docs/distributed-development.md`
+
+The currently adopted `.spiral-core` version is recorded in `.spiral/project-context.md`.
 
 ## Local Adoption State
 
@@ -46,7 +49,11 @@ Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifa
 
 - Treat `master` as the authoritative branch unless the human states otherwise.
 - For ordinary repository-changing Spiral cycle work, create one dedicated branch from the authoritative branch, normally `spiral/CYC-###-short-goal`.
+- For new Spiral artifacts after CYC-018, use distributed-safe IDs allocated by `node .spiral-core/bin/spiral.mjs allocate <TYPE>` instead of scanning for the next legacy number. Existing `SRC-001` / `CYC-017` style IDs remain valid historical artifacts and must not be renamed.
+- Before allocating a new artifact ID, check `node .spiral-core/bin/spiral.mjs status`. This checkout has worktree-local allocator state under `.git/spiral`; other clones/worktrees will have their own namespace.
 - Preserve Git history as evidence. Do not amend, rebase, squash, reset, or force-push causal cycle history.
+- Before proposing or merging accepted cycle work, run `node .spiral-core/bin/spiral.mjs validate` and, at the integration boundary, `node .spiral-core/bin/spiral.mjs validate integration --base <current-master> --head <candidate>`, or rely on a hosting check that validates the exact prospective merged result.
+- The Spiral validator requires Python `rdflib` from `.spiral-core/requirements.txt`. In local environments where Python package installation is unavailable, record the limitation and rely on CI or a configured environment rather than silently skipping the check.
 - Treat planning, evaluation, and ambiguous human suggestions as discourse until there is an explicit commitment. Do not turn tentative comments into scope or architecture merely because they are implementable.
 - Treat human confirmation of a sufficiently explicit cycle goal as the commitment boundary for execution within that goal and its non-goals.
 - Surface material ambiguity, contradiction, unsupported premise, or alternative framing before commitment when resolving it differently would plausibly change what is built, tested, accepted, or treated as the problem.
