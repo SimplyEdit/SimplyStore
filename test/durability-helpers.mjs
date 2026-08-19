@@ -69,6 +69,8 @@ export function startServer(t, fixture, options = {}) {
 				wwwroot: path.join(rootDir, 'www'),
 				maxWorkers: 1,
 				maxCommandCrashAttempts: options.maxCommandCrashAttempts,
+				integrity: options.integrity,
+				integrityFile: options.integrityFile,
 				commandTimeout: options.commandTimeout,
 				loadTimeout: options.loadTimeout,
 				loadWorker: options.loadWorker

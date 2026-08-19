@@ -11,6 +11,7 @@ import process from 'node:process'
 import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, nextActiveCommandStatus, pendingCommandStatus, recoverActiveCommands, unsafeCommandStatus } from './recovery.mjs'
 import { assertRuntimeEnvironmentConfiguration } from './runtime-environment.mjs'
 import { faultPoint } from './faults.mjs'
+import { getDefaultIntegrityFile } from './integrity.mjs'
 
 const server = express()
 const __dirname = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -57,6 +58,8 @@ async function main(options) {
     const indexFile     = options.indexFile     || __dirname+'/src/index.mjs'
     const commandLog    = options.commandLog    || './command-log.jsontag'
     const commandStatus = options.commandStatus || './command-status.jsontag'
+    const integrityFile = options.integrityFile || getDefaultIntegrityFile(datafile)
+    const integrityEnabled = Boolean(options.integrity || options.integrityFile || fs.existsSync(integrityFile))
     const maxCommandCrashAttempts = options.maxCommandCrashAttempts ?? 2
     const access        = options.access        || null
     const timeout       = options.timeout       || 1000
@@ -91,7 +94,9 @@ async function main(options) {
         data:jsontagBuffers,
         commandsFile,
         indexFile,
-        datafile
+        datafile,
+        integrityFile: integrityEnabled ? integrityFile : null,
+        integrityRequired: integrityEnabled
     })
 
     const queryWorkerInitTask = () => { 
@@ -185,7 +190,14 @@ async function main(options) {
                 void finish(reject, error)
             })
             try {
-                worker.postMessage({dataFile:datafile,indexFile,schemaFile,commands})
+                worker.postMessage({
+                    dataFile:datafile,
+                    indexFile,
+                    schemaFile,
+                    commands,
+                    integrityFile: integrityEnabled ? integrityFile : null,
+                    integrityRequired: integrityEnabled
+                })
             } catch (error) {
                 void finish(reject, error)
             }
@@ -301,7 +313,9 @@ async function main(options) {
                 data:jsontagBuffers,
                 commandsFile,
                 indexFile,
-                datafile                
+                datafile,
+                integrityFile: integrityEnabled ? integrityFile : null,
+                integrityRequired: integrityEnabled
             })
             await drainCommandQueue()
         } catch(err) {

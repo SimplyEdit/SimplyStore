@@ -5,6 +5,7 @@ import fs from 'fs'
 import path from 'path'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import { assertChangesetExists, assertOdJsonTagFraming } from './recovery.mjs'
+import { loadIntegrityManifest, verifyIntegrity } from './integrity.mjs'
 
 const parser = new Parser()
 
@@ -19,6 +20,9 @@ parentPort.on('message', async (files) => {
 	const extension = files.dataFile.split('.').pop()
 	const basefile = files.dataFile.substring(0, files.dataFile.length - (extension.length + 1)) //+1 for . character
 	meta.data = path.dirname(basefile)
+	const integrityManifest = files.integrityFile
+		? await loadIntegrityManifest(files.integrityFile)
+		: null
 	let data
 	let jsontag
 	// TODO
@@ -31,12 +35,22 @@ parentPort.on('message', async (files) => {
 	// add version info in proxies with a symbol to get that information
 	if (fs.existsSync(files.dataFile)) {
 		jsontag = fs.readFileSync(files.dataFile)
+		if (integrityManifest) {
+			verifyIntegrity(integrityManifest, files.integrityFile, files.dataFile, jsontag, {
+				required: files.integrityRequired
+			})
+		}
 		assertOdJsonTagFraming(jsontag, files.dataFile, 'base OD-JSONTag data')
 		data = parser.parse(jsontag)
 	}
 	for (let command of files.commands) {
 		const changesetFile = assertChangesetExists(files.dataFile, command)
 		jsontag = fs.readFileSync(changesetFile)
+		if (integrityManifest) {
+			verifyIntegrity(integrityManifest, files.integrityFile, changesetFile, jsontag, {
+				required: files.integrityRequired
+			})
+		}
 		assertOdJsonTagFraming(jsontag, changesetFile, 'changeset OD-JSONTag data')
 		data = parser.parse(jsontag)
 	}

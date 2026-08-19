@@ -3,6 +3,8 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
 import { faultPoint } from '../src/faults.mjs'
+import { appendIntegrityRecord, getDefaultIntegrityFile, loadIntegrityManifest } from '../src/integrity.mjs'
+import { getChangesetPath } from '../src/recovery.mjs'
 import { assertRuntimeEnvironmentConfiguration, getRuntimeEnvironment } from '../src/runtime-environment.mjs'
 import {
 	getCommandStatus,
@@ -353,6 +355,45 @@ parentPort.on('message', () => {
 	assert.equal(exit.code, 1)
 	assert.match(running.getOutput(), /load worker timed out after 100ms/)
 	assert.doesNotMatch(running.getOutput(), /SimplyStore listening/)
+})
+
+test('integrity-enabled command writes changeset digest before done status', async t => {
+	const fixture = await makeServerFixture(t)
+	const port = await getOpenPort()
+	const integrityFile = getDefaultIntegrityFile(fixture.datafile)
+	await appendIntegrityRecord(integrityFile, fixture.datafile, await fs.readFile(fixture.datafile))
+
+	const running = startServer(t, fixture, {
+		port,
+		integrityFile
+	})
+	await waitForServer(running.child, running.getOutput, port)
+
+	const commandId = 'integrity-command'
+	const response = await postCommand(port, {
+		id: commandId,
+		name: 'addPerson',
+		value: {name: 'Ada'}
+	})
+	assert.equal(response.status, 202)
+	await waitForCommandStatus(port, commandId, 'done')
+
+	const changesetPath = getChangesetPath(fixture.datafile, commandId)
+	const manifest = await loadIntegrityManifest(integrityFile)
+	assert.ok(manifest.has(path.basename(changesetPath)))
+
+	await stopServer(running.child)
+
+	const original = await fs.readFile(changesetPath, 'utf8')
+	await fs.writeFile(changesetPath, original.replace('Ada', 'Eve'))
+
+	const restarted = startServer(t, fixture, {
+		port,
+		integrityFile
+	})
+	const exit = await waitForExit(restarted.child)
+	assert.equal(exit.code, 1)
+	assert.match(restarted.getOutput(), /Integrity mismatch/)
 })
 
 test('normal restart preserves committed state according to reconstruction oracle', async t => {

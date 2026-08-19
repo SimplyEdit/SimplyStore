@@ -1,0 +1,27 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260819-09ZEF-8
+    a sd:Implementation ;
+    dcterms:identifier "IMP-20260819-09ZEF-8" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260819-09ZEF-8.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "src/integrity.mjs" ;
+    sd:implementationLocation "src/server.mjs" ;
+    sd:implementationLocation "src/load-worker.mjs" ;
+    sd:implementationLocation "src/command-worker-module.mjs" ;
+    sd:implementationLocation "test/durability-startup.mjs" ;
+    sd:implementationLocation "test/durability-crash.mjs" ;
+    sd:implementationLocation "test/durability-helpers.mjs" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260819-09ZEF-7 ;
+        sd:gitCommit "471e28e350e8095adc2f956d16389790e47efdd0"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-20260819-09ZEF-5 ;
+        sd:gitCommit "471e28e350e8095adc2f956d16389790e47efdd0"
+    ] ;
+    sd:implementationChangeKind sd:SemanticChange .

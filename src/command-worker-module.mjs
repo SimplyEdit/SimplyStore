@@ -4,12 +4,13 @@ import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import writeFileAtomic from 'write-file-atomic'
 import { faultPoint } from './faults.mjs'
+import { appendIntegrityRecord } from './integrity.mjs'
 
 let commands = {}
 let index = {}
 let resultArr = []
 let dataspace
-let datafile, basefile, extension
+let datafile, basefile, extension, integrityFile
 let meta = {}
 let metaProxy = {
     index: {
@@ -76,6 +77,7 @@ export async function initialize(task) {
         metaProxy.schema = meta.schema
     }
     datafile = task.datafile
+    integrityFile = task.integrityFile
     extension = datafile.split('.').pop()
     basefile = datafile.substring(0, datafile.length - (extension.length + 1)) //+1 for . character
     commands = await import(task.commandsFile).then(mod => {
@@ -117,6 +119,9 @@ export default async function runCommand(commandStr, request) {
             let newfilename = basefile + '.' + task.id + '.' + extension
             await faultPoint('before-command-changeset-write')
             await writeFileAtomic(newfilename, uint8sab)
+            if (integrityFile) {
+                await appendIntegrityRecord(integrityFile, newfilename, uint8sab)
+            }
             await faultPoint('after-command-changeset-write')
             meta.parts++
             response.meta.parts = meta.parts
