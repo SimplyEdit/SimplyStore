@@ -93,7 +93,7 @@ function parseTurtleSubset(text, file) {
 		throw new Error(`${file}: expected final .`)
 	}
 
-	const subjectMatch = text.match(/project:([A-Za-z]+-\d+)\s+([\s\S]*)\.\s*$/)
+	const subjectMatch = text.match(/project:([A-Za-z][A-Za-z0-9-]*)\s+([\s\S]*)\.\s*$/)
 	if (!subjectMatch) {
 		throw new Error(`${file}: expected one project subject block`)
 	}
@@ -109,7 +109,7 @@ function parseTurtleSubset(text, file) {
 	}
 
 	const references = []
-	const refRegex = /sd:([A-Za-z]+)\s+\[\s*a\s+sd:ArtifactReference\s*;\s*sd:artifact\s+project:([A-Za-z]+-\d+)\s*;\s*sd:gitCommit\s+"([0-9a-f]+)"(?:\s*;\s*sd:fragment\s+"([^"]+)")?\s*\]/g
+	const refRegex = /sd:([A-Za-z]+)\s+\[\s*a\s+sd:ArtifactReference\s*;\s*sd:artifact\s+project:([A-Za-z][A-Za-z0-9-]*)\s*;\s*sd:gitCommit\s+"([0-9a-f]+)"(?:\s*;\s*sd:fragment\s+"([^"]+)")?\s*\]/g
 	let match
 	while ((match = refRegex.exec(body)) !== null) {
 		references.push({

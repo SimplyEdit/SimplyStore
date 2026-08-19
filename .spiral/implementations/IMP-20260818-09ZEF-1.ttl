@@ -1,0 +1,26 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260818-09ZEF-1
+    a sd:Implementation ;
+    dcterms:identifier "IMP-20260818-09ZEF-1" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260818-09ZEF-1.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation ".spiral-core" ;
+    sd:implementationLocation "AGENTS.md" ;
+    sd:implementationLocation ".spiral/project-context.md" ;
+    sd:implementationLocation ".github/workflows/spiral-integration.yml" ;
+    sd:implementationLocation ".spiral/vocabulary.ttl" ;
+    sd:implementationLocation "scripts/validate-spiral-provenance.mjs" ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-20260818-09ZEF-1 ;
+        sd:gitCommit "89376889923eb10bc8b431cd22e422797c9eb5ca"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-018 ;
+        sd:gitCommit "4cefd007da682ce8ef46ccfc4852882fb34e2003"
+    ] ;
+    sd:implementationChangeKind sd:SemanticChange .
