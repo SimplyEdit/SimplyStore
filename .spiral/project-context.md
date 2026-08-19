@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-018.md` (`Spiral Core Process Update`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-017.md` (`Command And Load Worker Timeout Semantics`).
+Current active Spiral cycle: `.spiral/cycles/CYC-20260819-09ZEF-5.md` (`Integrity Detection`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-018.md` (`Spiral Core Process Update`).
 
 ## Intake State
 
