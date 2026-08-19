@@ -14,3 +14,5 @@ sd:verifies rdfs:subPropertyOf sd:causalReference .
 sd:accepts rdfs:subPropertyOf sd:causalReference .
 sd:observes rdfs:subPropertyOf sd:causalReference .
 sd:supersedes rdfs:subPropertyOf sd:causalReference .
+sd:transforms rdfs:subPropertyOf sd:historicalReference .
+sd:changeCausedBy rdfs:subPropertyOf sd:historicalReference .

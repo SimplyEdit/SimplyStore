@@ -16,7 +16,7 @@ project:IMP-20260818-09ZEF-1
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-20260818-09ZEF-1 ;
-        sd:gitCommit "569e0eaab953b6294ba1c9e04204b25f95612df4"
+        sd:gitCommit "89376889923eb10bc8b431cd22e422797c9eb5ca"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;

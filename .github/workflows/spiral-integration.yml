@@ -32,6 +32,10 @@ jobs:
           node .spiral-core/bin/spiral.mjs validate integration
           --base '${{ github.event.pull_request.base.sha }}'
           --head '${{ github.event.pull_request.head.sha }}'
+          --base-branch '${{ github.event.pull_request.base.ref }}'
+          --head-branch '${{ github.event.pull_request.head.ref }}'
 
+      # Candidate cycle closure/branch correspondence was checked on pull_request.
+      # Validate the exact queued combined snapshot rather than reconstructing only the individual PR.
       - if: github.event_name == 'merge_group'
         run: python .spiral-core/bin/spiral-rdf.py --repo . --tree '${{ github.sha }}'

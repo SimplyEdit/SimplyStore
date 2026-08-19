@@ -16,7 +16,7 @@ Repository/baseline: `https://github.com/simplyedit/simplystore`, local authorit
 
 Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spiral#`
 
-Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `b24a5e8e301437561f2ed7e60486014cebae12c6`.
+Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
 Current active Spiral cycle: `.spiral/cycles/CYC-018.md` (`Spiral Core Process Update`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-017.md` (`Command And Load Worker Timeout Semantics`).
 
@@ -51,10 +51,10 @@ Review/integration boundary: normal pull request or equivalent human review, fol
 Pre-merge Spiral validation boundary: before integrating an accepted cycle branch, validate the actual candidate against the current `master` target with:
 
 ```text
-node .spiral-core/bin/spiral.mjs validate integration --base master --head <candidate>
+node .spiral-core/bin/spiral.mjs validate integration --base master --head <candidate> --base-branch master --head-branch <cycle-branch-name>
 ```
 
-or use a hosting/CI check that validates the exact prospective merged or merge-queue result. `.github/workflows/spiral-integration.yml` was added in CYC-018 as the repository adapter for pull requests and GitHub merge groups. Repository hosting settings still need to make the check required if it is meant to block merges.
+or use a hosting/CI check that validates the exact prospective merged or merge-queue result with branch metadata where available. Active cycle branches must not merge outward; human acceptance should be recorded as `sd:Accepted` before proposing integration. When accepted `master` work is merged into an Active cycle branch, any merge version that combines parallel material revisions of the same governed artifact must explicitly preserve both immediate predecessor lineages with `sd:transforms`. `.github/workflows/spiral-integration.yml` was added in CYC-018 as the repository adapter for pull requests and GitHub merge groups. Repository hosting settings still need to make the check required if it is meant to block merges.
 
 Local validator dependency: the current Spiral CLI requires Python `rdflib` from `.spiral-core/requirements.txt`. This local environment can run validation with a temporary virtual environment whose `bin` directory is first on `PATH`. CI installs the dependency explicitly.
 
@@ -170,14 +170,14 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 
 | Culture/profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `b24a5e8e301437561f2ed7e60486014cebae12c6` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
-| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `b24a5e8e301437561f2ed7e60486014cebae12c6` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
+| `CUL-MUZE-001` — Muze Engineering Culture | `.spiral-core/cultures/muze-engineering.md` at submodule commit `8d4b2c738a413abd4cccca740ce958f486e5f7af` | Broad SimplyStore engineering choices | SimplyStore is a Muze-owned software project; principles such as simplicity, correctable boundaries, inspectability, and replaceability match the durability direction | Apply as defeasible preference, not hidden requirement |
+| `CUL-MUZE-LIB-001` — Muze Library Stewardship Culture | `.spiral-core/cultures/muze-library-stewardship.md` at submodule commit `8d4b2c738a413abd4cccca740ce958f486e5f7af` | Reusable library/package stewardship | SimplyStore is an `@muze-nl` reusable Node package moving toward production readiness | Apply only where library stewardship concerns fit; do not let package maturity override evidence |
 
 ## Active Warning Profiles
 
 | Warning profile | Version/source | Applicability here | Why active here | Local deviations |
 |---|---|---|---|---|
-| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `b24a5e8e301437561f2ed7e60486014cebae12c6` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
+| `WPF-HUMAN-001` — Human Impact and Epistemic Warning Profile | `.spiral-core/warning-profiles/human-impact-and-epistemic.md` at submodule commit `8d4b2c738a413abd4cccca740ce958f486e5f7af` | Consequential design, durability, evidence, access, and confidence claims | Durability work depends on evidence quality and avoiding overclaiming production readiness | Apply significance gate; surface concise operational warnings only when material |
 
 ## Intake Risk-Discovery Profiles
 
