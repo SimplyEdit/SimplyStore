@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Current branch cycle: `.spiral/cycles/CYC-20260819-09ZEF-5.md` (`Integrity Detection`), reopened on 2026-09-16 for the authorized compliance correction in `DEF-20260916-TTZ7C-1`. Its runtime slice was accepted on 2026-08-19; correction evaluation is pending. Latest closed accepted cycle: `.spiral/cycles/CYC-018.md` (`Spiral Core Process Update`).
+Current branch cycle: `.spiral/cycles/CYC-20260819-09ZEF-5.md` (`Integrity Detection`), reopened on 2026-09-16 for the authorized compliance correction in `DEF-20260916-TTZ7C-1`. Its runtime slice was accepted on 2026-08-19; the compliance correction is implemented and verified in `EVD-20260916-TTZ7C-3`, awaiting human evaluation/acceptance. Latest closed accepted cycle: `.spiral/cycles/CYC-018.md` (`Spiral Core Process Update`).
 
 ## Intake State
 
