@@ -10,5 +10,5 @@ project:EVD-007
     sd:verifies [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-003 ;
-        sd:gitCommit "0fa4c441e8e8cb27562486c225bb02e8038d564e"
+        sd:gitCommit "c13d08a9e442e30ca4d66f28597939f55ef0a513"
     ] .

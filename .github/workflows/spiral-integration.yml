@@ -27,6 +27,17 @@ jobs:
 
       - run: pip install -r .spiral-core/requirements.txt
 
+      - name: Test provenance validation
+        run: python test/spiral-provenance.py
+
+      - name: Validate every introduced artifact version and the candidate snapshot
+        env:
+          SPIRAL_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          SPIRAL_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python scripts/validate-spiral-provenance.py --range "$SPIRAL_BASE..$SPIRAL_HEAD"
+          python scripts/validate-spiral-provenance.py --tree "$SPIRAL_HEAD"
+
       - if: github.event_name == 'pull_request'
         run: >-
           node .spiral-core/bin/spiral.mjs validate integration

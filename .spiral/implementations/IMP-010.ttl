@@ -7,6 +7,11 @@ project:IMP-010
     dcterms:identifier "IMP-010" ;
     sd:repositoryPath ".spiral/implementations/IMP-010.md" ;
     sd:status sd:Active ;
+    sd:implementationLocation ".github/workflows/spiral-integration.yml" ;
+    sd:implementationLocation "docs/spiral-validation.md" ;
+    sd:implementationLocation "test/spiral-provenance.py" ;
+    sd:implementationLocation "scripts/hooks/pre-commit" ;
+    sd:implementationLocation "scripts/validate-spiral-provenance.py" ;
     sd:implementationLocation ".spiral/sources/SRC-001.md" ;
     sd:implementationLocation ".spiral/sources/SRC-001.ttl" ;
     sd:implementationLocation ".spiral/understandings/UND-001.md" ;
@@ -27,14 +32,24 @@ project:IMP-010
     sd:implementationLocation ".spiral/evidence/EVD-008.md" ;
     sd:implementationLocation ".spiral/evidence/EVD-008.ttl" ;
     sd:implementationLocation "scripts/validate-spiral-provenance.mjs" ;
+    sd:derivedFrom [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-016 ;
+        sd:gitCommit "fa329453bf640fab6083e39d57edfdbde222e282"
+    ] ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260916-TTZ7C-2 ;
+        sd:gitCommit "f66ea74b740ec9ea17598e0212f0daa53fcd81c0"
+    ] ;
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-010 ;
-        sd:gitCommit "2006532235a6e6fb7366747026d6849827fcad4a"
+        sd:gitCommit "b26e30f0bc67e96744a9fb18aff0ceaf23e3ec53"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;
-        sd:artifact project:CYC-016 ;
-        sd:gitCommit "36fc816a6357b57f99843359aeb4a2329677d6c1"
+        sd:artifact project:DES-20260916-TTZ7C-2 ;
+        sd:gitCommit "f66ea74b740ec9ea17598e0212f0daa53fcd81c0"
     ] ;
-    sd:implementationChangeKind sd:BehaviorPreservingChange .
+    sd:implementationChangeKind sd:SemanticChange .

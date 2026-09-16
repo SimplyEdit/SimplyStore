@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import { appendIntegrityRecord, getDefaultIntegrityFile } from '../src/integrity.mjs'
 import {
 	activeCommandStatus,
 	getCommittedCommandIds,
@@ -63,7 +64,7 @@ async function writeChangeset(dataFile, commandId, change) {
 	}))
 }
 
-function loadDataset({dataFile, indexFile, commands}) {
+function loadDataset({dataFile, indexFile, commands, integrityFile = null, integrityRequired = false}) {
 	return new Promise((resolve, reject) => {
 		const worker = new Worker(loadWorker)
 		worker.on('message', result => {
@@ -78,9 +79,15 @@ function loadDataset({dataFile, indexFile, commands}) {
 			dataFile,
 			indexFile,
 			schemaFile: null,
-			commands: [...commands]
+			commands: [...commands],
+			integrityFile,
+			integrityRequired
 		})
 	})
+}
+
+async function writeIntegrityEntry(integrityFile, file) {
+	await appendIntegrityRecord(integrityFile, file, await fs.readFile(file))
 }
 
 test('accepted command changeset is not treated as committed state on startup', async t => {
@@ -397,4 +404,65 @@ test('OD-JSONTag framing validation accepts changeset skip records', () => {
 	assert.doesNotThrow(() => {
 		assertOdJsonTagFraming(buffer, 'data.patch.jsontag', 'changeset OD-JSONTag data')
 	})
+})
+
+test('integrity manifest detects same-length altered base OD-JSONTag payload', async t => {
+	const fixture = await makeFixture(t)
+	const integrityFile = getDefaultIntegrityFile(fixture.dataFile)
+	await writeIntegrityEntry(integrityFile, fixture.dataFile)
+
+	const original = await fs.readFile(fixture.dataFile, 'utf8')
+	await fs.writeFile(fixture.dataFile, original.replace('persons', 'qersons'))
+
+	await assert.rejects(
+		loadDataset({
+			...fixture,
+			commands: [],
+			integrityFile,
+			integrityRequired: true
+		}),
+		/Integrity mismatch|base OD-JSONTag data/i
+	)
+})
+
+test('integrity manifest detects same-length altered committed changeset payload', async t => {
+	const fixture = await makeFixture(t)
+	const commandId = 'tampered-changeset'
+	const status = new Map([
+		[commandId, {command: commandId, code: 200, status: 'done'}]
+	])
+	const integrityFile = getDefaultIntegrityFile(fixture.dataFile)
+	await writeIntegrityEntry(integrityFile, fixture.dataFile)
+	await writeChangeset(fixture.dataFile, commandId, data => {
+		data.persons.push({name: 'Ada'})
+	})
+	const changesetPath = getChangesetPath(fixture.dataFile, commandId)
+	await writeIntegrityEntry(integrityFile, changesetPath)
+
+	const original = await fs.readFile(changesetPath, 'utf8')
+	await fs.writeFile(changesetPath, original.replace('Ada', 'Eve'))
+
+	await assert.rejects(
+		loadDataset({
+			...fixture,
+			commands: getCommittedCommandIds(status),
+			integrityFile,
+			integrityRequired: true
+		}),
+		/Integrity mismatch|changeset OD-JSONTag data/i
+	)
+})
+
+test('integrity enabled requires manifest entry for base data', async t => {
+	const fixture = await makeFixture(t)
+
+	await assert.rejects(
+		loadDataset({
+			...fixture,
+			commands: [],
+			integrityFile: getDefaultIntegrityFile(fixture.dataFile),
+			integrityRequired: true
+		}),
+		/Missing integrity manifest entry/i
+	)
 })

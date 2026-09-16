@@ -1,0 +1,19 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:DES-20260819-09ZEF-7
+    a sd:Design ;
+    dcterms:identifier "DES-20260819-09ZEF-7" ;
+    sd:repositoryPath ".spiral/designs/DES-20260819-09ZEF-7.md" ;
+    sd:status sd:Active ;
+    sd:derivedFrom [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-001 ;
+        sd:gitCommit "85913e982e163c7b05a8e616c00e3f2014e775cc"
+    ] ;
+    sd:observes [
+        a sd:ArtifactReference ;
+        sd:artifact project:EVD-20260819-09ZEF-6 ;
+        sd:gitCommit "a05b433c35c8fa90a29d9a0cdf3169b027ff9a0c"
+    ] .
