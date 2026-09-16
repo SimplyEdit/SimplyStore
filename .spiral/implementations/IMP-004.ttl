@@ -18,14 +18,19 @@ project:IMP-004
         sd:artifact project:DES-001 ;
         sd:gitCommit "85913e982e163c7b05a8e616c00e3f2014e775cc"
     ] ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260819-09ZEF-7 ;
+        sd:gitCommit "471e28e350e8095adc2f956d16389790e47efdd0"
+    ] ;
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-004 ;
-        sd:gitCommit "36bb7b1013c2de219d4a730556ae9ab98cea7113"
+        sd:gitCommit "68c38971e11a1eb81a34e7f1da1eb6f18019a3c4"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;
-        sd:artifact project:CYC-016 ;
-        sd:gitCommit "36fc816a6357b57f99843359aeb4a2329677d6c1"
+        sd:artifact project:DES-20260916-TTZ7C-2 ;
+        sd:gitCommit "f66ea74b740ec9ea17598e0212f0daa53fcd81c0"
     ] ;
     sd:implementationChangeKind sd:BehaviorPreservingChange .

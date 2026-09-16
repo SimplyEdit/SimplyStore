@@ -1,0 +1,5 @@
+#!/bin/sh
+# Opt in with git config core.hooksPath scripts/hooks after checking existing hooks.
+set -eu
+spiral_repo=$(git rev-parse --show-toplevel)
+exec "${PYTHON:-python3}" "$spiral_repo/scripts/validate-spiral-provenance.py" --repo "$spiral_repo" --staged

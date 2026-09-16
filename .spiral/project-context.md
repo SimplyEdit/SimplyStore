@@ -60,6 +60,10 @@ Local validator dependency: the current Spiral CLI requires Python `rdflib` from
 
 Local validator limitation: `node .spiral-core/bin/spiral.mjs validate` currently scans the `.spiral-core` submodule's own Turtle files and reports duplicate legacy artifact identifiers. Use prospective tree/integration validation for SimplyStore until upstream validator behavior excludes nested process repositories.
 
+Historical-reference validation: `scripts/validate-spiral-provenance.py` uses rdflib and complements the pinned core. Run `--staged` before semantic commits, and `--range <base>..<head>` plus `--tree <head>` for integration. The Node entry point delegates to the same implementation. CI covers both introduced versions and the candidate snapshot. See `docs/spiral-validation.md` for the optional local hook and explicit external process-repository resolution.
+
+Known historical defects: `DEF-20260916-TTZ7C-1` records seven evidence links that originally named artifacts before their creation. Current references are corrected prospectively; raw history audits must continue reporting the invalid old versions.
+
 Local vocabulary: `.spiral/vocabulary.ttl` carries the minimal Spiral relation hierarchy needed for tree-based validation of this consuming repository. Without it, integration validation sees the `.spiral-core` submodule only as a Git gitlink and cannot derive `sd:causalReference` subproperties from the core ontology.
 
 Artifact allocation: new Spiral artifacts after CYC-018 should use distributed-safe IDs allocated by:

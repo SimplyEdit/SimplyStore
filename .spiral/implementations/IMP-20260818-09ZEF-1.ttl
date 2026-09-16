@@ -13,14 +13,24 @@ project:IMP-20260818-09ZEF-1
     sd:implementationLocation ".github/workflows/spiral-integration.yml" ;
     sd:implementationLocation ".spiral/vocabulary.ttl" ;
     sd:implementationLocation "scripts/validate-spiral-provenance.mjs" ;
+    sd:derivedFrom [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-018 ;
+        sd:gitCommit "fa329453bf640fab6083e39d57edfdbde222e282"
+    ] ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260916-TTZ7C-2 ;
+        sd:gitCommit "f66ea74b740ec9ea17598e0212f0daa53fcd81c0"
+    ] ;
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-20260818-09ZEF-1 ;
-        sd:gitCommit "89376889923eb10bc8b431cd22e422797c9eb5ca"
+        sd:gitCommit "725a861ccb577fa5918202d1f486b2e19d02c896"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;
-        sd:artifact project:CYC-018 ;
-        sd:gitCommit "4cefd007da682ce8ef46ccfc4852882fb34e2003"
+        sd:artifact project:DES-20260916-TTZ7C-2 ;
+        sd:gitCommit "f66ea74b740ec9ea17598e0212f0daa53fcd81c0"
     ] ;
     sd:implementationChangeKind sd:SemanticChange .
