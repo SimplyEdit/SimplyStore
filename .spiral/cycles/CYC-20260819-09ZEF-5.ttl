@@ -6,4 +6,4 @@ project:CYC-20260819-09ZEF-5
     a sd:Cycle ;
     dcterms:identifier "CYC-20260819-09ZEF-5" ;
     sd:repositoryPath ".spiral/cycles/CYC-20260819-09ZEF-5.md" ;
-    sd:status sd:Active .
+    sd:status sd:Accepted .
