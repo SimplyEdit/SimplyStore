@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Current active Spiral cycle: `.spiral/cycles/CYC-20260819-09ZEF-5.md` (`Integrity Detection`). Latest accepted Spiral cycle: `.spiral/cycles/CYC-018.md` (`Spiral Core Process Update`).
+Current branch cycle: `.spiral/cycles/CYC-20260819-09ZEF-5.md` (`Integrity Detection`), reopened on 2026-09-16 for the authorized compliance correction in `DEF-20260916-TTZ7C-1`. Its runtime slice was accepted on 2026-08-19; correction evaluation is pending. Latest closed accepted cycle: `.spiral/cycles/CYC-018.md` (`Spiral Core Process Update`).
 
 ## Intake State
 
@@ -68,7 +68,7 @@ Artifact allocation: new Spiral artifacts after CYC-018 should use distributed-s
 node .spiral-core/bin/spiral.mjs allocate <TYPE>
 ```
 
-Legacy sequential artifact IDs remain valid and should not be renamed. CYC-018 itself was opened with the legacy sequential ID before this core update was adopted. This checkout has worktree-local allocator namespace `09ZEF` under `.git/spiral`; that namespace is private local allocation state, not shared project content and not actor identity.
+Legacy sequential artifact IDs remain valid and should not be renamed. CYC-018 itself was opened with the legacy sequential ID before this core update was adopted. Allocator state is private to each checkout under `.git/spiral`; inspect it with `spiral status`. The historical `09ZEF` artifacts keep their IDs. This checkout allocated the 2026-09-16 corrections in namespace `TTZ7C`; neither namespace is actor identity.
 
 ## Intended Users
 
