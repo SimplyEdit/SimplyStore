@@ -1,6 +1,7 @@
 import JSONTag from '@muze-nl/jsontag'
 import serialize, { stringify } from '@muze-nl/od-jsontag/src/serialize.mjs'
 import Parser from '@muze-nl/od-jsontag'
+import offsetIndex from '../src/index.offset.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -73,6 +74,10 @@ async function main() {
 	strData = stringify(serialize(odData))
 
 	fs.writeFileSync(outputFile, strData)
+	// Custom indexes may change record sizes or add records after initial parsing.
+	const finalParser = new Parser('')
+	const finalData = finalParser.parse(strData)
+	offsetIndex.create(finalData, {...meta, resultArray: finalParser.meta.resultArray})
 	console.log('Converted data written to ',outputFile)
 }
 
