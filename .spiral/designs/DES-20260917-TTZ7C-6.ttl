@@ -7,6 +7,11 @@ project:DES-20260917-TTZ7C-6
     dcterms:identifier "DES-20260917-TTZ7C-6" ;
     sd:repositoryPath ".spiral/designs/DES-20260917-TTZ7C-6.md" ;
     sd:status sd:Active ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260917-TTZ7C-6 ;
+        sd:gitCommit "d63d2dead6bfc4b79b4265afd54c4de106c9ef47"
+    ] ;
     sd:satisfies [
         a sd:ArtifactReference ;
         sd:artifact project:REQ-20260917-TTZ7C-5 ;
