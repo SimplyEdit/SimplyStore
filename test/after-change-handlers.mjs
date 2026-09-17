@@ -107,6 +107,28 @@ export default {
 	await assert.rejects(fs.access(path.join(fixture.dir, 'data.index-writes-then-fails.jsontag')), /ENOENT/)
 })
 
+test('handler lifecycle: final offset write failure prevents command commit', async t => {
+	const fixture = await makeServerFixture(t, {
+		initialData: '{"persons":[{"name":"Initial"}]}',
+		commandsSource: baseCommands
+	})
+	const commandId = 'offset-write-fails'
+	await fs.mkdir(path.join(fixture.dir, `index.offset.${commandId}.json`))
+	const port = await getOpenPort()
+	const server = startServer(t, fixture, {port})
+	await waitForServer(server.child, server.getOutput, port)
+
+	const status = await postAndWait(port, {
+		id: commandId,
+		name: 'addPerson',
+		value: {name: 'Should Not Commit'}
+	}, 'failed')
+
+	assert.match(status.message, /EISDIR|EEXIST|ENOTEMPTY/)
+	assert.deepEqual(await queryNames(port), ['Initial'])
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
+})
+
 test('handler lifecycle: current index update can mutate canonical state before commit', async t => {
 	const fixture = await makeServerFixture(t, {
 		initialData: '{"persons":[{"name":"Initial"}]}',

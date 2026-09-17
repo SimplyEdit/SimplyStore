@@ -173,7 +173,12 @@ export function assertChangesetExists(dataFile, commandId) {
 }
 
 export function assertOdJsonTagFraming(buffer, file, recordKind = 'OD-JSONTag data') {
+	scanOdJsonTagRecords(buffer, file, recordKind)
+}
+
+export function scanOdJsonTagRecords(buffer, file, recordKind = 'OD-JSONTag data', onRecord) {
 	let offset = 0
+	let record = 0
 	while (offset < buffer.length) {
 		while (offset < buffer.length && (buffer[offset] === 10 || buffer[offset] === 13)) {
 			offset++
@@ -193,6 +198,7 @@ export function assertOdJsonTagFraming(buffer, file, recordKind = 'OD-JSONTag da
 					recordKind
 				})
 			}
+			record += Number.parseInt(buffer.subarray(skipStart, offset).toString('utf8'), 10)
 			continue
 		}
 		if (buffer[offset] !== 40) {
@@ -221,6 +227,7 @@ export function assertOdJsonTagFraming(buffer, file, recordKind = 'OD-JSONTag da
 				recordKind
 			})
 		}
+		onRecord?.(record++, offset, payloadEnd)
 		offset = payloadEnd
 	}
 }

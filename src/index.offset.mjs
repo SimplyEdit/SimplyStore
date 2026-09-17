@@ -1,8 +1,20 @@
 import fs from 'fs'
-import JSONTag from '@muze-nl/jsontag'
+import path from 'node:path'
+import { Buffer } from 'node:buffer'
+import writeFileAtomic from 'write-file-atomic'
 import { getIndex, position } from '@muze-nl/od-jsontag/src/symbols.mjs'
+import { scanOdJsonTagRecords } from './recovery.mjs'
 
 export default {
+	async writeSerialized(buffer, meta, uuid = null) {
+		const filename = path.join(meta.data, uuid === null ? 'index.offset.json' : `index.offset.${uuid}.json`)
+		const bytes = typeof buffer === 'string' ? Buffer.from(buffer) : Buffer.from(buffer.buffer, buffer.byteOffset, buffer.byteLength)
+		const index = {}
+		scanOdJsonTagRecords(bytes, filename, 'offset source OD-JSONTag data', (record, start, end) => {
+			index[record] = [start, end]
+		})
+		await writeFileAtomic(filename, JSON.stringify(index))
+	},
 	create(data, meta) {
 		console.log('creating '+meta.data+'/index.offset.json')
 		// jsontag parse automatically fills meta.index.offset, so no need to create anything

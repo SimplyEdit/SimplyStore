@@ -75,9 +75,7 @@ async function main() {
 
 	fs.writeFileSync(outputFile, strData)
 	// Custom indexes may change record sizes or add records after initial parsing.
-	const finalParser = new Parser('')
-	const finalData = finalParser.parse(strData)
-	offsetIndex.create(finalData, {...meta, resultArray: finalParser.meta.resultArray})
+	await offsetIndex.writeSerialized(strData, meta)
 	console.log('Converted data written to ',outputFile)
 }
 
