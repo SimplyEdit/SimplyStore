@@ -1,0 +1,10 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:REQ-20260917-TTZ7C-13
+    a sd:Request ;
+    dcterms:identifier "REQ-20260917-TTZ7C-13" ;
+    sd:repositoryPath ".spiral/requests/REQ-20260917-TTZ7C-13.md" ;
+    sd:provenanceConfidence sd:Explicit ;
+    sd:status sd:Active .
