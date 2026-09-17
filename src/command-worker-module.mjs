@@ -5,7 +5,7 @@ import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import writeFileAtomic from 'write-file-atomic'
 import { faultPoint } from './faults.mjs'
 import { appendIntegrityRecord } from './integrity.mjs'
-import offsetIndex from './index.offset.mjs'
+import { finalizeIndex } from './index.mjs'
 
 let commands = {}
 let index = {}
@@ -121,7 +121,7 @@ export default async function runCommand(commandStr, request) {
             await faultPoint('before-command-changeset-write')
             await writeFileAtomic(newfilename, uint8sab)
             // Final bytes include new records and mutations made by the custom index hook.
-            await offsetIndex.writeSerialized(uint8sab, meta, task.id)
+            await finalizeIndex(index, uint8sab, meta, task.id)
             if (integrityFile) {
                 await appendIntegrityRecord(integrityFile, newfilename, uint8sab)
             }

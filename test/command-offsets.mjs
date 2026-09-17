@@ -130,3 +130,42 @@ test('failure to write final offsets rejects the command before success', async 
 	await fs.mkdir(path.join(dir, 'index.offset.blocked.json'))
 	await assert.rejects(runCommand('{"id":"blocked","name":"edit","value":"changed"}'), /EISDIR|EEXIST|ENOTEMPTY/)
 })
+
+test('commands await custom finalization that delegates to the default index', async t => {
+	const {dir} = await fixture(t, `import index from ${JSON.stringify(baseIndex.href)}
+import fs from 'node:fs/promises'
+import {setTimeout} from 'node:timers/promises'
+export default {
+	marker: 'custom receiver',
+	update(data) { data.items[1].name = 'index mutation' },
+	async finalize(serialized, meta, uuid) {
+		await setTimeout(20)
+		if (!(serialized instanceof Uint8Array) || uuid !== 'custom') throw new Error('wrong finalizer arguments')
+		await index.finalize(serialized, meta, uuid)
+		await fs.writeFile(meta.data + '/finalized.json', JSON.stringify({marker: this.marker, uuid}))
+	}
+}`)
+	await runCommand('{"id":"custom","name":"edit","value":"command mutation"}')
+	const {offsets} = await verifyOffsets(dir, 'custom')
+	assert.deepEqual(Object.keys(offsets), ['1', '2'])
+	assert.deepEqual(JSON.parse(await fs.readFile(path.join(dir, 'finalized.json'), 'utf8')), {marker: 'custom receiver', uuid: 'custom'})
+})
+
+test('custom finalization can replace the default without an unconditional offset write', async t => {
+	const {dir} = await fixture(t, `import fs from 'node:fs/promises'
+export default {
+	update() {},
+	async finalize(serialized, meta, uuid) {
+		await fs.writeFile(meta.data + '/custom.' + uuid, serialized)
+	}
+}`)
+	await runCommand('{"id":"replacement","name":"edit","value":"changed"}')
+	assert.deepEqual(await fs.readFile(path.join(dir, 'custom.replacement')), await fs.readFile(path.join(dir, 'data.replacement.jsontag')))
+	await assert.rejects(fs.access(path.join(dir, 'index.offset.replacement.json')), /ENOENT/)
+})
+
+test('custom finalization rejection propagates from the command worker', async t => {
+	const {dir} = await fixture(t, 'export default {update() {}, async finalize() { throw new Error("custom finalization failed") }}')
+	await assert.rejects(runCommand('{"id":"rejected","name":"edit","value":"changed"}'), /custom finalization failed/)
+	await assert.rejects(fs.access(path.join(dir, 'index.offset.rejected.json')), /ENOENT/)
+})

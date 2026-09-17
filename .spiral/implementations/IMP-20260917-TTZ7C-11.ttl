@@ -30,22 +30,17 @@ project:IMP-20260917-TTZ7C-11
     ] ;
     sd:transforms [
         a sd:ArtifactReference ;
-        sd:artifact project:IMP-004 ;
-        sd:gitCommit "adccdd13f4de9c0501a5f6e0c10a2778aa2b0eb8"
+        sd:artifact project:IMP-20260917-TTZ7C-11 ;
+        sd:gitCommit "c6bfb419cf48e2248e1bb0a7ae3d8ec069d0a6c9"
     ] ;
-    sd:transforms [
+    sd:implements [
         a sd:ArtifactReference ;
-        sd:artifact project:IMP-006 ;
-        sd:gitCommit "adccdd13f4de9c0501a5f6e0c10a2778aa2b0eb8"
-    ] ;
-    sd:transforms [
-        a sd:ArtifactReference ;
-        sd:artifact project:IMP-20260819-09ZEF-8 ;
-        sd:gitCommit "adccdd13f4de9c0501a5f6e0c10a2778aa2b0eb8"
+        sd:artifact project:DES-20260917-TTZ7C-14 ;
+        sd:gitCommit "f1911db50615e28b2e4e97a4852c73e412b933aa"
     ] ;
     sd:changeCausedBy [
         a sd:ArtifactReference ;
-        sd:artifact project:REQ-20260917-TTZ7C-9 ;
-        sd:gitCommit "5a4fd47ae8b59468067fbe164294472550abb274"
+        sd:artifact project:REQ-20260917-TTZ7C-13 ;
+        sd:gitCommit "59214a11f730c9657024c2f338513c86b1088dad"
     ] ;
     sd:implementationChangeKind sd:MixedChange .

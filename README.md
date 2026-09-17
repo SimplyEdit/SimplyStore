@@ -13,6 +13,7 @@ Note: _There are known security issues in VM2, so the project will switch to V8-
 - [Background](#background)
 - [Install](#install)
 - [Usage](#usage)
+- [Custom Index Modules](#custom-index-modules)
 - [Example Query](#examples)
 - [Goals](#goals)
 - [Roadmap](#roadmap)
@@ -59,6 +60,44 @@ node myApp.js
 You should be able to go http://localhost:3000/query/ and see something like this:
 
 ![image](https://github.com/SimplyEdit/SimplyStore/assets/1006453/3bec6b97-ffa1-4114-9ed4-51a68f73476e)
+
+## Custom Index Modules
+
+Use `indexFile` to configure a module whose default export provides the existing
+`create(data, meta)`, `update(data, meta, changes)`, and `load(meta, uuid)` methods.
+Conversion calls `create`; commands call `update` when changes are present.
+These hooks run before final serialization and may update derived data.
+
+After writing the serialized data, SimplyStore awaits
+`finalize(serialized, meta, uuid)`. Existing modules without this optional method
+automatically use the default finalizer, which writes correct offset indexes.
+Wrappers that only override `create`, `update`, and `load` need no changes.
+
+To extend finalization, delegate to the default implementation:
+
+```javascript
+import index from '@muze-nl/simplystore/src/index.mjs'
+
+export default {
+    ...index,
+    async finalize(serialized, meta, uuid = null) {
+        await index.finalize(serialized, meta, uuid)
+        // Write any additional derived files here.
+    }
+}
+```
+
+`serialized` contains the final OD-JSONTag output: a string during conversion
+or a `Uint8Array` for a command changeset. `meta.data` is the output directory;
+`uuid` is `null` for conversion or the command ID for a changeset. Treat the
+serialized input and canonical data as read-only during finalization. The custom
+method receives its original object as `this` and is called once, including for
+empty command changesets.
+
+A custom finalizer replaces the default, so delegate as above to retain standard
+offset files. Rejections fail conversion or the command before success is
+reported. Files already written may remain; finalization is not an atomic
+transaction across all data and index files.
 
 <a name="examples"></a>
 ## Example query

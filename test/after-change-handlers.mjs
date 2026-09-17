@@ -129,6 +129,24 @@ test('handler lifecycle: final offset write failure prevents command commit', as
 	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
 })
 
+test('handler lifecycle: custom finalizer rejection prevents command commit', async t => {
+	const fixture = await makeServerFixture(t, {
+		initialData: '{"persons":[{"name":"Initial"}]}',
+		commandsSource: baseCommands,
+		indexSource: 'export default {update() {}, async finalize() { throw new Error("custom finalization failed") }}'
+	})
+	const port = await getOpenPort()
+	const server = startServer(t, fixture, {port})
+	await waitForServer(server.child, server.getOutput, port)
+
+	const status = await postAndWait(port, {
+		id: 'custom-finalizer-fails', name: 'addPerson', value: {name: 'Should Not Commit'}
+	}, 'failed')
+	assert.match(status.message, /custom finalization failed/)
+	assert.deepEqual(await queryNames(port), ['Initial'])
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
+})
+
 test('handler lifecycle: current index update can mutate canonical state before commit', async t => {
 	const fixture = await makeServerFixture(t, {
 		initialData: '{"persons":[{"name":"Initial"}]}',

@@ -88,10 +88,40 @@ export default {
 test('conversion replaces stale offsets even when the custom hook writes no index', async t => {
 	const files = await fixture(t)
 	const indexFile = path.join(files.dir, 'index.mjs')
-	await fs.writeFile(indexFile, 'export default { create(data) { data.items[0].name = "changed" } }\n')
+	await fs.writeFile(indexFile, 'export default Object.freeze({ create(data) { data.items[0].name = "changed" } })\n')
 	await fs.writeFile(path.join(files.dir, 'index.offset.json'), '{"0":[0,1],"99":[2,3]}')
 	await convert(files, indexFile)
 	const {payloads, data} = await verifyOffsets(files)
 	assert.equal(payloads.length, 3)
 	assert.equal(data.items[0].name, 'changed')
+})
+
+test('conversion awaits custom finalization with the original receiver and final bytes', async t => {
+	const files = await fixture(t)
+	const indexFile = path.join(files.dir, 'index.mjs')
+	await fs.writeFile(indexFile, `import index from ${JSON.stringify(baseIndex)}
+import fs from 'node:fs/promises'
+import {setTimeout} from 'node:timers/promises'
+export default {
+	marker: 'custom receiver',
+	create(data) { data.items[0].name = 'final value' },
+	async finalize(serialized, meta, uuid) {
+		await setTimeout(20)
+		if (uuid !== null || typeof serialized !== 'string' || !serialized.includes('final value')) throw new Error('wrong finalizer arguments')
+		await index.finalize(serialized, meta, uuid)
+		await fs.writeFile(meta.data + '/finalized.json', JSON.stringify({marker: this.marker, uuid}))
+	}
+}
+`)
+	await convert(files, indexFile)
+	await verifyOffsets(files)
+	assert.deepEqual(JSON.parse(await fs.readFile(path.join(files.dir, 'finalized.json'), 'utf8')), {marker: 'custom receiver', uuid: null})
+})
+
+test('conversion propagates rejection from custom finalization', async t => {
+	const files = await fixture(t)
+	const indexFile = path.join(files.dir, 'index.mjs')
+	await fs.writeFile(indexFile, 'export default {create() {}, async finalize() { throw new Error("custom finalization failed") }}\n')
+	await assert.rejects(convert(files, indexFile), /custom finalization failed/)
+	await assert.rejects(fs.access(path.join(files.dir, 'index.offset.json')), /ENOENT/)
 })
