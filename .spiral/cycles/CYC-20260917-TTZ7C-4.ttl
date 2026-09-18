@@ -6,4 +6,4 @@ project:CYC-20260917-TTZ7C-4
     a sd:Cycle ;
     dcterms:identifier "CYC-20260917-TTZ7C-4" ;
     sd:repositoryPath ".spiral/cycles/CYC-20260917-TTZ7C-4.md" ;
-    sd:status sd:Active .
+    sd:status sd:Accepted .
