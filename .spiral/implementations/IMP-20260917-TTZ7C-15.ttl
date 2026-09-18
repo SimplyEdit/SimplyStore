@@ -1,0 +1,17 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260917-TTZ7C-15
+    a sd:Implementation ;
+    dcterms:identifier "IMP-20260917-TTZ7C-15" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260917-TTZ7C-15.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "src/index.mjs#finalize" ;
+    sd:implementationLocation "src/index.mjs#finalizeIndex" ;
+    sd:implementationLocation "README.md#custom-index-modules" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260917-TTZ7C-14 ;
+        sd:gitCommit "f1911db50615e28b2e4e97a4852c73e412b933aa"
+    ] .

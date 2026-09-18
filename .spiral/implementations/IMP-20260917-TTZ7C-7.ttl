@@ -1,0 +1,33 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260917-TTZ7C-7
+    a sd:Implementation ;
+    dcterms:identifier "IMP-20260917-TTZ7C-7" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260917-TTZ7C-7.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "scripts/convert.mjs" ;
+    sd:implementationLocation "test/conversion-offsets.mjs" ;
+    sd:implementationLocation "package.json#scripts.test" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260917-TTZ7C-10 ;
+        sd:gitCommit "641285f12e2cc638bae3835c944c4515b8e00b2a"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-20260917-TTZ7C-7 ;
+        sd:gitCommit "c6bfb419cf48e2248e1bb0a7ae3d8ec069d0a6c9"
+    ] ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260917-TTZ7C-14 ;
+        sd:gitCommit "f1911db50615e28b2e4e97a4852c73e412b933aa"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:REQ-20260917-TTZ7C-13 ;
+        sd:gitCommit "59214a11f730c9657024c2f338513c86b1088dad"
+    ] ;
+    sd:implementationChangeKind sd:MixedChange .

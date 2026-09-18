@@ -18,7 +18,7 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Current active Spiral cycle: none. Latest accepted cycle: `.spiral/cycles/CYC-20260819-09ZEF-5.md` (`Integrity Detection`). The runtime slice was accepted on 2026-08-19; the compliance correction in `DEF-20260916-TTZ7C-1`, verified by `EVD-20260916-TTZ7C-3`, was explicitly accepted on 2026-09-16. Integration must still be validated against the current target.
+Current active Spiral cycle: none. Latest accepted cycle: `.spiral/cycles/CYC-20260917-TTZ7C-4.md` (`Persisted Offset Indexes`), explicitly accepted on 2026-09-18. Conversion and command changesets now finalize offsets from their serialized bytes through the configured index module, with a default fallback for existing wrappers. Integration must still be validated against the current target. The earlier integrity runtime slice was accepted on 2026-08-19; its compliance correction in `DEF-20260916-TTZ7C-1`, verified by `EVD-20260916-TTZ7C-3`, was explicitly accepted on 2026-09-16.
 
 ## Intake State
 

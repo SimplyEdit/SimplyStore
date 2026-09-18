@@ -1,7 +1,7 @@
 import idIndex from './index.id.mjs'
 import offsetIndex from './index.offset.mjs'
 
-export default {
+const defaultIndex = {
 	create(data, meta) {
 		idIndex.create(data, meta)
 		offsetIndex.create(data, meta)
@@ -10,6 +10,9 @@ export default {
 		idIndex.update(data, meta, changes)
 		offsetIndex.update(data, meta, changes)
 	},
+	finalize(serialized, meta, uuid = null) {
+		return offsetIndex.writeSerialized(serialized, meta, uuid)
+	},
 	load(meta, uuid=null) {
 		return {
 			id: idIndex.load(uuid),
@@ -17,3 +20,10 @@ export default {
 		}
 	}
 }
+
+export function finalizeIndex(index, serialized, meta, uuid = null) {
+	const finalize = index.finalize ?? defaultIndex.finalize
+	return finalize.call(index, serialized, meta, uuid)
+}
+
+export default defaultIndex
