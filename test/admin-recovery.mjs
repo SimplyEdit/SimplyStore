@@ -209,3 +209,37 @@ test('promotion verification rejects code changed after completed recovery',asyn
     await fs.appendFile(store.commandsFile,'\n// altered after recovery\n')
     await assert.rejects(verifyCandidate(result),/Selected code changed/)
 })
+
+test('verified A prefix permits only missing B, waiting C and missing D in log order',async t=>{
+    const {store,outputs}=await setup(t,[['A','accepted'],['B','accepted'],['C','accepted'],['D','accepted']])
+    const complete=await runRecovery(store,outputs,await planRecovery(store,{quiescent:true}))
+    const source={...complete.config,commandsFile:store.commandsFile,indexFile:store.indexFile}
+    for(const id of ['B','C','D'])await fs.unlink(path.join(path.dirname(source.datafile),`data.${id}.jsontag`))
+    await fs.appendFile(source.commandStatus,JSONTag.stringify({command:'C',status:'accepted',code:202})+'\n')
+    const prefix=await fs.readFile(path.join(path.dirname(source.datafile),'data.A.jsontag'))
+    const plan=await planRecovery(source,{quiescent:true})
+    assert.equal(plan.actionable,true);assert.deepEqual(plan.committed,['A']);assert.deepEqual(plan.rerun,['B','C','D'])
+    const next=path.join(outputs,'next');await fs.mkdir(next)
+    const result=await runRecovery(source,next,plan)
+    assert.deepEqual((await inspectStore(result.config)).data.persons.map(p=>p.name),['A','B','C','D'])
+    assert.deepEqual(await fs.readFile(path.join(path.dirname(result.config.datafile),'data.A.jsontag')),prefix)
+})
+
+test('restore reports accepted commands absent from an older backup',async t=>{
+    const {store,outputs}=await setup(t,[])
+    const backup=path.join(outputs,'old-backup');await backupStore(store,{to:backup,quiescent:true})
+    await fs.appendFile(store.commandLog,JSONTag.stringify({id:'later',name:'addPerson',value:{name:'later'}})+'\n')
+    await fs.appendFile(store.commandStatus,JSONTag.stringify({command:'later',status:'accepted',code:202})+'\n')
+    const result=await restoreBackup(backup,{to:path.join(outputs,'rollback'),auditDir:path.join(outputs,'audit'),source:store,sourceQuiescent:true})
+    assert.equal(result.sameBase,true);assert.deepEqual(result.missingFromBackup,['later'])
+    assert.deepEqual(result.committed,[])
+})
+
+test('identical historical duplicate retains first log position; conflicting duplicate blocks',async t=>{
+    const {store}=await setup(t,[['A','accepted'],['B','accepted']])
+    await fs.appendFile(store.commandLog,JSONTag.stringify({id:'A',name:'addPerson',value:{name:'A'}})+'\n')
+    const plan=await planRecovery(store,{quiescent:true})
+    assert.equal(plan.actionable,true);assert.deepEqual(plan.rerun,['A','B'])
+    await fs.appendFile(store.commandLog,JSONTag.stringify({id:'A',name:'addPerson',value:{name:'different'}})+'\n')
+    assert.ok((await planRecovery(store,{quiescent:true})).blocks.some(s=>s.includes('Conflicting command ID A')))
+})
