@@ -26,4 +26,9 @@ project:DES-20260919-TTZ7C-32
         a sd:ArtifactReference ;
         sd:artifact project:SRC-20260919-TTZ7C-28 ;
         sd:gitCommit "ffe879c66c68d4e981e86c78b1c02e2b1b7ed652"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260919-TTZ7C-32 ;
+        sd:gitCommit "2c6858f06f134519705b0d90225c7342d4e72c72"
     ] .
