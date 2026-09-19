@@ -60,6 +60,7 @@ Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifa
 
 - Always use braces for control-flow bodies, including single-statement `if`, `else`, and loop bodies. Start block contents on the line after `{`, and put the closing `}` on its own line. This includes empty blocks and callbacks; `else`, `catch`, and `finally` start on the next line after `}`.
 
+- Prefer named intermediate results over dense chains of operations. Use the existing JAQT library where it makes data selection and projection clearer; keep straightforward operations simple.
 - Treat `master` as the authoritative branch unless the human states otherwise.
 - For ordinary repository-changing Spiral cycle work, create one dedicated branch from the authoritative branch, normally `spiral/CYC-###-short-goal`.
 - For new Spiral artifacts after CYC-018, use distributed-safe IDs allocated by `node .spiral-core/bin/spiral.mjs allocate <TYPE>` instead of scanning for the next legacy number. Existing `SRC-001` / `CYC-017` style IDs remain valid historical artifacts and must not be renamed.
