@@ -306,7 +306,10 @@ export class StoreRuntime {
 
     async acceptCommand(commandText) {
         if (this.storageFailed || this.closing) {
-            return this.unavailableCommandResult()
+            return {
+                code: 503,
+                value: { message: 'Store is unavailable' }
+            }
         }
         try {
             return await this.serializeAcceptance(async () => {
@@ -319,7 +322,7 @@ export class StoreRuntime {
                         value: { message: 'Store is closing' }
                     }
                 }
-                return this.recordAcceptedCommand(commandText)
+                return this.acceptCommandInOrder(commandText)
             })
         }
         catch (error) {
@@ -328,14 +331,7 @@ export class StoreRuntime {
         }
     }
 
-    unavailableCommandResult() {
-        return {
-            code: 503,
-            value: { message: 'Store is unavailable' }
-        }
-    }
-
-    async recordAcceptedCommand(commandText) {
+    async acceptCommandInOrder(commandText) {
         const candidate = this.prepareCommand(commandText)
         if (candidate.result) {
             return candidate.result

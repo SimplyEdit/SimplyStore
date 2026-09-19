@@ -203,7 +203,7 @@ function createQueryRequest(request, body) {
     if (body !== undefined) {
         queryRequest.body = body
     }
-    if (acceptsResponseType(request, null, ['application/jsontag'])) {
+    if (request.accepts(['application/jsontag'])) {
         queryRequest.jsontag = true
     }
     return queryRequest
