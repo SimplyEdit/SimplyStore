@@ -14,4 +14,4 @@ project:DES-20260919-TTZ7C-25 a sd:Design ;
         sd:gitCommit "40f87397774e08b6549fc95dcd966922ddbaa7e9" ] ;
     sd:constrainedBy [ a sd:ArtifactReference ;
         sd:artifact project:DES-20260919-TTZ7C-24 ;
-        sd:gitCommit "6a8cd61acef708791b7d01763bd556d19475cf00" ] .
+        sd:gitCommit "682d405fd35c433565ea103c126d45f4c5156ffa" ] .

@@ -11,4 +11,9 @@ project:CYC-20260919-TTZ7C-17
         a sd:ArtifactReference ;
         sd:artifact project:REQ-20260919-TTZ7C-20 ;
         sd:gitCommit "b1f15b5964986a9e3cab9025f08829b88294974c"
+    ] ;
+    sd:constrainedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:SRC-20260919-TTZ7C-18 ;
+        sd:gitCommit "67be05c0d648461666f577d808ea2747f5e324f6"
     ] .
