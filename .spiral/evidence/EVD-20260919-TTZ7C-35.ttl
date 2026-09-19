@@ -10,14 +10,14 @@ project:EVD-20260919-TTZ7C-35
     sd:verifies [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-20260919-TTZ7C-33 ;
-        sd:gitCommit "f0c1616c828db6c63c84cd63dcf4c4f4324188c1"
+        sd:gitCommit "52a9599826716788c98916a4b71b8d8a046b9d67"
     ], [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-20260919-TTZ7C-34 ;
-        sd:gitCommit "f0c1616c828db6c63c84cd63dcf4c4f4324188c1"
+        sd:gitCommit "52a9599826716788c98916a4b71b8d8a046b9d67"
     ] ;
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:EVD-20260919-TTZ7C-35 ;
-        sd:gitCommit "f2a05ae3fccf8574293241a2cb3da27012a19b45"
+        sd:gitCommit "79bec88e31038466fb05526ac817ee134f223ec2"
     ] .
