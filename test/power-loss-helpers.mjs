@@ -45,7 +45,7 @@ export async function eventually(fn, description, timeout = 6000) {
 	const end = Date.now() + timeout
 	while (Date.now() < end) {
 		const result = await fn()
-		if (result) return result
+		if (result) { return result }
 		await new Promise(resolve => setTimeout(resolve, 10))
 	}
 	assert.fail(`Timed out: ${description}`)
@@ -107,7 +107,7 @@ export async function loseUnpublishedName(store, image, original) {
 	assert.ok(publication >= 0, `trace contains publication of ${original}`)
 	const durable = trace.slice(publication + 1).some(e =>
 		e.file === path.dirname(original) && e.op === 'sync')
-	if (!durable) await fs.rm(path.join(image.dir, path.basename(original)))
+	if (!durable) { await fs.rm(path.join(image.dir, path.basename(original))) }
 	return !durable
 }
 

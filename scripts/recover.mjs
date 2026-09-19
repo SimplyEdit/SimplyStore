@@ -7,12 +7,12 @@ import {inspectStore} from '../src/store-inspection.mjs'
 const [action,...args] = process.argv.slice(2)
 const options = {}
 for (let i=0;i<args.length;i++) {
-    if (!args[i].startsWith('--')) throw new Error(`Expected option, got ${args[i]}`)
+    if (!args[i].startsWith('--')) { throw new Error(`Expected option, got ${args[i]}`) }
     const key = args[i].slice(2)
     options[key] = args[i+1] && !args[i+1].startsWith('--') ? args[++i] : true
 }
 const read = async file => JSON.parse(await fs.readFile(file,'utf8'))
-const required = key => { if (typeof options[key] !== 'string') throw new Error(`--${key} is required`); return options[key] }
+const required = key => { if (typeof options[key] !== 'string') { throw new Error(`--${key} is required`); } return options[key] }
 async function main() {
     switch (action) {
     case 'inspect': {

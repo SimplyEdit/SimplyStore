@@ -85,11 +85,11 @@ async function main(options) {
     let inspection
     try {
         inspection = await inspectStore(config)
-        if (!inspection.ready) throw new Error('Administrative recovery required: ' +
+        if (!inspection.ready) { throw new Error('Administrative recovery required: ' +
             [...inspection.errors, ...inspection.commands.filter(c => c.problem).map(c => c.problem),
                 ...inspection.commands.filter(c => c.status === 'accepted' || c.status === 'active').map(c => `${c.id}: ${c.status}; administrator assessment required`),
-                ...inspection.commands.filter(c => c.present && c.status !== 'done').map(c => `${c.id}: uncommitted dataset`)].join('; '))
-        for (const [file, digest] of Object.entries(inspection.files)) if (digest !== null) await syncFile(file)
+                ...inspection.commands.filter(c => c.present && c.status !== 'done').map(c => `${c.id}: uncommitted dataset`)].join('; ')) }
+        for (const [file, digest] of Object.entries(inspection.files)) { if (digest !== null) { await syncFile(file) } }
         const data = await loadData(inspection.committed)
         jsontagBuffers = [data.data]
         meta = data.meta
@@ -103,7 +103,7 @@ async function main(options) {
     let storageFailed = false, closing = false
     let runner = Promise.resolve()
     function failStorage(error) {
-        if (storageFailed) return
+        if (storageFailed) { return }
         storageFailed = true
         console.error('Storage outcome uncertain; stopping mutation. Administrator recovery required:', error)
         // Retain ownership evidence; a process exit must never imply a rollback.
@@ -150,14 +150,14 @@ async function main(options) {
     })
     listener.on('error', error => { failStorage(error) })
     async function shutdown() {
-        if (closing) return
+        if (closing) { return }
         closing = true
         listener.close()
         try {
             await acceptSerial(async () => {})
             await runner
             queryWorkerPool.close(); slowQueryWorkerPool.close()
-            if (!storageFailed) await ownership.release()
+            if (!storageFailed) { await ownership.release() }
             process.exit(storageFailed ? 1 : 0)
         } catch (error) { failStorage(error) }
     }
@@ -303,20 +303,20 @@ async function main(options) {
     }
 
     async function handlePostCommand(req, res) {
-        if (storageFailed || closing) return sendResponse({code:503, body: JSON.stringify({message:'Store is unavailable'})}, res)
+        if (storageFailed || closing) { return sendResponse({code:503, body: JSON.stringify({message:'Store is unavailable'})}, res) }
         try {
             await acceptSerial(async () => {
-                if (storageFailed) throw new Error('Store is unavailable')
-                if (closing) return sendResponse({code:503,body:JSON.stringify({message:'Store is closing'})},res)
+                if (storageFailed) { throw new Error('Store is unavailable') }
+                if (closing) { return sendResponse({code:503,body:JSON.stringify({message:'Store is closing'})},res) }
                 const accepted = await checkCommand(req, res)
-                if (!accepted) return
-                if (storageFailed) throw new Error('Store failed during acceptance')
+                if (!accepted) { return }
+                if (storageFailed) { throw new Error('Store failed during acceptance') }
                 commandQueue.push({id: accepted.id, command: accepted.line})
                 sendResponse({code:202, body:JSON.stringify(status.get(accepted.id))}, res)
             })
             void drainCommandQueue()
         } catch (error) {
-            if (!res.headersSent) sendResponse({code:500, body:JSON.stringify({message:'Storage outcome uncertain'})}, res)
+            if (!res.headersSent) { sendResponse({code:500, body:JSON.stringify({message:'Storage outcome uncertain'})}, res) }
             failStorage(error)
         }
     }
@@ -338,7 +338,7 @@ async function main(options) {
     }
 
     function drainCommandQueue() {
-        if (commandRunnerActive || storageFailed) return runner
+        if (commandRunnerActive || storageFailed) { return runner }
         commandRunnerActive = true
         runner = (async () => {
             try {
@@ -347,15 +347,15 @@ async function main(options) {
                     console.log('starting command', command.id)
                     const active = nextActiveCommandStatus(command.id, status.get(command.id))
                     await appendFile(commandStatus, JSONTag.stringify(active))
-                    if (storageFailed) throw new Error('Store failed before execution')
+                    if (storageFailed) { throw new Error('Store failed before execution') }
                     status.set(command.id, active)
                     await faultPoint('after-active-status-before-command-worker')
                     const result = await executeWorker(commandWorker, {...command,
                         meta, data: jsontagBuffers, commandsFile, indexFile, datafile,
                         integrityFile: integrityEnabled ? integrityFile : null,
                         integrityRequired: integrityEnabled}, commandTimeout)
-                    if (storageFailed) throw new Error('Store failed during execution')
-                    if (result?.storageFailure) throw new Error(result.message || 'Worker persistence failure')
+                    if (storageFailed) { throw new Error('Store failed during execution') }
+                    if (result?.storageFailure) { throw new Error(result.message || 'Worker persistence failure') }
                     if (!result || result.status === 'failed' || result.status === 'unsafe' || result.code >= 300) {
                         const terminal = {command: command.id, status: result?.status === 'unsafe' ? 'unsafe' : 'failed',
                             code: result?.code || 500, message: result?.message || 'Command failed', attempt: active.attempt}
@@ -363,7 +363,7 @@ async function main(options) {
                         status.set(command.id, terminal)
                         continue
                     }
-                    for (const file of config.requiredFiles) await syncFile(file)
+                    for (const file of config.requiredFiles) { await syncFile(file) }
                     await faultPoint('before-command-done-status')
                     const done = {command: command.id, code:200, status:'done'}
                     await appendFile(commandStatus, JSONTag.stringify(done))

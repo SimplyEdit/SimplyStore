@@ -96,8 +96,8 @@ export default async function runCommand(commandStr) {
     let publishing = false
     try {
         let task = JSONTag.parse(commandStr, null, metaReadProxy)
-        if (!task.id) { throw new Error('missing command id')}
-        if (!task.name) { throw new Error('missing command name parameter')}
+        if (!task.id) { throw new Error('missing command id') }
+        if (!task.name) { throw new Error('missing command name parameter') }
         if (commands[task.name]) {
             let time = Date.now()
             await commands[task.name](dataspace, task, undefined, metaProxy)

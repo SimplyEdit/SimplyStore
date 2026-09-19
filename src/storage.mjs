@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto'
 import {Buffer} from 'node:buffer'
 
 export function storageError(error) {
-    if (!(error instanceof Error)) error = new Error(String(error))
+    if (!(error instanceof Error)) { error = new Error(String(error)) }
     error.storageFailure = true
     return error
 }
@@ -30,7 +30,7 @@ async function withHandle(file, flags, operation, mode) {
     if (handle) {
         try { await handle.close() } catch (error) { failure ??= error }
     }
-    if (failure) throw storageError(failure)
+    if (failure) { throw storageError(failure) }
     return result
 }
 
@@ -55,7 +55,7 @@ export async function syncAncestors(directory) {
     for (let current = directory; ; current = path.dirname(current)) {
         await syncDirectory(current)
         const parent = path.dirname(current)
-        if (parent === current || (await fsp.stat(parent)).dev !== device) break
+        if (parent === current || (await fsp.stat(parent)).dev !== device) { break }
     }
 }
 
@@ -69,7 +69,7 @@ export async function durableMkdir(directory) {
         if (error.code === 'ENOENT') {
             await durableMkdir(path.dirname(directory))
             await fsp.mkdir(directory)
-        } else if (error.code !== 'EEXIST') throw storageError(error)
+        } else if (error.code !== 'EEXIST') { throw storageError(error) }
     }
     await syncDirectory(directory)
     await syncDirectory(path.dirname(directory))
@@ -81,11 +81,11 @@ export async function publishFile(file, data, {mode} = {}) {
     try {
         try {
             const stat = await fsp.lstat(file)
-            if (stat.isSymbolicLink()) throw new Error('Refusing to publish over a symlink')
+            if (stat.isSymbolicLink()) { throw new Error('Refusing to publish over a symlink') }
             mode ??= stat.mode & 0o777
-        } catch (error) { if (error.code !== 'ENOENT') throw error }
+        } catch (error) { if (error.code !== 'ENOENT') { throw error } }
         await withHandle(temporary, 'wx', async handle => {
-            if (mode !== undefined) await handle.chmod(mode)
+            if (mode !== undefined) { await handle.chmod(mode) }
             await writeAll(handle, data)
             await handle.sync()
         }, mode)
@@ -93,7 +93,7 @@ export async function publishFile(file, data, {mode} = {}) {
         renamed = true
         await syncDirectory(path.dirname(file))
     } catch (error) {
-        if (!renamed) await fsp.unlink(temporary).catch(() => {})
+        if (!renamed) { await fsp.unlink(temporary).catch(() => {}) }
         throw storageError(error)
     }
 }
@@ -101,7 +101,7 @@ export async function publishFile(file, data, {mode} = {}) {
 const appenders = new Map()
 export function appendRecord(file, record) {
     const key = path.resolve(file)
-    if (!appenders.has(key)) appenders.set(key, serialWriter())
+    if (!appenders.has(key)) { appenders.set(key, serialWriter()) }
     return appenders.get(key)(async () => {
         await withHandle(file, 'a', async handle => {
             await writeAll(handle, record + '\n')
@@ -120,15 +120,15 @@ export function publishFileSync(file, data) {
         let mode
         try {
             const stat = fs.lstatSync(file)
-            if (stat.isSymbolicLink()) throw new Error('Refusing to publish over a symlink')
+            if (stat.isSymbolicLink()) { throw new Error('Refusing to publish over a symlink') }
             mode = stat.mode & 0o777
-        } catch (error) { if (error.code !== 'ENOENT') throw error }
+        } catch (error) { if (error.code !== 'ENOENT') { throw error } }
         fd = fs.openSync(temporary, 'wx', mode)
-        if (mode !== undefined) fs.fchmodSync(fd,mode)
+        if (mode !== undefined) { fs.fchmodSync(fd,mode) }
         let offset = 0
         while (offset < bytes.length) {
             const count = fs.writeSync(fd, bytes, offset, bytes.length - offset)
-            if (!Number.isInteger(count) || count <= 0 || count > bytes.length - offset) throw new Error('Invalid or zero-progress write')
+            if (!Number.isInteger(count) || count <= 0 || count > bytes.length - offset) { throw new Error('Invalid or zero-progress write') }
             offset += count
         }
         fs.fsyncSync(fd)
@@ -137,14 +137,14 @@ export function publishFileSync(file, data) {
         try { fs.closeSync(fd) } catch (error) { failure ??= error }
     }
     try {
-        if (failure) throw failure
+        if (failure) { throw failure }
         fs.renameSync(temporary, file)
         renamed = true
         fd = fs.openSync(path.dirname(file), 'r')
         failure = undefined
         try { fs.fsyncSync(fd) } catch (error) { failure = error }
         try { fs.closeSync(fd) } catch (error) { failure ??= error }
-        if (failure) throw failure
+        if (failure) { throw failure }
     } catch (error) {
         if (!renamed) { try { fs.unlinkSync(temporary) } catch { /* Preserve the primary failure. */ } }
         throw storageError(error)

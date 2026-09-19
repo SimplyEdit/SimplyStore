@@ -253,7 +253,7 @@ test('durable command log replays only accepted commands', async t => {
 	assert.equal(JSONTag.parse(commands[0].command).name, 'addPerson')
 })
 
-for (const attempt of [1, 2]) test(`active command at attempt ${attempt} remains unchanged pending administrator assessment`, async t => {
+for (const attempt of [1, 2]) { test(`active command at attempt ${attempt} remains unchanged pending administrator assessment`, async t => {
     const fixture = await makeFixture(t)
     const file = path.join(fixture.dir, 'status.jsontag')
     await writeJsonTagLines(file, [{command:'A',status:'active',attempt}])
@@ -262,7 +262,7 @@ for (const attempt of [1, 2]) test(`active command at attempt ${attempt} remains
     await assert.rejects(recoverActiveCommands(status,file,{maxCrashAttempts:2}), /administrator assessment/)
     assert.equal(status.get('A').status,'active')
     assert.deepEqual(await fs.readFile(file),before)
-})
+}) }
 
 test('malformed durable status record refuses recovery with explicit integrity error', async t => {
 	const fixture = await makeFixture(t)

@@ -90,10 +90,10 @@ async function main() {
 	await publishFile(outputFile, strData)
 	// Custom indexes may change record sizes or add records after initial parsing.
 	await finalizeIndex(index, strData, meta)
-	if (integrity) await appendIntegrityRecord(getDefaultIntegrityFile(outputFile), outputFile, Buffer.from(strData))
-	for (const file of logs) await publishFile(file, '')
+	if (integrity) { await appendIntegrityRecord(getDefaultIntegrityFile(outputFile), outputFile, Buffer.from(strData)) }
+	for (const file of logs) { await publishFile(file, '') }
 	for (const entry of fs.readdirSync(directory, {withFileTypes:true})) {
-		if (entry.isFile()) await syncFile(path.join(directory, entry.name))
+		if (entry.isFile()) { await syncFile(path.join(directory, entry.name)) }
 	}
 	await ownership.release()
 	console.log('Converted data written to ',outputFile)

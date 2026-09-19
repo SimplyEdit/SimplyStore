@@ -55,18 +55,18 @@ for (const [name,op,file,contains] of [
     ['changeset sync','sync','data.A.jsontag.'],
     ['changeset rename','rename','data.A.jsontag'],
     ['done sync','datasync','command-status.jsontag','"status":"done"']
-]) test(`PL07-09/11/18-20 ${name} failure stops mutation without false terminal success`,async t=>{
+]) { test(`PL07-09/11/18-20 ${name} failure stops mutation without false terminal success`,async t=>{
     const store=await fixture(t),server=await ready(t,store,{fault:{op,file,contains,action:'error'}})
-    try {await submit(store,server.port,command('A'))} catch(error){assert.match(error.message,/fetch failed|terminated|socket/)}
+    try { await submit(store,server.port,command('A')) } catch(error){ assert.match(error.message,/fetch failed|terminated|socket/) }
     assert.equal((await waitForExit(server.child)).code,1)
     assert.match(server.getOutput(),/Storage outcome uncertain/)
     assert.ok((await rows(store.trace)).some(e=>e.op==='injected'))
     const status=await readCommandStatusRecords(store)
     // Failed sync can leave a complete but uncertain done record; never append failed after it.
     const done=status.findIndex(s=>s.status==='done')
-    if(done>=0)assert.equal(status.slice(done+1).some(s=>s.status==='failed'),false)
-    else assert.equal(status.some(s=>s.status==='done'),false)
-})
+    if(done>=0){ assert.equal(status.slice(done+1).some(s=>s.status==='failed'),false) }
+    else { assert.equal(status.some(s=>s.status==='done'),false) }
+}) }
 test('PL15 configured workers cannot receive HTTP execution inputs; command values roundtrip',async t=>{
     const store=await fixture(t,{commandsSource:`export default {addPerson(data,command,request,meta){
         if(request!==undefined)throw new Error('unlogged input leaked')
@@ -84,7 +84,7 @@ parentPort.on('message',async task=>{if('request' in task)throw new Error('reque
     assert.equal(JSONTag.stringify((await readCommandLogRecords(store))[0]),JSONTag.stringify(input))
     assert.equal((await queryPersons(server.port))[0].name,input.value.name)
 })
-for(const duplicate of [false,true])test(`PL16 delayed append cannot be overtaken${duplicate?' by duplicate ID':''}`,async t=>{
+for(const duplicate of [false,true]){ test(`PL16 delayed append cannot be overtaken${duplicate?' by duplicate ID':''}`,async t=>{
     const store=await fixture(t),server=await ready(t,store,{fault:{op:'datasync:after',file:'command-log.jsontag',contains:'"id":"A"',action:'pause'}})
     const a=submit(store,server.port,command('A'))
     await eventually(async()=> (await rows(store.trace)).some(e=>e.op==='injected'),'A append gate')
@@ -98,8 +98,8 @@ for(const duplicate of [false,true])test(`PL16 delayed append cannot be overtake
     assert.deepEqual((await readCommandLogRecords(store)).map(c=>c.id),expected)
     assert.deepEqual((await readCommandStatusRecords(store)).filter(s=>s.status==='active').map(s=>s.command),expected)
     assert.deepEqual((await queryPersons(server.port)).map(p=>p.name),expected)
-})
-for(const artifact of ['command-log.jsontag','command-status.jsontag','data.A.jsontag'])test(`PL02-04/06 missing ${artifact} fails open rather than recreating history`,async t=>{
+}) }
+for(const artifact of ['command-log.jsontag','command-status.jsontag','data.A.jsontag']){ test(`PL02-04/06 missing ${artifact} fails open rather than recreating history`,async t=>{
     const store=await fixture(t),server=await ready(t,store);await commit(store,server)
     await crash(server.child);await unlockStoppedFixture(t,store)
     await fs.unlink(path.join(store.dir,artifact))
@@ -108,13 +108,13 @@ for(const artifact of ['command-log.jsontag','command-status.jsontag','data.A.js
     assert.equal((await waitForExit(restarted.child)).code,1)
     assert.match(restarted.getOutput(),/Administrative recovery required/)
     assert.deepEqual((await fs.readdir(store.dir)).sort(),before.sort())
-})
+}) }
 test('PL12/17 startup preserves uncertain active work without repeating external effects',async t=>{
     const store=await fixture(t,{commandsSource:`import fs from 'node:fs'; export default {addPerson(data,command){fs.appendFileSync(${JSON.stringify('/tmp/placeholder-effect')},'') ;data.persons.push(command.value)}}`})
     const witness=path.join(store.audit,'effects')
     await fs.writeFile(store.commandsFile,`import fs from 'node:fs'; export default {addPerson(data,command){fs.appendFileSync(${JSON.stringify(witness)},command.id+'\\n');data.persons.push(command.value)}}`)
     const server=await ready(t,store,{fault:{op:'write',file:'command-status.jsontag',contains:'"status":"done"',action:'error'}})
-    await submit(store,server.port,command('A'));await waitForExit(server.child).catch(error=>{throw new Error(server.getOutput(),{cause:error})})
+    await submit(store,server.port,command('A'));await waitForExit(server.child).catch(error=>{ throw new Error(server.getOutput(),{cause:error}) })
     const before=await fs.readFile(store.commandStatus)
     await unlockStoppedFixture(t,store)
     const restarted=await launch(t,store,await getOpenPort())
@@ -123,22 +123,22 @@ test('PL12/17 startup preserves uncertain active work without repeating external
     assert.equal(await fs.readFile(witness,'utf8'),'A\n')
 })
 
-for(const operation of ['sync','close:after'])test(`directory ${operation} failure after rename prevents done`,async t=>{
+for(const operation of ['sync','close:after']){ test(`directory ${operation} failure after rename prevents done`,async t=>{
     const store=await fixture(t)
     const server=await ready(t,store,{fault:{op:operation,file:path.basename(store.dir),action:'error',after:{op:'rename',file:'data.A.jsontag'}}})
     await submit(store,server.port,command('A'))
     assert.equal((await waitForExit(server.child)).code,1)
     assert.ok((await rows(store.trace)).some(e=>e.op==='injected'&&e.file===store.dir))
     assert.equal((await readCommandStatusRecords(store)).some(c=>c.status==='done'),false)
-})
-for(const operation of ['open','write','close:after'])test(`changeset ${operation} error is not masked or acknowledged`,async t=>{
+}) }
+for(const operation of ['open','write','close:after']){ test(`changeset ${operation} error is not masked or acknowledged`,async t=>{
     const store=await fixture(t)
     const server=await ready(t,store,{fault:{op:operation,file:'data.A.jsontag.',action:'error',code:operation==='write'?'ENOSPC':'EIO'}})
     await submit(store,server.port,command('A'))
     assert.equal((await waitForExit(server.child)).code,1)
     assert.equal((await readCommandStatusRecords(store)).some(c=>c.status==='done'),false)
     assert.match(server.getOutput(),/Storage outcome uncertain/)
-})
+}) }
 test('short command-log append preserves its entire JSONTag record',async t=>{
     const store=await fixture(t)
     const server=await ready(t,store,{fault:{op:'write',file:'command-log.jsontag',contains:'"id":"A"',action:'short-write'}})

@@ -15,10 +15,10 @@ export async function acquireOwnership(directories, {ancestorToken, purpose, aud
                     await fs.access(lock)
                     let owner
                     try { owner = JSON.parse(await fs.readFile(path.join(lock,'owner.json'),'utf8')) } catch { /* An incomplete lock remains exclusive. */ }
-                    if (!ancestorToken || owner?.token !== ancestorToken) throw new Error(`Store is locked by unfinished parent operation: ${lock}`)
-                } catch (error) { if (error.code !== 'ENOENT') throw error }
+                    if (!ancestorToken || owner?.token !== ancestorToken) { throw new Error(`Store is locked by unfinished parent operation: ${lock}`) }
+                } catch (error) { if (error.code !== 'ENOENT') { throw error } }
             }
-            if (path.dirname(parent) === parent) break
+            if (path.dirname(parent) === parent) { break }
         }
     }
     const token = randomUUID(), held = []
@@ -26,7 +26,7 @@ export async function acquireOwnership(directories, {ancestorToken, purpose, aud
         for (const directory of canonical) {
             const lock = path.join(directory, '.simplystore-lock')
             try { await fs.mkdir(lock) } catch (error) {
-                if (error.code === 'EEXIST') throw new Error(`Store is locked: ${lock}. Offline administrator inspection is required; do not automatically steal a lock.`)
+                if (error.code === 'EEXIST') { throw new Error(`Store is locked: ${lock}. Offline administrator inspection is required; do not automatically steal a lock.`) }
                 throw error
             }
             held.push(lock)
@@ -41,7 +41,7 @@ export async function acquireOwnership(directories, {ancestorToken, purpose, aud
     return {token, directories: canonical, async release() {
         for (const lock of [...held].reverse()) {
             const owner = JSON.parse(await fs.readFile(path.join(lock, 'owner.json'), 'utf8'))
-            if (owner.token !== token) throw new Error(`Ownership changed: ${lock}`)
+            if (owner.token !== token) { throw new Error(`Ownership changed: ${lock}`) }
             await fs.unlink(path.join(lock, 'owner.json'))
             await fs.rmdir(lock)
             await syncDirectory(path.dirname(lock))

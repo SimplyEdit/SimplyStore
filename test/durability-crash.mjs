@@ -90,7 +90,7 @@ for (const faultPointName of [
     'before-command-changeset-write',
     'after-command-changeset-write',
     'before-command-done-status'
-]) test(`crash at ${faultPointName} preserves evidence and never automatically reruns`, async t => {
+]) { test(`crash at ${faultPointName} preserves evidence and never automatically reruns`, async t => {
     const fixture=await makeServerFixture(t)
     const port=await getOpenPort()
     const first=startServer(t,fixture,{port,runtimeEnvironment:'test',faultPoint:faultPointName})
@@ -104,7 +104,7 @@ for (const faultPointName of [
     assert.match(second.getOutput(),/Administrative recovery required/)
     assert.deepEqual(await fs.readFile(fixture.commandStatus),before)
     assert.equal((await readCommandLogRecords(fixture))[0].id,'A')
-})
+}) }
 
 test('crash after done status but before query update recovers committed state without replay', async t => {
 	const fixture = await makeServerFixture(t)

@@ -115,7 +115,7 @@ export async function waitForServer(child, getOutput, port) {
 			reject(new Error(`Server exited before startup (${code || signal}):\n${getOutput()}`))
 		}
 		const checkReady = () => {
-			if (finished) return
+			if (finished) { return }
 			if (getOutput().includes(`SimplyStore listening on port ${port}`)) {
 				finished = true
 				clearTimeout(timeout)

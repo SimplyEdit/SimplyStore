@@ -34,13 +34,13 @@ test('administrator recovers trailing missing/waiting commands in log order on a
     assert.ok((await fs.readFile(result.config.commandStatus)).subarray(0,before.length).equals(before))
     assert.deepEqual((await fs.readFile(result.config.commandLog)).toString(),(await fs.readFile(store.commandLog)).toString())
 })
-for (const state of ['accepted','done','unsafe']) test(`later ${state} dataset blocks rerun, including zero-byte no-op`,async t=>{
+for (const state of ['accepted','done','unsafe']) { test(`later ${state} dataset blocks rerun, including zero-byte no-op`,async t=>{
     const {store}=await setup(t,[['A','done'],['B',state]])
     await fs.writeFile(path.join(store.dir,'data.B.jsontag'),'')
     const plan=await planRecovery(store,{quiescent:true})
     assert.equal(plan.actionable,false)
     assert.ok(plan.blocks.some(s=>s.includes('later accepted datasets')))
-})
+}) }
 test('new later file makes an approved plan stale before executing a handler',async t=>{
     const {store,outputs}=await setup(t,[['A','done'],['B','accepted']])
     const plan=await planRecovery(store,{quiescent:true})
@@ -61,7 +61,7 @@ test('cooperative ownership excludes competing writer and path aliases',async t=
     try {
         await fs.symlink(store.dir,path.join(outputs,'alias'))
         await assert.rejects(acquireOwnership([path.join(outputs,'alias')]),/locked/)
-    } finally {await owner.release()}
+    } finally { await owner.release() }
 })
 test('backup and restore validate saved bytes without executing commands',async t=>{
     const {store,outputs}=await setup(t,[['A','done']])
@@ -214,7 +214,7 @@ test('verified A prefix permits only missing B, waiting C and missing D in log o
     const {store,outputs}=await setup(t,[['A','accepted'],['B','accepted'],['C','accepted'],['D','accepted']])
     const complete=await runRecovery(store,outputs,await planRecovery(store,{quiescent:true}))
     const source={...complete.config,commandsFile:store.commandsFile,indexFile:store.indexFile}
-    for(const id of ['B','C','D'])await fs.unlink(path.join(path.dirname(source.datafile),`data.${id}.jsontag`))
+    for(const id of ['B','C','D']){ await fs.unlink(path.join(path.dirname(source.datafile),`data.${id}.jsontag`)) }
     await fs.appendFile(source.commandStatus,JSONTag.stringify({command:'C',status:'accepted',code:202})+'\n')
     const prefix=await fs.readFile(path.join(path.dirname(source.datafile),'data.A.jsontag'))
     const plan=await planRecovery(source,{quiescent:true})
