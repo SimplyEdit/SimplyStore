@@ -222,5 +222,28 @@
     "backup --quiescent",
     "restore --store --quiescent",
     "verify"
-  ]
+  ],
+  "jaqtRefactor": {
+    "implementation": "49fa48c123d0035df087b7a9d4c1460da92b85fa",
+    "passed": 105,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0,
+    "changedProductionFiles": [
+      "src/server.mjs",
+      "src/store-inspection.mjs",
+      "src/admin-recovery.mjs"
+    ],
+    "plainDataCloning": "passed",
+    "backupCoverageVariations": [
+      "same",
+      "command",
+      "status",
+      "data",
+      "base",
+      "missing"
+    ],
+    "changedFileLint": "passed",
+    "newVmRun": false
+  }
 }
