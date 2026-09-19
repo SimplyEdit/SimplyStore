@@ -1,0 +1,17 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260919-TTZ7C-34
+    a sd:Implementation ;
+    dcterms:identifier "IMP-20260919-TTZ7C-34" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260919-TTZ7C-34.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "package.json" ;
+    sd:implementationLocation "example/package.json" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260919-TTZ7C-32 ;
+        sd:gitCommit "dd0382ef49a50cada7a3699cb021df0929d02315"
+    ] ;
+    sd:implementationChangeKind sd:BehaviorPreservingChange .
