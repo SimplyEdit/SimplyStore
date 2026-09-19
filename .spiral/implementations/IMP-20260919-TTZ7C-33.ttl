@@ -19,7 +19,16 @@ project:IMP-20260919-TTZ7C-33
         sd:artifact project:DES-20260919-TTZ7C-32 ;
         sd:gitCommit "f7ced34e7821e3aa02606c2d1abe6f1bb1c08c5b"
     ] ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260919-TTZ7C-40 ;
+        sd:gitCommit "665a97d1c366b4cce2b9004d6e649a389d18a2c4"
+    ] ;
     sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:EVD-20260919-TTZ7C-41 ;
+        sd:gitCommit "959e2cd92181be07f3fe38d38328f10ba41923b3"
+    ], [
         a sd:ArtifactReference ;
         sd:artifact project:DES-20260919-TTZ7C-40 ;
         sd:gitCommit "665a97d1c366b4cce2b9004d6e649a389d18a2c4"
@@ -27,6 +36,6 @@ project:IMP-20260919-TTZ7C-33
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-20260919-TTZ7C-33 ;
-        sd:gitCommit "52a9599826716788c98916a4b71b8d8a046b9d67"
+        sd:gitCommit "959e2cd92181be07f3fe38d38328f10ba41923b3"
     ] ;
-    sd:implementationChangeKind sd:SemanticChange .
+    sd:implementationChangeKind sd:MixedChange .

@@ -395,15 +395,21 @@ class RecoveryApplication {
     async runApprovedCommand(id) {
         await assertFresh(this.plan)
         const command = this.freshPlan.commands.find(item => item.id === id)
+        const active = await this.markCommandActive(command)
+        const result = await this.executeCommand(id, command)
+        await this.assertSuccessfulResult(id, result)
+        await this.commitCommandResult(id, command, active, result)
+    }
+
+    async markCommandActive(command) {
+        const { id } = command
         const active = nextActiveCommandStatus(id, command.history.at(-1))
         await this.recordAttempt(id, active)
         await appendRecord(
             this.config.commandStatus,
             JSONTag.stringify(active)
         )
-        const result = await this.executeCommand(id, command)
-        await this.assertSuccessfulResult(id, result)
-        await this.commitCommandResult(id, command, active, result)
+        return active
     }
 
     async recordAttempt(id, active) {

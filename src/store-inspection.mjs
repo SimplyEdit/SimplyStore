@@ -157,6 +157,15 @@ class StoreInspector {
     async inspect() {
         await this.validateConfiguredPaths()
         this.files = await inventory(this.config)
+        await this.loadCommandHistory()
+        await this.loadIntegrityManifest()
+        await this.reconstructCommittedState()
+        this.validateStoreArtifacts()
+        await this.verifyStableSnapshot()
+        return this.createReport()
+    }
+
+    async loadCommandHistory() {
         const log = await this.readRecords(
             this.config.commandLog,
             'command log'
@@ -168,12 +177,6 @@ class StoreInspector {
         this.readCommands(log)
         const doneOrder = this.applyStatusHistory(statuses)
         this.validateCommittedOrder(doneOrder)
-        await this.loadIntegrityManifest()
-        this.prefixValid = this.errors.length === 0
-        await this.reconstructCommittedState()
-        this.validateStoreArtifacts()
-        await this.verifyStableSnapshot()
-        return this.createReport()
     }
 
     async validateConfiguredPaths() {
@@ -356,6 +359,7 @@ class StoreInspector {
     }
 
     async reconstructCommittedState() {
+        this.prefixValid = this.errors.length === 0
         await this.readBaseDataset()
         for (const command of this.commands) {
             await this.inspectCommandDataset(command)
