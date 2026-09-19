@@ -1,0 +1,11 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:SRC-20260919-TTZ7C-43
+    a sd:Source ;
+    dcterms:identifier "SRC-20260919-TTZ7C-43" ;
+    sd:repositoryPath ".spiral/sources/SRC-20260919-TTZ7C-43.md" ;
+    sd:status sd:Active ;
+    sd:sourceAvailability sd:Retained ;
+    sd:provenanceConfidence sd:Explicit .
