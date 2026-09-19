@@ -242,3 +242,20 @@ test('runtime stops mutation after uncertain worker persistence', async t => {
     await opened.runtime.close()
     assert.equal(opened.ownershipReleased(), false)
 })
+
+test('runtime does not require a storage failure observer', async t => {
+    const opened = await openRuntime(t, {
+        async executeWorker() {
+            return {
+                storageFailure: true,
+                message: 'uncertain write'
+            }
+        }
+    })
+
+    await opened.runtime.acceptCommand(command('A'))
+    await opened.runtime.runQueuedCommands()
+
+    assert.equal(opened.runtime.storageFailed, true)
+    await opened.runtime.close()
+})

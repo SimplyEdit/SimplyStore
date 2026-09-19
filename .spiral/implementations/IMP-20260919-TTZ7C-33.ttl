@@ -25,6 +25,6 @@ project:IMP-20260919-TTZ7C-33
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:IMP-20260919-TTZ7C-33 ;
-        sd:gitCommit "f7a9cb897698434cdee97fd9c5e42b604720c36a"
+        sd:gitCommit "f2ef8442c19941bf37d270276f8029ecefbe3b97"
     ] ;
     sd:implementationChangeKind sd:MixedChange .

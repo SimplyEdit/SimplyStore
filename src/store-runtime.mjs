@@ -112,9 +112,6 @@ function createRuntimeMechanisms(overrides) {
         faultPoint,
         inspectStore,
         logger: console,
-        onStorageFailure() {
-
-        },
         runWorker,
         syncFile,
         ...overrides
@@ -574,7 +571,9 @@ export class StoreRuntime {
             return
         }
         this.storageFailed = true
-        this.mechanisms.onStorageFailure(error)
+        if (this.mechanisms.onStorageFailure) {
+            this.mechanisms.onStorageFailure(error)
+        }
     }
 
     async close() {
