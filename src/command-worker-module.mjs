@@ -1,8 +1,12 @@
 import JSONTag from '@muze-nl/jsontag'
-import {getIndex, resultSet, isChanged} from '@muze-nl/od-jsontag/src/symbols.mjs'
+import {
+    getIndex,
+    resultSet,
+    isChanged
+} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import writeFileAtomic from 'write-file-atomic'
+import { publishFile as writeFileAtomic, storageError } from './storage.mjs'
 import { faultPoint } from './faults.mjs'
 import { appendIntegrityRecord } from './integrity.mjs'
 import { finalizeIndex } from './index.mjs'
@@ -14,37 +18,41 @@ let dataspace
 let datafile, basefile, extension, integrityFile
 let meta = {}
 let metaProxy = {
-    index: {
-    }
+    index: {}
 }
 const parser = new Parser()
 parser.immutable = false
 
 export const metaIdProxy = {
-    forEach: (callback) => {
-        parser.meta.index.id.forEach((ref,id) => {
-            callback({
-                deref: () => {
-                    return resultArr[ref]
-                }
-            },id)
+    forEach: callback => {
+        parser.meta.index.id.forEach((ref, id) => {
+            callback(
+                {
+                    deref: () => {
+                        return resultArr[ref]
+                    }
+                },
+                id
+            )
         })
     },
-    set: (id,ref) => {
+    set: (id, ref) => {
         if (!parser.meta.index.id.has(id)) {
             if (ref[getIndex]) {
                 parser.meta.index.id.set(id, ref[getIndex])
-            } else {
+            }
+            else {
                 throw new Error('cannot set index.id for non-proxy')
             }
-        } else {
+        }
+        else {
             let line = parser.meta.index.id.get(id)
             resultArr[line] = ref
         }
     },
-    get: (id) => {
+    get: id => {
         let index = parser.meta.index.id.get(id)
-        if (index || index===0) {
+        if (index || index === 0) {
             return {
                 deref: () => {
                     return resultArr[index]
@@ -52,7 +60,7 @@ export const metaIdProxy = {
             }
         }
     },
-    has: (id) => {
+    has: id => {
         return parser.meta.index.id.has(id)
     }
 }
@@ -68,7 +76,7 @@ export async function initialize(task) {
     if (task.meta) {
         parser.meta = task.meta
     }
-    for(let jsontag of task.data) {
+    for (let jsontag of task.data) {
         dataspace = parser.parse(jsontag)
     }
     resultArr = dataspace[resultSet]
@@ -80,7 +88,8 @@ export async function initialize(task) {
     datafile = task.datafile
     integrityFile = task.integrityFile
     extension = datafile.split('.').pop()
-    basefile = datafile.substring(0, datafile.length - (extension.length + 1)) //+1 for . character
+    // Include the dot before the extension.
+    basefile = datafile.substring(0, datafile.length - (extension.length + 1))
     commands = await import(task.commandsFile).then(mod => {
         return mod.default
     })
@@ -89,57 +98,73 @@ export async function initialize(task) {
     })
 }
 
-export default async function runCommand(commandStr, request) {
+export default async function runCommand(commandStr) {
     let response = {
         jsontag: true
     }
+    let publishing = false
     try {
         let task = JSONTag.parse(commandStr, null, metaReadProxy)
-        if (!task.id) { throw new Error('missing command id')}
-        if (!task.name) { throw new Error('missing command name parameter')}
+        if (!task.id) {
+            throw new Error('missing command id')
+        }
+        if (!task.name) {
+            throw new Error('missing command name parameter')
+        }
         if (commands[task.name]) {
             let time = Date.now()
-            commands[task.name](dataspace, task, request, metaProxy)
-            //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
-        
+            await commands[task.name](dataspace, task, undefined, metaProxy)
+            // TODO: if command/task makes no changes, skip updating
+            // data.jsontag and writing it; skip response.data.
+
             const changes = meta.resultArray.filter(e => e[isChanged])
             //FIXME: new entities should also report isChanged = true
             if (changes.length) {
                 changes.uuid = task.id
-                index.update(dataspace, meta, changes)
+                await index.update(dataspace, meta, changes)
             }
-            const uint8sab = serialize(dataspace, {meta, changes: true}) // serialize only changes
+            // Serialize only changes.
+            const uint8sab = serialize(dataspace, { meta, changes: true })
             response.data = uint8sab
             response.meta = {
                 index: {
                     id: meta.index.id
                 }
             }
-            //TODO: write data every x commands or x minutes, in seperate thread?
+            // TODO: write data every x commands or x minutes,
+            // in a separate thread?
 
             let newfilename = basefile + '.' + task.id + '.' + extension
+            publishing = true
             await faultPoint('before-command-changeset-write')
             await writeFileAtomic(newfilename, uint8sab)
-            // Final bytes include new records and mutations made by the custom index hook.
+            // Final bytes include new records and mutations made by the custom
+            // index hook.
             await finalizeIndex(index, uint8sab, meta, task.id)
             if (integrityFile) {
-                await appendIntegrityRecord(integrityFile, newfilename, uint8sab)
+                await appendIntegrityRecord(
+                    integrityFile,
+                    newfilename,
+                    uint8sab
+                )
             }
             await faultPoint('after-command-changeset-write')
             meta.parts++
             response.meta.parts = meta.parts
             let end = Date.now()
-            console.log('task time',end-time)
-        } else {
+            console.log('task time', end - time)
+        }
+        else {
             console.error('Command not found', task.name)
             throw {
                 code: 404,
-                message: "Command "+task.name+" not found"
+                message: 'Command ' + task.name + ' not found'
             }
         }
-    } catch(err) {
+    }
+    catch (err) {
         console.error('task error', err)
-        throw err
+        throw publishing ? storageError(err) : err
     }
     return response
 }

@@ -1,3 +1,4 @@
+import { waitForExit } from './durability-helpers.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -23,7 +24,9 @@ async function waitForCommandStatus(port, commandId, expectedStatus) {
 		}
 		await new Promise(resolve => setTimeout(resolve, 25))
 	}
-	assert.fail(`Timed out waiting for ${commandId} to become ${expectedStatus}; latest status: ${JSON.stringify(lastStatus)}`)
+	assert.fail(
+		`Timed out waiting for ${commandId} to become ${expectedStatus}; latest status: ${JSON.stringify(lastStatus)}`
+	)
 }
 
 async function postAndWait(port, command, expectedStatus = 'done') {
@@ -57,20 +60,29 @@ test('handler lifecycle: index update failure prevents command commit', async t 
 `
 	})
 	const port = await getOpenPort()
-	const server = startServer(t, fixture, {port})
+	const server = startServer(t, fixture, { port })
 	await waitForServer(server.child, server.getOutput, port)
 
-	const status = await postAndWait(port, {
-		id: 'index-fails',
-		name: 'addPerson',
-		value: {name: 'Should Not Commit'}
-	}, 'failed')
+	const status = await postAndWait(
+		port,
+		{
+			id: 'index-fails',
+			name: 'addPerson',
+			value: { name: 'Should Not Commit' }
+		},
+		'failed'
+	)
 
 	assert.equal(status.status, 'failed')
 	assert.match(status.message, /index update failed/)
 	assert.deepEqual(await queryNames(port), ['Initial'])
-	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
-	await assert.rejects(fs.access(path.join(fixture.dir, 'data.index-fails.jsontag')), /ENOENT/)
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), [
+		'Initial'
+	])
+	await assert.rejects(
+		fs.access(path.join(fixture.dir, 'data.index-fails.jsontag')),
+		/ENOENT/
+	)
 })
 
 test('handler lifecycle: derived index file can remain after failed command', async t => {
@@ -90,21 +102,39 @@ export default {
 `
 	})
 	const port = await getOpenPort()
-	const server = startServer(t, fixture, {port})
+	const server = startServer(t, fixture, { port })
 	await waitForServer(server.child, server.getOutput, port)
 
-	const status = await postAndWait(port, {
-		id: 'index-writes-then-fails',
-		name: 'addPerson',
-		value: {name: 'Should Not Commit'}
-	}, 'failed')
+	const status = await postAndWait(
+		port,
+		{
+			id: 'index-writes-then-fails',
+			name: 'addPerson',
+			value: { name: 'Should Not Commit' }
+		},
+		'failed'
+	)
 
 	assert.equal(status.status, 'failed')
 	assert.match(status.message, /derived index failed after write/)
 	assert.deepEqual(await queryNames(port), ['Initial'])
-	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
-	await assert.doesNotReject(fs.access(path.join(fixture.dir, 'derived-before-failure.index-writes-then-fails.txt')))
-	await assert.rejects(fs.access(path.join(fixture.dir, 'data.index-writes-then-fails.jsontag')), /ENOENT/)
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), [
+		'Initial'
+	])
+	await assert.doesNotReject(
+		fs.access(
+			path.join(
+				fixture.dir,
+				'derived-before-failure.index-writes-then-fails.txt'
+			)
+		)
+	)
+	await assert.rejects(
+		fs.access(
+			path.join(fixture.dir, 'data.index-writes-then-fails.jsontag')
+		),
+		/ENOENT/
+	)
 })
 
 test('handler lifecycle: final offset write failure prevents command commit', async t => {
@@ -115,36 +145,47 @@ test('handler lifecycle: final offset write failure prevents command commit', as
 	const commandId = 'offset-write-fails'
 	await fs.mkdir(path.join(fixture.dir, `index.offset.${commandId}.json`))
 	const port = await getOpenPort()
-	const server = startServer(t, fixture, {port})
+	const server = startServer(t, fixture, { port })
 	await waitForServer(server.child, server.getOutput, port)
 
-	const status = await postAndWait(port, {
+	const response = await postCommand(port, {
 		id: commandId,
 		name: 'addPerson',
-		value: {name: 'Should Not Commit'}
-	}, 'failed')
+		value: { name: 'Should Not Commit' }
+	})
+	assert.equal(response.status, 202)
+	assert.equal((await waitForExit(server.child)).code, 1)
+	assert.match(server.getOutput(), /Storage outcome uncertain/)
 
-	assert.match(status.message, /EISDIR|EEXIST|ENOTEMPTY/)
-	assert.deepEqual(await queryNames(port), ['Initial'])
-	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
+	assert.match(server.getOutput(), /EISDIR|EEXIST|ENOTEMPTY/)
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), [
+		'Initial'
+	])
 })
 
 test('handler lifecycle: custom finalizer rejection prevents command commit', async t => {
 	const fixture = await makeServerFixture(t, {
 		initialData: '{"persons":[{"name":"Initial"}]}',
 		commandsSource: baseCommands,
-		indexSource: 'export default {update() {}, async finalize() { throw new Error("custom finalization failed") }}'
+		indexSource:
+			'export default {update() {}, async finalize() { throw new Error("custom finalization failed") }}'
 	})
 	const port = await getOpenPort()
-	const server = startServer(t, fixture, {port})
+	const server = startServer(t, fixture, { port })
 	await waitForServer(server.child, server.getOutput, port)
 
-	const status = await postAndWait(port, {
-		id: 'custom-finalizer-fails', name: 'addPerson', value: {name: 'Should Not Commit'}
-	}, 'failed')
-	assert.match(status.message, /custom finalization failed/)
-	assert.deepEqual(await queryNames(port), ['Initial'])
-	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
+	const response = await postCommand(port, {
+		id: 'custom-finalizer-fails',
+		name: 'addPerson',
+		value: { name: 'Should Not Commit' }
+	})
+	assert.equal(response.status, 202)
+	assert.equal((await waitForExit(server.child)).code, 1)
+	assert.match(server.getOutput(), /Storage outcome uncertain/)
+	assert.match(server.getOutput(), /custom finalization failed/)
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), [
+		'Initial'
+	])
 })
 
 test('handler lifecycle: current index update can mutate canonical state before commit', async t => {
@@ -161,15 +202,23 @@ test('handler lifecycle: current index update can mutate canonical state before 
 `
 	})
 	const port = await getOpenPort()
-	const server = startServer(t, fixture, {port})
+	const server = startServer(t, fixture, { port })
 	await waitForServer(server.child, server.getOutput, port)
 
 	await postAndWait(port, {
 		id: 'index-mutates',
 		name: 'addPerson',
-		value: {name: 'Command Mutation'}
+		value: { name: 'Command Mutation' }
 	})
 
-	assert.deepEqual(await queryNames(port), ['Initial', 'Command Mutation', 'Indexer Mutation'])
-	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial', 'Command Mutation', 'Indexer Mutation'])
+	assert.deepEqual(await queryNames(port), [
+		'Initial',
+		'Command Mutation',
+		'Indexer Mutation'
+	])
+	assert.deepEqual(await reconstructCommittedPersonNames(fixture), [
+		'Initial',
+		'Command Mutation',
+		'Indexer Mutation'
+	])
 })

@@ -1,0 +1,17 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260919-TTZ7C-22 a sd:Implementation ;
+    dcterms:identifier "IMP-20260919-TTZ7C-22" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260919-TTZ7C-22.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "test/power-loss-preload.mjs" ;
+    sd:implementationLocation "test/power-loss-helpers.mjs" ;
+    sd:implementationLocation "test/power-loss-baseline.mjs" ;
+    sd:implementationLocation "package.json#scripts.test:power-loss" ;
+    sd:implementationLocation "package.json#scripts.test:power-loss:strict" ;
+    sd:implementationLocation "docs/power-loss-baseline.md" ;
+    sd:implements [ a sd:ArtifactReference ;
+        sd:artifact project:DES-20260919-TTZ7C-21 ;
+        sd:gitCommit "88fbfadffe40474590b777cd735996314a8b59c0" ] .

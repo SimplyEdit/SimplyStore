@@ -2,6 +2,7 @@
     "name": "Example SimplyStore",
     "main": "server.mjs",
     "scripts": {
+        "build": "node ../scripts/convert.mjs swdb.jsontag data.jsontag",
         "start": "node server.mjs"
     },
     "dependencies": {

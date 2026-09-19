@@ -1,0 +1,38 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260919-TTZ7C-26 a sd:Implementation ;
+    dcterms:identifier "IMP-20260919-TTZ7C-26" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260919-TTZ7C-26.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "src/storage.mjs" ;
+    sd:implementationLocation "src/server.mjs" ;
+    sd:implementationLocation "src/command-worker-module.mjs" ;
+    sd:implementationLocation "src/execute-worker.mjs" ;
+    sd:implementationLocation "src/store-inspection.mjs" ;
+    sd:implementationLocation "src/store-ownership.mjs" ;
+    sd:implementationLocation "src/admin-recovery.mjs" ;
+    sd:implementationLocation "src/index.offset.mjs" ;
+    sd:implementationLocation "src/index.id.mjs" ;
+    sd:implementationLocation "src/recovery.mjs" ;
+    sd:implementationLocation "scripts/convert.mjs" ;
+    sd:implementationLocation "example/package.json" ;
+    sd:implementationLocation "example/README.md" ;
+    sd:implementationLocation "test/conversion-offsets.mjs" ;
+    sd:implementationLocation "scripts/recover.mjs" ;
+    sd:implementationLocation "scripts/power-loss-vm/exercise.py" ;
+    sd:implementationLocation "test/power-loss-baseline.mjs" ;
+    sd:implementationLocation "test/admin-recovery.mjs" ;
+    sd:implementationLocation "test/storage.mjs" ;
+    sd:implementationLocation "docs/recovery.md" ;
+    sd:implementationLocation "DURABILITY.md" ;
+    sd:implementationLocation "eslint.config.js" ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260919-TTZ7C-24 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260919-TTZ7C-25 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-003 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260917-TTZ7C-14 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260819-09ZEF-7 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260919-TTZ7C-18 ; sd:gitCommit "9b4a340facd57f22edbead07a195700b0237c9ad" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "9b4a340facd57f22edbead07a195700b0237c9ad" ] ;
+    sd:implementationChangeKind sd:SemanticChange .

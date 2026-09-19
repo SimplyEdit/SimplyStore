@@ -9,15 +9,19 @@ npm install
 Then convert the dataset `swdb.jsontag` to internal SimplyStore format:
 
 ```shell
-node ../scripts/convert.mjs swdb.jsontag data.jsontag
+npm run build
 ```
+
+This creates `data.jsontag`, its indexes, and empty command and status logs
+for the first startup. Build requires a new store and refuses to overwrite
+existing data or logs. Run it once before starting the example.
 
 Then start the server:
 ```shell
 npm start
 ```
 
-Now go to `https://localhost:3000/query/` and you can enter queries, e.g.:
+Now go to `http://localhost:3000/query/` and you can enter queries, e.g.:
 
 ```javascript
 from(data.people)

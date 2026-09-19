@@ -1,0 +1,313 @@
+{
+  "implementation": "049c45642fe60146bd511bb87abb4b032f8df36a",
+  "additionalAcceptanceTests": "13db3bf55926cf3a3a1b2769c422881a875193c8",
+  "regression": {
+    "passed": 101,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "administratorTestsAfterThreeAdditions": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "vmEnvironment": {
+    "qemu": "QEMU emulator version 10.2.1 (Debian 1:10.2.1+ds-1ubuntu3.2)\nCopyright (c) 2003-2025 Fabrice Bellard and the QEMU Project developers\n",
+    "node": "v24.7.0\n",
+    "kernelSha256": "19fd789cd5e6b4adfe18c9c6b92a1ce8c8b2eef6ff88456cef80ee2dca9b3f72",
+    "repositoryHead": "049c45642fe60146bd511bb87abb4b032f8df36a",
+    "worktreeDiffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "filesystem": "ext4 data=ordered,barrier=1",
+    "device": "virtio-blk, QEMU cache=writeback, volatile NBD backend honoring FLUSH/FUA",
+    "acceleration": "TCG, 2 CPUs, 1024 MiB",
+    "physicalPowerCut": false
+  },
+  "guestEnvelope": {
+    "kernel": "Linux version 7.0.0-31-generic (buildd@lcy02-amd64-091) (x86_64-linux-gnu-gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0, GNU ld (GNU Binutils for Ubuntu) 2.46) #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026\n",
+    "mounts": "rootfs / rootfs rw,size=178920k,nr_inodes=44730,inode64 0 0\nproc /proc proc rw,relatime 0 0\nsysfs /sys sysfs rw,relatime 0 0\ndevtmpfs /dev devtmpfs rw,relatime,size=178920k,nr_inodes=44730,mode=755,inode64 0 0\n/dev/vda /store ext4 rw,relatime,data=ordered 0 0\n",
+    "writeCache": "write back\n"
+  },
+  "vmObserver": [
+    {
+      "deviceControl": "flushed A survives; unflushed B lost",
+      "discardedDirtyPages": 1
+    },
+    {
+      "scenario": "done",
+      "recover": false,
+      "marker": "CUT_DONE {\"samples\":[{\"id\":\"A\",\"doneMs\":2520.205792},{\"id\":\"L0\",\"acceptMs\":44.68866600000001,\"doneMs\":868.762804},{\"id\":\"L1\",\"acceptMs\":33.01929300000029,\"doneMs\":872.86582},{\"id\":\"L2\",\"acceptMs\":31.05912999999964,\"doneMs\":755.6233089999996},{\"id\":\"L3\",\"acceptMs\":31.991556999999375,\"doneMs\":829.8371459999998}]}",
+      "flushes": 101,
+      "writes": 134,
+      "discardedDirtyPages": 0
+    },
+    {
+      "scenario": "done",
+      "recover": true,
+      "marker": "VERIFY {\"ready\":true,\"errors\":[],\"commands\":[{\"id\":\"A\",\"status\":\"done\",\"present\":true},{\"id\":\"L0\",\"status\":\"done\",\"present\":true},{\"id\":\"L1\",\"status\":\"done\",\"present\":true},{\"id\":\"L2\",\"status\":\"done\",\"present\":true},{\"id\":\"L3\",\"status\":\"done\",\"present\":true}],\"persons\":[{\"name\":\"A\"},{\"name\":\"L0\"},{\"name\":\"L1\"},{\"name\":\"L2\"},{\"name\":\"L3\"}],\"unsyncedPresent\":false}",
+      "flushes": 4,
+      "writes": 8,
+      "discardedDirtyPages": 0
+    },
+    {
+      "scenario": "accepted",
+      "recover": false,
+      "marker": "CUT_ACCEPTED",
+      "flushes": 25,
+      "writes": 30,
+      "discardedDirtyPages": 0
+    },
+    {
+      "scenario": "accepted",
+      "recover": true,
+      "marker": "VERIFY {\"ready\":false,\"errors\":[],\"commands\":[{\"id\":\"A\",\"status\":\"accepted\",\"present\":false}],\"persons\":[],\"unsyncedPresent\":false}",
+      "flushes": 4,
+      "writes": 8,
+      "discardedDirtyPages": 0
+    },
+    {
+      "scenario": "active",
+      "recover": false,
+      "marker": "CUT_ACTIVE",
+      "flushes": 27,
+      "writes": 33,
+      "discardedDirtyPages": 0
+    },
+    {
+      "scenario": "active",
+      "recover": true,
+      "marker": "VERIFY {\"ready\":false,\"errors\":[],\"commands\":[{\"id\":\"A\",\"status\":\"active\",\"present\":false}],\"persons\":[],\"unsyncedPresent\":false}",
+      "flushes": 4,
+      "writes": 8,
+      "discardedDirtyPages": 0
+    },
+    {
+      "scenario": "unsynced",
+      "recover": false,
+      "marker": "CUT_UNSYNCED",
+      "flushes": 13,
+      "writes": 17,
+      "discardedDirtyPages": 0
+    },
+    {
+      "scenario": "unsynced",
+      "recover": true,
+      "marker": "VERIFY {\"ready\":true,\"errors\":[],\"commands\":[],\"persons\":[],\"unsyncedPresent\":false}",
+      "flushes": 4,
+      "writes": 7,
+      "discardedDirtyPages": 0
+    }
+  ],
+  "vmResults": [
+    {
+      "scenario": "done",
+      "cut": "CUT_DONE {\"samples\":[{\"id\":\"A\",\"doneMs\":2520.205792},{\"id\":\"L0\",\"acceptMs\":44.68866600000001,\"doneMs\":868.762804},{\"id\":\"L1\",\"acceptMs\":33.01929300000029,\"doneMs\":872.86582},{\"id\":\"L2\",\"acceptMs\":31.05912999999964,\"doneMs\":755.6233089999996},{\"id\":\"L3\",\"acceptMs\":31.991556999999375,\"doneMs\":829.8371459999998}]}",
+      "recovered": {
+        "ready": true,
+        "errors": [],
+        "commands": [
+          {
+            "id": "A",
+            "status": "done",
+            "present": true
+          },
+          {
+            "id": "L0",
+            "status": "done",
+            "present": true
+          },
+          {
+            "id": "L1",
+            "status": "done",
+            "present": true
+          },
+          {
+            "id": "L2",
+            "status": "done",
+            "present": true
+          },
+          {
+            "id": "L3",
+            "status": "done",
+            "present": true
+          }
+        ],
+        "persons": [
+          {
+            "name": "A"
+          },
+          {
+            "name": "L0"
+          },
+          {
+            "name": "L1"
+          },
+          {
+            "name": "L2"
+          },
+          {
+            "name": "L3"
+          }
+        ],
+        "unsyncedPresent": false
+      }
+    },
+    {
+      "scenario": "accepted",
+      "cut": "CUT_ACCEPTED",
+      "recovered": {
+        "ready": false,
+        "errors": [],
+        "commands": [
+          {
+            "id": "A",
+            "status": "accepted",
+            "present": false
+          }
+        ],
+        "persons": [],
+        "unsyncedPresent": false
+      }
+    },
+    {
+      "scenario": "active",
+      "cut": "CUT_ACTIVE",
+      "recovered": {
+        "ready": false,
+        "errors": [],
+        "commands": [
+          {
+            "id": "A",
+            "status": "active",
+            "present": false
+          }
+        ],
+        "persons": [],
+        "unsyncedPresent": false
+      }
+    },
+    {
+      "scenario": "unsynced",
+      "cut": "CUT_UNSYNCED",
+      "recovered": {
+        "ready": true,
+        "errors": [],
+        "commands": [],
+        "persons": [],
+        "unsyncedPresent": false
+      }
+    }
+  ],
+  "tmpfsLatency": {
+    "samples": 30,
+    "startupMs": 127.17863,
+    "acceptance": {
+      "p50Ms": 0.9827060000000074,
+      "p95Ms": 2.0263760000000275,
+      "maxMs": 35.388232999999985
+    },
+    "completion": {
+      "p50Ms": 39.87711200000001,
+      "p95Ms": 44.079794999999876,
+      "maxMs": 79.74672899999999
+    },
+    "filesystem": "tmpfs",
+    "node": "v24.7.0",
+    "notes": "Single localhost client; completion includes a fresh worker and polling; no production performance claim"
+  },
+  "cliSmoke": [
+    "convert --integrity",
+    "inspect --quiescent",
+    "backup --quiescent",
+    "restore --store --quiescent",
+    "verify"
+  ],
+  "jaqtRefactor": {
+    "implementation": "49fa48c123d0035df087b7a9d4c1460da92b85fa",
+    "passed": 105,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0,
+    "changedProductionFiles": [
+      "src/server.mjs",
+      "src/store-inspection.mjs",
+      "src/admin-recovery.mjs"
+    ],
+    "plainDataCloning": "passed",
+    "backupCoverageVariations": [
+      "same",
+      "command",
+      "status",
+      "data",
+      "base",
+      "missing"
+    ],
+    "changedFileLint": "passed",
+    "newVmRun": false
+  },
+  "conditionalWidthRefactor": {
+    "implementation": "5d166a23b664ba9fbe34ae819feb1ed70959046c",
+    "passed": 105,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0,
+    "style": {
+      "files": 26,
+      "originalTernaries": 36,
+      "currentTernaries": 10,
+      "styleErrors": 0,
+      "styleWarnings": 0,
+      "fullLint": [
+        {
+          "file": "src/index.id.mjs",
+          "messages": [
+            {
+              "line": 49,
+              "rule": "no-undef",
+              "message": "'meta' is not defined."
+            }
+          ]
+        },
+        {
+          "file": "src/index.offset.mjs",
+          "messages": [
+            {
+              "line": 74,
+              "rule": "no-undef",
+              "message": "'meta' is not defined."
+            }
+          ]
+        }
+      ]
+    },
+    "formatterSyntaxTreesMatched": 27,
+    "generatedVmModulesMatched": 4,
+    "storePathConfigurationsMatched": 16,
+    "cliSmoke": [
+      "convert",
+      "inspect",
+      "apply A",
+      "backup",
+      "restore with source",
+      "restore without source",
+      "verify"
+    ],
+    "newVmRun": false
+  },
+  "exampleBuildCorrection": {
+    "implementationCommit": "d4136eaf7b0014726a1c90a0d0b8488ece2d6b27",
+    "tests": 106,
+    "passed": 106,
+    "failed": 0,
+    "skipped": 0,
+    "converterTests": 7,
+    "lintErrors": 0,
+    "lintWarnings": 0,
+    "exampleNpmBuildStartQuery": "passed in disposable copy with available port",
+    "overwriteRefused": true,
+    "freshDependencyInstall": false,
+    "existingExampleLock": "preserved",
+    "newVmRun": false
+  }
+}

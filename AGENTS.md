@@ -41,12 +41,28 @@ SimplyStore has a governing durability/extensibility direction in:
 - `.spiral/requests/REQ-001.md`
 - `.spiral/designs/DES-001.md`
 
+The maintainer refined that direction on 2026-09-19 in:
+
+- `.spiral/sources/SRC-20260919-TTZ7C-18.md`
+- `.spiral/understandings/UND-20260919-TTZ7C-19.md`
+- `.spiral/requests/REQ-20260919-TTZ7C-20.md`
+
+Read this refinement alongside the original direction. It requires an
+administrative recovery path, complete logged command inputs, and ordered rerun
+eligibility; it records separate new-store rebuild semantics without making
+full rebuild tooling part of the current power-loss cycle.
+
 Before proposing a next durability/production-readiness cycle, re-read those durable references, identify the current position in the ordered plan, reconcile the latest evidence with that plan, and state whether the proposal continues, revises, or deliberately deviates from it.
 
 Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifacts and companion Turtle resources only when they are causally useful for an actual cycle, decision, implementation, evidence, acceptance, or lesson.
 
 ## Working Defaults
 
+- Always use braces for control-flow bodies, including single-statement `if`, `else`, and loop bodies. Start block contents on the line after `{`, and put the closing `}` on its own line. This includes empty blocks and callbacks; `else`, `catch`, and `finally` start on the next line after `}`.
+
+- Prefer `if`/`else` to `?:` unless a short conditional expression clearly improves readability.
+- Aim for code lines no wider than about 80 characters; allow exceptions when wrapping would reduce readability.
+- Prefer named intermediate results over dense chains of operations. Use the existing JAQT library where it makes data selection and projection clearer; keep straightforward operations simple.
 - Treat `master` as the authoritative branch unless the human states otherwise.
 - For ordinary repository-changing Spiral cycle work, create one dedicated branch from the authoritative branch, normally `spiral/CYC-###-short-goal`.
 - For new Spiral artifacts after CYC-018, use distributed-safe IDs allocated by `node .spiral-core/bin/spiral.mjs allocate <TYPE>` instead of scanning for the next legacy number. Existing `SRC-001` / `CYC-017` style IDs remain valid historical artifacts and must not be renamed.

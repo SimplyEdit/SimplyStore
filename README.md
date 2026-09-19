@@ -38,18 +38,20 @@ Import the server in your main file like this:
 import simplystore from '@muze-nl/simplystore'
 ```
 
-Then configure and start the server, like this:
+Initialize the store first using the [conversion procedure](docs/recovery.md#configure-and-initialize); opening an existing store requires its base and logs. Then configure and start the server:
 
 ```javascript
 simplystore.run({
-    datafile: process.cwd().'data.json'
+    datafile: './store/data.jsontag',
+    commandLog: './store/command-log.jsontag',
+    commandStatus: './store/command-status.jsontag'
 })
-````
+```
 
 simplystore is an [express application](https://expressjs.com/), with all the usual options. Other options are:
 
 - port: The port number to use, defaults to 3000
-- dataspace: an object or array with all the data that SimplyStore will serve. Optional, replaces the datafile.
+- commandsFile: the module implementing commands; every invocation input must be in the logged command. HTTP request context is not passed to handlers.
 
 If you start your server:
 
@@ -60,6 +62,10 @@ node myApp.js
 You should be able to go http://localhost:3000/query/ and see something like this:
 
 ![image](https://github.com/SimplyEdit/SimplyStore/assets/1006453/3bec6b97-ffa1-4114-9ed4-51a68f73476e)
+
+## Durability and recovery
+
+See the [durability contract](DURABILITY.md) and [administrator recovery guide](docs/recovery.md). Command-log order governs execution. Acceptance and completion await file and directory barriers. Uncertain or pending work found at startup requires administrator assessment; missing data does not prove that external effects did not happen. Existing store formats are retained without migration.
 
 ## Custom Index Modules
 

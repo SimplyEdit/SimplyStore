@@ -1,14 +1,25 @@
+import { setImmediate } from 'node:timers'
 import express from 'express'
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
+import { from, _, anyOf, not } from '@muze-nl/jaqt'
 import WorkerPool from './workerPool.mjs'
 import { Worker } from 'worker_threads'
 import { fileURLToPath } from 'url'
-import {appendFile} from './util.mjs'
+import { appendFile } from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
-import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, nextActiveCommandStatus, pendingCommandStatus, recoverActiveCommands, unsafeCommandStatus } from './recovery.mjs'
+import { nextActiveCommandStatus } from './recovery.mjs'
+import { serialWriter, syncFile } from './storage.mjs'
+import {
+    inspectStore,
+    storePaths,
+    mutableDirectories,
+    validCommandId
+} from './store-inspection.mjs'
+import { acquireOwnership } from './store-ownership.mjs'
+import { executeWorker } from './execute-worker.mjs'
 import { assertRuntimeEnvironmentConfiguration } from './runtime-environment.mjs'
 import { faultPoint } from './faults.mjs'
 import { getDefaultIntegrityFile } from './integrity.mjs'
@@ -31,12 +42,19 @@ class WorkerTimeoutError extends Error {
 }
 
 function normalizeWorkerTimeout(name, value, defaultValue) {
-    if (value === 0 || value === false || value === null || value === Infinity) {
+    if (
+        value === 0 ||
+        value === false ||
+        value === null ||
+        value === Infinity
+    ) {
         return 0
     }
     const timeout = value ?? defaultValue
     if (!Number.isFinite(timeout) || timeout < 0) {
-        throw new Error(`${name} must be a non-negative finite number, 0, false, null, or Infinity`)
+        throw new Error(
+            `${name} must be a non-negative finite number, 0, false, null, or Infinity`
+        )
     }
     return timeout
 }
@@ -45,61 +63,133 @@ async function main(options) {
     assertRuntimeEnvironmentConfiguration()
     if (!options) {
         options = {}
-    }  
-    const port          = options.port          || 3000
-    const datafile      = options.datafile      || './data.od-jsontag'
-    const schemaFile    = options.schemaFile    || null 
-    const wwwroot       = options.wwwroot       || __dirname+'/www'
-    const maxWorkers    = options.maxWorkers    || 8
-    const queryWorker   = options.queryWorker   || __dirname+'/src/query-worker.mjs'
-    const loadWorker    = options.loadWorker    || __dirname+'/src/load-worker.mjs'
-    const commandWorker = options.commandWorker || __dirname+'/src/command-worker.mjs'
-    const commandsFile  = options.commandsFile  || __dirname+'/src/commands.mjs'
-    const indexFile     = options.indexFile     || __dirname+'/src/index.mjs'
-    const commandLog    = options.commandLog    || './command-log.jsontag'
+    }
+    const port = options.port || 3000
+    const datafile = options.datafile || './data.od-jsontag'
+    const schemaFile = options.schemaFile || null
+    const wwwroot = options.wwwroot || __dirname + '/www'
+    const maxWorkers = options.maxWorkers || 8
+    const queryWorker =
+        options.queryWorker || __dirname + '/src/query-worker.mjs'
+    const loadWorker = options.loadWorker || __dirname + '/src/load-worker.mjs'
+    const commandWorker =
+        options.commandWorker || __dirname + '/src/command-worker.mjs'
+    const commandsFile = options.commandsFile || __dirname + '/src/commands.mjs'
+    const indexFile = options.indexFile || __dirname + '/src/index.mjs'
+    const commandLog = options.commandLog || './command-log.jsontag'
     const commandStatus = options.commandStatus || './command-status.jsontag'
-    const integrityFile = options.integrityFile || getDefaultIntegrityFile(datafile)
-    const integrityEnabled = Boolean(options.integrity || options.integrityFile || fs.existsSync(integrityFile))
-    const maxCommandCrashAttempts = options.maxCommandCrashAttempts ?? 2
-    const access        = options.access        || null
-    const timeout       = options.timeout       || 1000
-    const slowTimeout   = options.slowTimeout   || 10000
-    const commandTimeout = normalizeWorkerTimeout('commandTimeout', options.commandTimeout, defaultCommandTimeout)
-    const loadTimeout    = normalizeWorkerTimeout('loadTimeout', options.loadTimeout, defaultLoadTimeout)
+    const integrityFile =
+        options.integrityFile || getDefaultIntegrityFile(datafile)
+    const integrityEnabled = Boolean(
+        options.integrity ||
+            options.integrityFile ||
+            fs.existsSync(integrityFile)
+    )
+    const activeIntegrityFile = integrityEnabled ? integrityFile : null
+    const access = options.access || null
+    const timeout = options.timeout || 1000
+    const slowTimeout = options.slowTimeout || 10000
+    const commandTimeout = normalizeWorkerTimeout(
+        'commandTimeout',
+        options.commandTimeout,
+        defaultCommandTimeout
+    )
+    const loadTimeout = normalizeWorkerTimeout(
+        'loadTimeout',
+        options.loadTimeout,
+        defaultLoadTimeout
+    )
 
     server.get('/', serveHomepage)
 
     // allow access to raw body, used to parse a query send as post body
-    server.use(express.raw({
-        type: () => true, // parse body on all requests
-        limit: '50MB'
-    }))
+    server.use(
+        express.raw({
+            type: () => true, // parse body on all requests
+            limit: '50MB'
+        })
+    )
 
-    let status = loadCommandStatus(commandStatus)
-    status = await recoverActiveCommands(status, commandStatus, {
-        maxCrashAttempts: maxCommandCrashAttempts
-    })
-
+    const storeOptions = {
+        ...options,
+        datafile,
+        commandLog,
+        commandStatus,
+        integrity: integrityEnabled
+    }
+    if (integrityEnabled) {
+        storeOptions.integrityFile = integrityFile
+    }
+    const config = storePaths(storeOptions)
+    const ownership = await acquireOwnership(mutableDirectories(config))
+    let inspection
     try {
-        let data = await loadData(getCommittedCommandIds(status)) // only completed command ids are used to generate filenames of committed changes
+        inspection = await inspectStore(config)
+        if (!inspection.ready) {
+            const commands = from(inspection.commands)
+
+            const problems = commands
+                .where({ problem: Boolean })
+                .select(_.problem)
+
+            const pending = commands
+                .where({ status: anyOf('accepted', 'active') })
+                .select(command => {
+                    return `${command.id}: ${command.status}; administrator assessment required`
+                })
+
+            const uncommitted = commands
+                .where({ present: Boolean, status: not('done') })
+                .select(command => {
+                    return `${command.id}: uncommitted dataset`
+                })
+
+            const reasons = [
+                ...inspection.errors,
+                ...problems,
+                ...pending,
+                ...uncommitted
+            ]
+
+            const details = reasons.join('; ')
+            throw new Error(`Administrative recovery required: ${details}`)
+        }
+        for (const [file, digest] of Object.entries(inspection.files)) {
+            if (digest !== null) {
+                await syncFile(file)
+            }
+        }
+        const data = await loadData(inspection.committed)
         jsontagBuffers = [data.data]
         meta = data.meta
-    } catch(err) {
-        console.error('ERROR: SimplyStore cannot load '+datafile, err)
-        process.exit(1)
+    }
+    catch (error) {
+        await ownership.release()
+        throw error
+    }
+    const status = new Map(
+        inspection.commands.map(c => [c.id, c.history.at(-1)])
+    )
+    const commandQueue = []
+    const acceptSerial = serialWriter()
+    let storageFailed = false,
+        closing = false
+    let runner = Promise.resolve()
+    function failStorage(error) {
+        if (storageFailed) {
+            return
+        }
+        storageFailed = true
+        console.error(
+            'Storage outcome uncertain; stopping mutation. Administrator recovery required:',
+            error
+        )
+        // Retain ownership evidence; a process exit must never imply a
+        // rollback.
+        setImmediate(() => process.exit(1))
     }
 
-    let commandQueue = loadCommandLog(status, commandLog, {
-        meta,
-        data:jsontagBuffers,
-        commandsFile,
-        indexFile,
-        datafile,
-        integrityFile: integrityEnabled ? integrityFile : null,
-        integrityRequired: integrityEnabled
-    })
-
-    const queryWorkerInitTask = () => { 
+    const queryWorkerInitTask = () => {
         return {
             name: 'init',
             req: {
@@ -117,52 +207,75 @@ async function main(options) {
         return result
     }
 
-    let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
-    let slowQueryWorkerPool = new WorkerPool(1, queryWorker, slowQueryWorkerInitTask())
-    let commandWorkerInstance
+    let queryWorkerPool = new WorkerPool(
+        maxWorkers,
+        queryWorker,
+        queryWorkerInitTask()
+    )
+    let slowQueryWorkerPool = new WorkerPool(
+        1,
+        queryWorker,
+        slowQueryWorkerInitTask()
+    )
     let commandRunnerActive = false
 
-    server.get('/query/', (req,next) => handleGetQuery(req,next))
-    server.get('/query/*remainder', (req,next) => handleGetQuery(req,next))
-    server.get('/slowquery/', (req,next) => handleSlowGetQuery(req,next))
-    server.get('/slowquery/*remainder', (req,next) => handleSlowGetQuery(req,next))
-    server.post('/query/', (req,next) => handlePostQuery(req,next))
-    server.post('/query/*remainder', (req,next) => handlePostQuery(req,next))
-    server.post('/slowquery/', (req,next) => handleSlowPostQuery(req,next))
-    server.post('/slowquery/*remainder', (req,next) => handleSlowPostQuery(req,next))
-    server.post('/command', (req,next) => handlePostCommand(req,next))
-    server.get('/command/:id', (req,next) => handleGetCommand(req,next))
+    server.get('/query/', (req, next) => handleGetQuery(req, next))
+    server.get('/query/*remainder', (req, next) => handleGetQuery(req, next))
+    server.get('/slowquery/', (req, next) => handleSlowGetQuery(req, next))
+    server.get('/slowquery/*remainder', (req, next) =>
+        handleSlowGetQuery(req, next)
+    )
+    server.post('/query/', (req, next) => handlePostQuery(req, next))
+    server.post('/query/*remainder', (req, next) => handlePostQuery(req, next))
+    server.post('/slowquery/', (req, next) => handleSlowPostQuery(req, next))
+    server.post('/slowquery/*remainder', (req, next) =>
+        handleSlowPostQuery(req, next)
+    )
+    server.post('/command', (req, next) => handlePostCommand(req, next))
+    server.get('/command/:id', (req, next) => handleGetCommand(req, next))
 
     server.use(express.static(wwwroot))
 
-    try {
-        await fetch(`http://localhost:${port}`, {
-            signal: AbortSignal.timeout(2000)
-        })
-        console.error(`Port ${port} is already occupied, aborting.`)
-        process.exit()
-    } catch {
-        try {
-            await drainCommandQueue()
-        } catch {
-            // console.log(err) // ignore errors here, already logged to console
+    const listener = server.listen(port, () => {
+        console.log('SimplyStore listening on port ' + port)
+    })
+    listener.on('error', error => {
+        failStorage(error)
+    })
+    async function shutdown() {
+        if (closing) {
+            return
         }
-        server.listen(port, () => {
-            console.log('SimplyStore listening on port '+port)
-            let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
-            console.log(`(${used} MB)`);
-        })
+        closing = true
+        listener.close()
+        try {
+            await acceptSerial(async () => {
+
+            })
+            await runner
+            queryWorkerPool.close()
+            slowQueryWorkerPool.close()
+            if (!storageFailed) {
+                await ownership.release()
+            }
+            process.exit(storageFailed ? 1 : 0)
+        }
+        catch (error) {
+            failStorage(error)
+        }
     }
+    process.once('SIGTERM', shutdown)
+    process.once('SIGINT', shutdown)
 
     /* ------ */
 
     function serveHomepage(req, res) {
-        res.setHeader('content-type', 'text/html');
-        res.send(fs.readFileSync(wwwroot+'/home.html'))
+        res.setHeader('content-type', 'text/html')
+        res.send(fs.readFileSync(wwwroot + '/home.html'))
     }
 
     function loadData(commands) {
-        return new Promise((resolve,reject) => {
+        return new Promise((resolve, reject) => {
             let worker = new Worker(loadWorker)
             let settled = false
             let timeoutId
@@ -179,7 +292,10 @@ async function main(options) {
             }
             if (loadTimeout) {
                 timeoutId = setTimeout(() => {
-                    const error = new WorkerTimeoutError('load worker', loadTimeout)
+                    const error = new WorkerTimeoutError(
+                        'load worker',
+                        loadTimeout
+                    )
                     void finish(reject, error)
                 }, loadTimeout)
             }
@@ -191,68 +307,80 @@ async function main(options) {
             })
             try {
                 worker.postMessage({
-                    dataFile:datafile,
+                    dataFile: datafile,
                     indexFile,
                     schemaFile,
                     commands,
-                    integrityFile: integrityEnabled ? integrityFile : null,
+                    integrityFile: activeIntegrityFile,
                     integrityRequired: integrityEnabled
                 })
-            } catch (error) {
+            }
+            catch (error) {
                 void finish(reject, error)
             }
         })
     }
 
-    async function handleGetQuery(req, res, pool=null) {
+    async function handleGetQuery(req, res, pool = null) {
         let start = Date.now()
         if (!pool) {
             pool = queryWorkerPool
         }
-        if ( !accept(req,res,
-            ['application/jsontag','application/json','text/html','text/javascript','image/*'], 
-            function(req, res, accept) {
-                let result = true
-                switch(accept) {
-                    case 'text/html':
-                    case 'image/*':
-                    case 'text/javascript':
-                        handleWebRequest(req,res,{root:wwwroot});
-                        result = false
-                    break
+        if (
+            !accept(
+                req,
+                res,
+                [
+                    'application/jsontag',
+                    'application/json',
+                    'text/html',
+                    'text/javascript',
+                    'image/*'
+                ],
+                function (req, res, accept) {
+                    let result = true
+                    switch (accept) {
+                        case 'text/html':
+                        case 'image/*':
+                        case 'text/javascript':
+                            handleWebRequest(req, res, { root: wwwroot })
+                            result = false
+                            break
+                    }
+                    return result
                 }
-                return result
-            }
-        )) {
+            )
+        ) {
             // done
             return
         }
         let path = req.params.remainder?.join('/') || '/'
-        console.log('query',path)
+        console.log('query', path)
         let request = {
             method: req.method,
             url: req.originalUrl,
             query: req.query,
             path: path
         }
-        if (accept(req,res,['application/jsontag'])) {
+        if (accept(req, res, ['application/jsontag'])) {
             request.jsontag = true
         }
         try {
             let result = await pool.run('query', request, { timeout })
             sendResponse(result, res)
-        } catch(error) {
+        }
+        catch (error) {
             sendError(error, res)
         }
         let end = Date.now()
-        console.log(path, (end-start), process.memoryUsage())
+        console.log(path, end - start, process.memoryUsage())
     }
 
     async function handleSlowGetQuery(req, res) {
         return handleGetQuery(req, res, slowQueryWorkerPool)
     }
 
-    async function handlePostQuery(req,res,pool=null, slowTimeout=null) {
+    async function handlePostQuery(req, res, pool = null, slowTimeout = null) {
         if (!pool) {
             pool = queryWorkerPool
         }
@@ -260,10 +388,15 @@ async function main(options) {
             slowTimeout = timeout
         }
         let start = Date.now()
-        if ( !accept(req,res,
-            ['application/jsontag','application/json']) 
-        ) {
-            sendError({code:406, message:'Not Acceptable',accept:['application/json','application/jsontag']},res)
+        if (!accept(req, res, ['application/jsontag', 'application/json'])) {
+            sendError(
+                {
+                    code: 406,
+                    message: 'Not Acceptable',
+                    accept: ['application/json', 'application/jsontag']
+                },
+                res
+            )
             return
         }
         let path = req.params.remainder?.join('/') || '/'
@@ -274,18 +407,19 @@ async function main(options) {
             path: path,
             body: req.body.toString()
         }
-        if (accept(req,res,['application/jsontag'])) {
+        if (accept(req, res, ['application/jsontag'])) {
             request.jsontag = true
         }
         try {
-            let result = await pool.run('query', request, {slowTimeout})
+            let result = await pool.run('query', request, { slowTimeout })
             sendResponse(result, res)
-        } catch(error) {
+        }
+        catch (error) {
             sendError(error, res)
         }
         let end = Date.now()
-        console.log(path, (end-start), process.memoryUsage())
-//        queryWorkerPool.memoryUsage()
+        console.log(path, end - start, process.memoryUsage())
+        //        queryWorkerPool.memoryUsage()
     }
 
     async function handleSlowPostQuery(req, res) {
@@ -293,205 +427,194 @@ async function main(options) {
     }
 
     async function handlePostCommand(req, res) {
-        let commandId = await checkCommand(req, res)
-        if (!commandId) {
-            return
+        if (storageFailed || closing) {
+            return sendResponse(
+                {
+                    code: 503,
+                    body: JSON.stringify({ message: 'Store is unavailable' })
+                },
+                res
+            )
         }
         try {
-            let commandStr = req.body.toString()
-            let request = {
-                method: req.method,
-                url: req.originalUrl,
-                query: req.query
-            }
-
-            commandQueue.push({
-                id:commandId,
-                command:commandStr,
-                request,
-                meta,
-                data:jsontagBuffers,
-                commandsFile,
-                indexFile,
-                datafile,
-                integrityFile: integrityEnabled ? integrityFile : null,
-                integrityRequired: integrityEnabled
+            await acceptSerial(async () => {
+                if (storageFailed) {
+                    throw new Error('Store is unavailable')
+                }
+                if (closing) {
+                    return sendResponse(
+                        {
+                            code: 503,
+                            body: JSON.stringify({
+                                message: 'Store is closing'
+                            })
+                        },
+                        res
+                    )
+                }
+                const accepted = await checkCommand(req, res)
+                if (!accepted) {
+                    return
+                }
+                if (storageFailed) {
+                    throw new Error('Store failed during acceptance')
+                }
+                commandQueue.push({ id: accepted.id, command: accepted.line })
+                sendResponse(
+                    {
+                        code: 202,
+                        body: JSON.stringify(status.get(accepted.id))
+                    },
+                    res
+                )
             })
-            await drainCommandQueue()
-        } catch(err) {
-            let s = {code:err.code||500, status:'failed', message:err.message, details:err.details}
-            status.set(commandId, s)
-            await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:commandId}, s)))
-            console.error('ERROR: SimplyStore cannot run command ', commandId, err)
+            void drainCommandQueue()
+        }
+        catch (error) {
+            if (!res.headersSent) {
+                sendResponse(
+                    {
+                        code: 500,
+                        body: JSON.stringify({
+                            message: 'Storage outcome uncertain'
+                        })
+                    },
+                    res
+                )
+            }
+            failStorage(error)
         }
     }
 
     function handleGetCommand(req, res) {
         if (status.has(req.params.id)) {
             let result = status.get(req.params.id)
-            sendResponse({
-                jsontag: false,
-                body: JSON.stringify(result)
-            },res)
-        } else {
-            sendResponse({
-                code: 404,
-                jsontag: false,
-                body: JSON.stringify({code: 404, message: "Command not found", details: req.params.id})
-            }, res)
+            sendResponse(
+                {
+                    jsontag: false,
+                    body: JSON.stringify(result)
+                },
+                res
+            )
+        }
+        else {
+            sendResponse(
+                {
+                    code: 404,
+                    jsontag: false,
+                    body: JSON.stringify({
+                        code: 404,
+                        message: 'Command not found',
+                        details: req.params.id
+                    })
+                },
+                res
+            )
         }
     }
 
-    async function drainCommandQueue() {
-        if (commandRunnerActive) {
-            return
+    function drainCommandQueue() {
+        if (commandRunnerActive || storageFailed) {
+            return runner
         }
         commandRunnerActive = true
-        try {
-            let result
-            do {
-                result = await runNextCommand()
-            } while(result)
-        } finally {
-            commandRunnerActive = false
-        }
-    }
-
-    async function runNextCommand() {
-        return new Promise((mainResolve, mainReject) => {
-            if (commandWorkerInstance) {
-                mainResolve(false)
-                return
-            }
-            let command = commandQueue.shift()
-            while (command && status.get(command.id)?.status !== pendingCommandStatus) {
-                console.log('skipping non-pending command', command.id)
-                command = commandQueue.shift()
-            }
-            if (command) {
-                console.log('starting command',command.id)
-                let start = (resolve, reject) => {
-                    const worker = new Worker(commandWorker)
-                    commandWorkerInstance = worker
-                    let settled = false
-                    let timeoutId
-                    const finish = async (settle, value) => {
-                        if (settled) {
-                            return
-                        }
-                        settled = true
-                        if (timeoutId) {
-                            clearTimeout(timeoutId)
-                        }
-                        await worker.terminate()
-                        if (commandWorkerInstance === worker) {
-                            commandWorkerInstance = null
-                        }
-                        settle(value)
-                    }
-                    if (commandTimeout) {
-                        timeoutId = setTimeout(() => {
-                            const error = new WorkerTimeoutError('command worker', commandTimeout)
-                            void finish(resolve, {
-                                code: error.code,
-                                status: unsafeCommandStatus,
-                                message: error.message,
-                                details: {
-                                    timeout: error.timeout,
-                                    workerKind: error.workerKind
-                                }
-                            })
-                        }, commandTimeout)
-                    }
-                    worker.on('message', result => {
-                        void finish(resolve, result)
-                    })
-                    worker.on('error', error => {
-                        void finish(reject, error)
-                    })
-                    try {
-                        worker.postMessage(command)
-                    } catch (error) {
-                        void finish(reject, error)
-                    }
-                }
-                const activeStatus = nextActiveCommandStatus(command.id, status.get(command.id))
-                status.set(command.id, activeStatus)
-                void (async () => {
-                    await appendFile(commandStatus, JSONTag.stringify(activeStatus))
-                    await faultPoint('after-active-status-before-command-worker')
-                    start(
-                        // resolve()
-                        async (data) => {
-                            let s
-                            if (data?.status === unsafeCommandStatus) {
-                                s = {
-                                    code: data.code || 504,
-                                    status: unsafeCommandStatus,
-                                    message: data.message,
-                                    details: data.details,
-                                    attempt: activeStatus.attempt
-                                }
-                                status.set(command.id, s)
-                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                                mainResolve(s)
-                            } else if (!data || (data.code>=300 && data.code<=499)) {
-                                console.error('ERROR: SimplyStore cannot run command ', command.id, data)
-                                if (!data?.code) {
-                                    s = {code: 500, status: "failed"}
-                                } else {
-                                    s = {code: data.code, status: "failed", message: data.message, details: data.details}
-                                }
-                                status.set(command.id, s)
-                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                                mainReject(s)
-                            } else {
-                                await faultPoint('before-command-done-status')
-                                s = {code: 200, status: "done"}
-                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                                await faultPoint('after-command-done-status-before-query-update')
-                                status.set(command.id, s)
-                                if (data.data) { // data has changed, commands may do other things instead of changing data
-                                    jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
-                                    Object.assign(meta, data.meta)
-                                    const updateTask = {
-                                        name: 'update',
-                                        req: {
-                                            body: jsontagBuffers[jsontagBuffers.length-1], // only add the last change, update tasks for earlier changes have already been sent
-                                            meta
-                                        }
-                                    }
-                                    queryWorkerPool.update(updateTask)
-                                    slowQueryWorkerPool.update(updateTask)
-                                }
-                                mainResolve(s)
-                            }
-                        },
-                        //reject()
-                        async (error) => {
-                            let s = {status: "failed", code: error.code, message: error.message, details: error.details}
-                            status.set(command.id, s)
-                            await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                            console.log('command error', command.id, error)
-                            mainReject(s)
-                        }
+        runner = (async () => {
+            try {
+                while (commandQueue.length && !storageFailed) {
+                    const command = commandQueue.shift()
+                    console.log('starting command', command.id)
+                    const active = nextActiveCommandStatus(
+                        command.id,
+                        status.get(command.id)
                     )
-                })().catch(mainReject)
-                return
-            } else {
-                console.log('no pending commands')
-                // this code can never be triggered from the post(/command/) route, since it always adds a command to the queue
-                // so you can only get here from commandWorkerInstance.on() route
-                // which means that the commandWorkerInstance has finished running the previous command
-                if (commandWorkerInstance) {
-                    commandWorkerInstance.terminate().then(() => {
-                        mainResolve(false)
-                    }, mainReject)
-                    return
+                    await appendFile(commandStatus, JSONTag.stringify(active))
+                    if (storageFailed) {
+                        throw new Error('Store failed before execution')
+                    }
+                    status.set(command.id, active)
+                    await faultPoint(
+                        'after-active-status-before-command-worker'
+                    )
+                    const result = await executeWorker(
+                        commandWorker,
+                        {
+                            ...command,
+                            meta,
+                            data: jsontagBuffers,
+                            commandsFile,
+                            indexFile,
+                            datafile,
+                            integrityFile: activeIntegrityFile,
+                            integrityRequired: integrityEnabled
+                        },
+                        commandTimeout
+                    )
+                    if (storageFailed) {
+                        throw new Error('Store failed during execution')
+                    }
+                    if (result?.storageFailure) {
+                        throw new Error(
+                            result.message || 'Worker persistence failure'
+                        )
+                    }
+                    if (
+                        !result ||
+                        result.status === 'failed' ||
+                        result.status === 'unsafe' ||
+                        result.code >= 300
+                    ) {
+                        let terminalStatus = 'failed'
+                        if (result?.status === 'unsafe') {
+                            terminalStatus = 'unsafe'
+                        }
+                        const terminal = {
+                            command: command.id,
+                            status: terminalStatus,
+                            code: result?.code || 500,
+                            message: result?.message || 'Command failed',
+                            attempt: active.attempt
+                        }
+                        await appendFile(
+                            commandStatus,
+                            JSONTag.stringify(terminal)
+                        )
+                        status.set(command.id, terminal)
+                        continue
+                    }
+                    for (const file of config.requiredFiles) {
+                        await syncFile(file)
+                    }
+                    await faultPoint('before-command-done-status')
+                    const done = {
+                        command: command.id,
+                        code: 200,
+                        status: 'done'
+                    }
+                    await appendFile(commandStatus, JSONTag.stringify(done))
+                    await faultPoint(
+                        'after-command-done-status-before-query-update'
+                    )
+                    status.set(command.id, done)
+                    if (result.data) {
+                        jsontagBuffers.push(result.data)
+                        Object.assign(meta, result.meta)
+                        const task = {
+                            name: 'update',
+                            req: { body: result.data, meta }
+                        }
+                        queryWorkerPool.update(task)
+                        slowQueryWorkerPool.update(task)
+                    }
                 }
-                mainResolve(false)
             }
-        })
+            catch (error) {
+                failStorage(error)
+            }
+            finally {
+                commandRunnerActive = false
+            }
+        })()
+        return runner
     }
 
     async function checkCommand(req, res) {
@@ -505,44 +628,50 @@ async function main(options) {
                 code: 202,
                 status: 'accepted'
             }
-        } catch(err) {
+        }
+        catch (err) {
             error = {
                 code: 400,
-                message: "Bad request",
+                message: 'Bad request',
                 details: err.message
             }
-            console.error('Error: ',err)
-            sendResponse({code: 400, body: JSON.stringify(error)}, res)
+            console.error('Error: ', err)
+            sendResponse({ code: 400, body: JSON.stringify(error) }, res)
             return false
         }
-        if (!command || !command.id) {
+        if (!command || !validCommandId(command.id)) {
             error = {
                 code: 422,
-                message: "Command has no id",
+                message: 'Command has no id',
                 details: command
             }
-            sendResponse({code: 422, body: JSON.stringify(error)}, res)
+            sendResponse({ code: 422, body: JSON.stringify(error) }, res)
             return false
-        } else if (status.has(command.id)) {
-            const currentStatus = Object.assign({command: command.id}, status.get(command.id))
-            sendResponse({body: JSON.stringify(currentStatus)}, res)
-            return false
-        } else if (!command.name) {
-            error = {
-                code: 422,
-                message: "Command has no name",
-                details: command
-            }
-            sendResponse({code:422, body: JSON.stringify(error)}, res)
-            return false      
         }
-        await appendFile(commandLog, JSONTag.stringify(command)) //FIXME: this loses request data
+        else if (status.has(command.id)) {
+            const currentStatus = Object.assign(
+                { command: command.id },
+                status.get(command.id)
+            )
+            sendResponse({ body: JSON.stringify(currentStatus) }, res)
+            return false
+        }
+        else if (!command.name) {
+            error = {
+                code: 422,
+                message: 'Command has no name',
+                details: command
+            }
+            sendResponse({ code: 422, body: JSON.stringify(error) }, res)
+            return false
+        }
+        const line = JSONTag.stringify(command)
+        await appendFile(commandLog, line)
         await faultPoint('after-command-log-before-accepted-status')
         await appendFile(commandStatus, JSONTag.stringify(commandOK))
-        status.set(command.id, commandOK) 
+        status.set(command.id, commandOK)
         await faultPoint('after-command-accepted-status-before-response')
-        sendResponse({code: 202, body: JSON.stringify(commandOK)}, res)
-        return command.id
+        return { id: command.id, line }
     }
 }
 
@@ -551,21 +680,23 @@ function sendResponse(response, res) {
         res.status(response.code)
     }
     if (response.jsontag) {
-        res.setHeader('content-type','application/jsontag')
-    } else {
-        res.setHeader('content-type','application/json')
+        res.setHeader('content-type', 'application/jsontag')
     }
-    res.send(response.body)+"\n"
+    else {
+        res.setHeader('content-type', 'application/json')
+    }
+    res.send(response.body) + '\n'
 }
 
 function sendError(error, res) {
     console.error(error)
     if (error.code && httpStatusCodes[error.code]) {
         res.status(error.code)
-    } else {
+    }
+    else {
         res.status(500)
     }
-    res.setHeader('content-type','application/json')
+    res.setHeader('content-type', 'application/json')
     res.send(JSON.stringify(error))
 }
 
@@ -576,7 +707,7 @@ function accept(req, res, mimetypes, handler) {
     let accept = req.accepts(mimetypes)
     if (!accept) {
         res.status(406)
-        res.send("<h1>406 Unacceptable</h1>\n")
+        res.send('<h1>406 Unacceptable</h1>\n')
         return false
     }
     if (typeof handler === 'function') {
@@ -585,23 +716,23 @@ function accept(req, res, mimetypes, handler) {
     return true
 }
 
-function handleWebRequest(req,res,options)
-{
-    let path = req.path;
+function handleWebRequest(req, res, options) {
+    let path = req.path
     path = path.replace(/[^a-z0-9_.\-/]*/gi, '') // whitelist acceptable file paths
     path = path.replace(/\.+/g, '.') // blacklist '..'
     if (!path) {
         path = '/'
     }
-    if (path.substring(path.length-1)==='/') {
+    if (path.substring(path.length - 1) === '/') {
         path += 'index.html'
     }
     const fileOptions = {
         root: options.root
     }
-    if (fs.existsSync(fileOptions.root+path)) {
+    if (fs.existsSync(fileOptions.root + path)) {
         res.sendFile(path, fileOptions)
-    } else {
+    }
+    else {
         res.sendFile('/index.html', fileOptions)
     }
 }
