@@ -41,6 +41,17 @@ SimplyStore has a governing durability/extensibility direction in:
 - `.spiral/requests/REQ-001.md`
 - `.spiral/designs/DES-001.md`
 
+The maintainer refined that direction on 2026-09-19 in:
+
+- `.spiral/sources/SRC-20260919-TTZ7C-18.md`
+- `.spiral/understandings/UND-20260919-TTZ7C-19.md`
+- `.spiral/requests/REQ-20260919-TTZ7C-20.md`
+
+Read this refinement alongside the original direction. It requires an
+administrative recovery path, complete logged command inputs, and ordered rerun
+eligibility; it records separate new-store rebuild semantics without making
+full rebuild tooling part of the current power-loss cycle.
+
 Before proposing a next durability/production-readiness cycle, re-read those durable references, identify the current position in the ordered plan, reconcile the latest evidence with that plan, and state whether the proposal continues, revises, or deliberately deviates from it.
 
 Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifacts and companion Turtle resources only when they are causally useful for an actual cycle, decision, implementation, evidence, acceptance, or lesson.
