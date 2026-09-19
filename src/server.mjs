@@ -2,6 +2,7 @@ import {setImmediate} from 'node:timers'
 import express from 'express'
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
+import {from, _, anyOf, not} from '@muze-nl/jaqt'
 import WorkerPool from './workerPool.mjs'
 import { Worker } from 'worker_threads'
 import { fileURLToPath } from 'url'
@@ -86,10 +87,33 @@ async function main(options) {
     try {
         inspection = await inspectStore(config)
         if (!inspection.ready) {
-            throw new Error('Administrative recovery required: ' +
-            [...inspection.errors, ...inspection.commands.filter(c => c.problem).map(c => c.problem),
-                ...inspection.commands.filter(c => c.status === 'accepted' || c.status === 'active').map(c => `${c.id}: ${c.status}; administrator assessment required`),
-                ...inspection.commands.filter(c => c.present && c.status !== 'done').map(c => `${c.id}: uncommitted dataset`)].join('; '))
+            const commands = from(inspection.commands)
+
+            const problems = commands
+                .where({problem: Boolean})
+                .select(_.problem)
+
+            const pending = commands
+                .where({status: anyOf('accepted', 'active')})
+                .select(command => {
+                    return `${command.id}: ${command.status}; administrator assessment required`
+                })
+
+            const uncommitted = commands
+                .where({present: Boolean, status: not('done')})
+                .select(command => {
+                    return `${command.id}: uncommitted dataset`
+                })
+
+            const reasons = [
+                ...inspection.errors,
+                ...problems,
+                ...pending,
+                ...uncommitted
+            ]
+
+            const details = reasons.join('; ')
+            throw new Error(`Administrative recovery required: ${details}`)
         }
         for (const [file, digest] of Object.entries(inspection.files)) {
             if (digest !== null) {

@@ -26,9 +26,11 @@ test('administrator recovers trailing missing/waiting commands in log order on a
     const before=await fs.readFile(store.commandStatus)
     const plan=await planRecovery(store,{quiescent:true})
     assert.equal(plan.actionable,true);assert.deepEqual(plan.rerun,['A','B'])
+    assert.deepEqual(structuredClone(plan), plan, 'Recovery plans remain plain cloneable data')
     const result=await runRecovery(store,outputs,plan)
     const actual=await inspectStore(result.config)
     assert.equal(actual.ready,true)
+    assert.deepEqual(structuredClone(actual.commands), actual.commands, 'Inspection does not expose JAQT proxies')
     assert.deepEqual(actual.data.persons.map(p=>p.name),['A','B'])
     assert.deepEqual(await fs.readFile(store.commandStatus),before)
     assert.ok((await fs.readFile(result.config.commandStatus)).subarray(0,before.length).equals(before))
@@ -249,4 +251,52 @@ test('identical historical duplicate retains first log position; conflicting dup
     assert.equal(plan.actionable,true);assert.deepEqual(plan.rerun,['A','B'])
     await fs.appendFile(store.commandLog,JSONTag.stringify({id:'A',name:'addPerson',value:{name:'different'}})+'\n')
     assert.ok((await planRecovery(store,{quiescent:true})).blocks.some(s=>s.includes('Conflicting command ID A')))
+})
+
+
+test('backup coverage distinguishes changed history and data from missing source data', async t => {
+    const {store, outputs} = await setup(t, [['A', 'accepted']])
+    const plan = await planRecovery(store, {quiescent: true})
+    const recovered = await runRecovery(store, outputs, plan)
+    const source = recovered.config
+    const backup = path.join(outputs, 'coverage-backup')
+    await backupStore(source, {to: backup, quiescent: true})
+
+    const changeset = path.join(path.dirname(source.datafile), 'data.A.jsontag')
+    const original = new Map()
+    for (const file of [source.datafile, source.commandLog, source.commandStatus, changeset]) {
+        original.set(file, await fs.readFile(file))
+    }
+    const differentCommand = JSONTag.stringify({id: 'A', name: 'addPerson', value: {name: 'changed'}})
+    const failedStatus = JSONTag.stringify({command: 'A', status: 'failed', code: 500})
+    const cases = [
+        {name: 'same', missing: [], sameBase: true},
+        {name: 'command', file: source.commandLog, bytes: differentCommand + '\n', missing: ['A'], sameBase: true},
+        {name: 'status', file: source.commandStatus, bytes: original.get(source.commandStatus) + failedStatus + '\n', missing: ['A'], sameBase: true},
+        {name: 'data', file: changeset, bytes: original.get(changeset) + ' ', missing: ['A'], sameBase: true},
+        {name: 'base', file: source.datafile, bytes: original.get(source.datafile) + ' ', missing: ['A'], sameBase: false},
+        {name: 'missing', file: changeset, missing: [], sameBase: true}
+    ]
+    for (const scenario of cases) {
+        for (const [file, bytes] of original) {
+            await fs.writeFile(file, bytes)
+        }
+        if (scenario.file) {
+            if (scenario.bytes === undefined) {
+                await fs.unlink(scenario.file)
+            }
+            else {
+                await fs.writeFile(scenario.file, scenario.bytes)
+            }
+        }
+        const result = await restoreBackup(backup, {
+            to: path.join(outputs, scenario.name),
+            auditDir: path.join(outputs, scenario.name + '-audit'),
+            source,
+            sourceQuiescent: true
+        })
+        assert.deepEqual(result.missingFromBackup, scenario.missing, scenario.name)
+        assert.equal(result.sameBase, scenario.sameBase, scenario.name)
+        assert.deepEqual(structuredClone(result), result, 'Restore reports remain plain cloneable data')
+    }
 })

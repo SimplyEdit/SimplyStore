@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import JSONTag from '@muze-nl/jsontag'
+import {from, _, anyOf, not} from '@muze-nl/jaqt'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import {createHash} from 'node:crypto'
 import {assertOdJsonTagFraming, getChangesetPath} from './recovery.mjs'
@@ -98,7 +99,16 @@ async function records(file, errors, kind) {
 export async function inspectStore(options = {}) {
     const config = storePaths(options)
     const errors = [], warnings = []
-    const canonicalPaths = await Promise.all([config.datafile, config.commandLog, config.commandStatus, config.integrityFile].map(async file => path.join(await fs.realpath(path.dirname(file)),path.basename(file))))
+    const configuredPaths = [
+        config.datafile,
+        config.commandLog,
+        config.commandStatus,
+        config.integrityFile
+    ]
+    const canonicalPaths = await Promise.all(configuredPaths.map(async file => {
+        const directory = await fs.realpath(path.dirname(file))
+        return path.join(directory, path.basename(file))
+    }))
     if (new Set(canonicalPaths).size !== canonicalPaths.length) {
         errors.push('Configured canonical artifact paths overlap')
     }
@@ -219,7 +229,14 @@ export async function inspectStore(options = {}) {
         else if (command.status === 'accepted' || command.status === 'active') {
             prefixValid = false
         }
-        command.laterDatasets = commands.filter(later => later.position > command.position && later.accepted && before[later.file] != null).map(later => later.id)
+        const laterDatasets = from(commands)
+            .where({
+                position: position => position > command.position,
+                accepted: true,
+                file: file => before[file] != null
+            })
+            .select(_.id)
+        command.laterDatasets = [...laterDatasets]
     }
     const extension = path.extname(config.datafile), stem = path.basename(config.datafile, extension) + '.'
     const known = new Set(commands.map(command => command.file))
@@ -237,8 +254,12 @@ export async function inspectStore(options = {}) {
     if (JSON.stringify(before) !== JSON.stringify(after)) {
         errors.push('Store changed during inspection')
     }
-    const pending = commands.filter(c => c.status === 'accepted' || c.status === 'active')
-    const damaged = commands.filter(c => c.problem || (c.present && c.status !== 'done'))
+    const commandQuery = from(commands)
+    const pending = commandQuery.where({status: anyOf('accepted', 'active')})
+    const damaged = commandQuery.where(anyOf(
+        {problem: Boolean},
+        {present: Boolean, status: not('done')}
+    ))
     const ready = errors.length === 0 && pending.length === 0 && damaged.length === 0
     warnings.push('History completeness and original code/hidden inputs require independent administrator evidence; current files alone cannot prove them.')
     return {config, files: before, fingerprint: hash(JSON.stringify(before)), errors, warnings,

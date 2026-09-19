@@ -3,6 +3,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import {fileURLToPath} from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
+import {from, _, anyOf, not} from '@muze-nl/jaqt'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import {inspectStore, inventory, hash, mutableDirectories, storePaths} from './store-inspection.mjs'
@@ -21,7 +22,12 @@ function deployment(options) {
         commandWorker:path.resolve(options.commandWorker || defaultWorker)}
 }
 async function codeHashes(code) {
-    return Object.fromEntries(await Promise.all(Object.entries(code).map(async ([key,file]) => [key,hash(await fs.readFile(file))])))
+    const entries = Object.entries(code)
+    const hashes = await Promise.all(entries.map(async ([key, file]) => {
+        const bytes = await fs.readFile(file)
+        return [key, hash(bytes)]
+    }))
+    return Object.fromEntries(hashes)
 }
 async function canonicalNew(file) {
     const absolute = path.resolve(file)
@@ -54,23 +60,50 @@ async function assertFresh(plan) {
 export async function planRecovery(options, {quiescent = false} = {}) {
     const report = await inspectStore(options)
     const code = deployment(options)
-    const candidates = report.commands.filter(c => ['accepted','active'].includes(c.status) || (c.status === 'done' && !c.present))
+    const commands = from(report.commands)
+    const candidates = commands.where(anyOf(
+        {status: anyOf('accepted', 'active')},
+        {status: 'done', present: false}
+    ))
+    const uncertain = commands.where(anyOf(
+        {condition: 'corrupt'},
+        {present: Boolean, status: not('done')}
+    ))
+    const blockedCandidates = candidates.where({
+        laterDatasets: datasets => datasets.length > 0
+    })
+
     const blocks = [...report.errors]
-    for (const command of report.commands) {
-        if (command.condition === 'corrupt' || (command.present && command.status !== 'done')) {
-            blocks.push(`${command.id}: existing uncertain dataset requires diagnosis`)
-        }
+    for (const command of uncertain) {
+        blocks.push(`${command.id}: existing uncertain dataset requires diagnosis`)
     }
-    for (const command of candidates) {
-        if (command.laterDatasets.length) {
-            blocks.push(`${command.id}: later accepted datasets exist: ${command.laterDatasets.join(',')}`)
-        }
+    for (const command of blockedCandidates) {
+        const laterIds = command.laterDatasets.join(',')
+        blocks.push(`${command.id}: later accepted datasets exist: ${laterIds}`)
     }
-    return {kind:'simplystore-recovery-plan', config:report.config, code, codeHashes:await codeHashes(code),
-        files:report.files, fingerprint:report.fingerprint, actionable:quiescent && blocks.length === 0,
-        blocks, rerun:candidates.map(c => c.id), committed:report.committed,
-        commands:report.commands.map(record => Object.fromEntries(Object.entries(record).filter(([key])=>key!=='command'))), warnings:report.warnings,
-        attestation:'Approval asserts source quiescence, complete authoritative history, complete logged command inputs, original command meaning, and assessed external effects.'}
+
+    const rerun = [...candidates.select(_.id)]
+    const summaries = commands.select(record => {
+        const summary = {...record}
+        delete summary.command
+        return summary
+    })
+    const selectedCodeHashes = await codeHashes(code)
+    return {
+        kind: 'simplystore-recovery-plan',
+        config: report.config,
+        code,
+        codeHashes: selectedCodeHashes,
+        files: report.files,
+        fingerprint: report.fingerprint,
+        actionable: quiescent && blocks.length === 0,
+        blocks,
+        rerun,
+        committed: report.committed,
+        commands: [...summaries],
+        warnings: report.warnings,
+        attestation: 'Approval asserts source quiescence, complete authoritative history, complete logged command inputs, original command meaning, and assessed external effects.'
+    }
 }
 export async function writePlan(file, plan) {
     const target = await canonicalNew(file)
@@ -191,7 +224,10 @@ export async function applyRecovery(plan, {to, auditDir, approveRerun = [], oper
         }
         const complete = await inspectStore(config)
         if (!complete.ready) {
-            throw new Error('Recovered candidate is not ready: '+JSON.stringify({errors:complete.errors,commands:complete.commands.filter(c=>c.problem)}))
+            const problems = from(complete.commands).where({problem: Boolean})
+            const diagnostic = {errors: complete.errors, commands: [...problems]}
+            const details = JSON.stringify(diagnostic)
+            throw new Error(`Recovered candidate is not ready: ${details}`)
         }
         const report = {kind:'simplystore-recovery-complete',planHash,config,code:plan.code,codeHashes:plan.codeHashes,files:complete.files,
             fingerprint:complete.fingerprint,committed:complete.committed,operator,reason,warnings:complete.warnings}
@@ -236,6 +272,38 @@ export async function backupStore(options, {to, quiescent = false} = {}) {
     finally {
         await owner.release()
     }
+}
+
+function backupCoverage(retained, restored) {
+    const originalBase = retained.files[retained.config.datafile]
+    const backupBase = restored.files[restored.config.datafile]
+    const sameBase = originalBase === backupBase
+    const backupCommands = from(restored.commands)
+
+    function isCovered(command) {
+        if (!sameBase) {
+            return false
+        }
+        const matching = backupCommands.where({
+            id: command.id,
+            line: command.line,
+            status: command.status
+        })
+        if (command.status !== 'done' || !command.present) {
+            return matching.length > 0
+        }
+        return matching.some(backupCommand => {
+            const originalDigest = retained.files[command.file]
+            const backupDigest = restored.files[backupCommand.file]
+            return originalDigest === backupDigest
+        })
+    }
+
+    const missing = from(retained.commands)
+        .where({accepted: true})
+        .where(not(isCovered))
+        .select(_.id)
+    return {sameBase, missingFromBackup: [...missing]}
 }
 
 export async function restoreBackup(backupDirectory, {to, auditDir, source, sourceQuiescent=false} = {}) {
@@ -285,8 +353,9 @@ export async function restoreBackup(backupDirectory, {to, auditDir, source, sour
         let missingFromBackup = null, sameBase = null
         if (source) {
             const retained = await inspectStore(source)
-            sameBase=retained.files[retained.config.datafile]===check.files[check.config.datafile]
-            missingFromBackup = retained.commands.filter(c => c.accepted && (!sameBase || !check.commands.some(b => b.id === c.id && b.line === c.line && b.status===c.status && (c.status!=='done' || !c.present || retained.files[c.file]===check.files[b.file])))).map(c=>c.id)
+            const coverage = backupCoverage(retained, check)
+            sameBase = coverage.sameBase
+            missingFromBackup = coverage.missingFromBackup
         }
         const complete = {kind:'simplystore-restore-complete',config,files:check.files,fingerprint:check.fingerprint,
             committed:check.committed,missingFromBackup,sameBase,warnings:check.warnings,
@@ -355,7 +424,11 @@ export async function releaseOfflineLocks(options, {operator, reason, confirmedS
         removed.push({lock,ownerFiles:saved})
     }
     // Return preview only; the CLI persists its external audit before calling finish.
-    return {inspection:{ready:report.ready,errors:report.errors,commands:report.commands.map(c=>({id:c.id,status:c.status,problem:c.problem}))},
+    const commands = report.commands.map(command => {
+        return {id: command.id, status: command.status, problem: command.problem}
+    })
+    const inspection = {ready: report.ready, errors: report.errors, commands}
+    return {inspection,
         operator,reason,removed,async finish() {
             for (const {lock,ownerFiles} of removed) {
                 for (const entry of ownerFiles) {
