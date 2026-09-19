@@ -12,5 +12,5 @@ project:SRC-20260919-TTZ7C-28
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:SRC-20260919-TTZ7C-28 ;
-        sd:gitCommit "212d3000cc6a7011d2700ca6454414c7024428fa"
+        sd:gitCommit "b5bf0a7734f49ecd7054f4853e434c01defa05fc"
     ] .

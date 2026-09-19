@@ -6,7 +6,7 @@ project:CYC-20260919-TTZ7C-31
     a sd:Cycle ;
     dcterms:identifier "CYC-20260919-TTZ7C-31" ;
     sd:repositoryPath ".spiral/cycles/CYC-20260919-TTZ7C-31.md" ;
-    sd:status sd:Active ;
+    sd:status sd:Accepted ;
     sd:derivedFrom [
         a sd:ArtifactReference ;
         sd:artifact project:REQ-20260919-TTZ7C-30 ;
@@ -20,5 +20,5 @@ project:CYC-20260919-TTZ7C-31
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:CYC-20260919-TTZ7C-31 ;
-        sd:gitCommit "5f76a550174c50e3d58818d58f0965fdfe3d7054"
+        sd:gitCommit "6186dc590da106308916c34a40138a016bfa07ef"
     ] .
