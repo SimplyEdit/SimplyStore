@@ -27,6 +27,17 @@ exposed by the accepted durability cycle. Its source, understanding, request and
 design are `SRC-20260919-TTZ7C-28`, `UND-20260919-TTZ7C-29`,
 `REQ-20260919-TTZ7C-30` and `DES-20260919-TTZ7C-32`.
 
+Current cycle outcome pending human acceptance: `IMP-20260919-TTZ7C-33` moves
+opened-store state and lifecycle into one cohesive `StoreRuntime`, leaving
+Express and process policy in the server shell. It preserves authoritative
+command-log ordering and the accepted durability/recovery behavior. The
+maintainer authorized correcting the ineffective slow-query timeout; normal and
+slow GET and POST tasks now pass the selected configured duration through the
+worker's `timeout` property. `IMP-20260919-TTZ7C-34` aligns supported root and
+example dependencies. `EVD-20260919-TTZ7C-35` records 111 passing regression
+tests, clean focused lint and audit results, and successful package/example
+verification. The cycle remains Active until explicitly accepted.
+
 Latest accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-17.md` (`Power-Loss Durability And Administrative Recovery`), committed by the maintainer on 2026-09-19 and opened on `spiral/CYC-20260919-TTZ7C-17-power-loss-recovery` from `master` at `44ea91717a328ad7b5e049c6c0845b5e3bcc1718`. The maintainer accepted the cycle on 2026-09-19 after running tests and the example. The accepted branch was integrated locally into `master` at `fd40b0a23066ee8b37261dea1ba89cc64bbd4cc8`. Its source, understanding, and acceptance matrix are `SRC-20260919-TTZ7C-18`, `UND-20260919-TTZ7C-19`, and `REQ-20260919-TTZ7C-20`.
 
 Previously accepted and integrated cycle: `.spiral/cycles/CYC-20260917-TTZ7C-4.md` (`Persisted Offset Indexes`), explicitly accepted on 2026-09-18 and merged into `master` at `0444094`. Conversion and command changesets finalize offsets from their serialized bytes through the configured index module, with a default fallback for existing wrappers. The earlier integrity runtime slice was accepted on 2026-08-19; its compliance correction in `DEF-20260916-TTZ7C-1`, verified by `EVD-20260916-TTZ7C-3`, was explicitly accepted on 2026-09-16 and merged at `e59c6f1`.
