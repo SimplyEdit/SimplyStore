@@ -12,7 +12,10 @@ project:DES-20260919-TTZ7C-24 a sd:Design ;
         sd:gitCommit "b1f15b5964986a9e3cab9025f08829b88294974c" ] ;
     sd:derivedFrom [ a sd:ArtifactReference ;
         sd:artifact project:EVD-20260919-TTZ7C-23 ;
-        sd:gitCommit "40f87397774e08b6549fc95dcd966922ddbaa7e9" ] ;
+        sd:gitCommit "40f87397774e08b6549fc95dcd966922ddbaa7e9" ],
+        [ a sd:ArtifactReference ;
+        sd:artifact project:SRC-20260919-TTZ7C-18 ;
+        sd:gitCommit "67be05c0d648461666f577d808ea2747f5e324f6" ] ;
     sd:shapedBy [ a sd:ArtifactReference ;
         sd:artifact culture:CUL-MUZE-001 ;
         sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41" ],
