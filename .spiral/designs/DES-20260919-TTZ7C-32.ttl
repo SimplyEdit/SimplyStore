@@ -1,0 +1,29 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+@prefix culture: <https://muze.nl/ns/spiral-developer/culture/> .
+
+project:DES-20260919-TTZ7C-32
+    a sd:Design ;
+    dcterms:identifier "DES-20260919-TTZ7C-32" ;
+    sd:repositoryPath ".spiral/designs/DES-20260919-TTZ7C-32.md" ;
+    sd:status sd:Active ;
+    sd:satisfies [
+        a sd:ArtifactReference ;
+        sd:artifact project:REQ-20260919-TTZ7C-30 ;
+        sd:gitCommit "7087379c3bcf6f68c491d6d3ee2de503963cdc1e"
+    ] ;
+    sd:shapedBy [
+        a sd:ArtifactReference ;
+        sd:artifact culture:CUL-MUZE-001 ;
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41"
+    ], [
+        a sd:ArtifactReference ;
+        sd:artifact culture:CUL-MUZE-LIB-001 ;
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41"
+    ] ;
+    sd:changeCausedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:SRC-20260919-TTZ7C-28 ;
+        sd:gitCommit "ffe879c66c68d4e981e86c78b1c02e2b1b7ed652"
+    ] .

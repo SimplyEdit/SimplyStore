@@ -18,7 +18,16 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Latest accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-17.md` (`Power-Loss Durability And Administrative Recovery`), committed by the maintainer on 2026-09-19 and opened on `spiral/CYC-20260919-TTZ7C-17-power-loss-recovery` from `master` at `44ea91717a328ad7b5e049c6c0845b5e3bcc1718`. The maintainer accepted the cycle on 2026-09-19 after running tests and the example. The accepted branch was integrated locally into `master` at `fd40b0a23066ee8b37261dea1ba89cc64bbd4cc8`; no new cycle is active. Its source, understanding, and acceptance matrix are `SRC-20260919-TTZ7C-18`, `UND-20260919-TTZ7C-19`, and `REQ-20260919-TTZ7C-20`.
+Active Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-31.md` (`Readable
+Store Runtime And Dependency Maintenance`), opened on
+`spiral/CYC-20260919-TTZ7C-31-runtime-boundaries` from `master` at
+`e31e07c9bc8d4fc6458da1d213609dbf1aa4a7a2`. It deliberately precedes the
+remaining randomized/soak roadmap work to correct the central runtime boundary
+exposed by the accepted durability cycle. Its source, understanding, request and
+design are `SRC-20260919-TTZ7C-28`, `UND-20260919-TTZ7C-29`,
+`REQ-20260919-TTZ7C-30` and `DES-20260919-TTZ7C-32`.
+
+Latest accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-17.md` (`Power-Loss Durability And Administrative Recovery`), committed by the maintainer on 2026-09-19 and opened on `spiral/CYC-20260919-TTZ7C-17-power-loss-recovery` from `master` at `44ea91717a328ad7b5e049c6c0845b5e3bcc1718`. The maintainer accepted the cycle on 2026-09-19 after running tests and the example. The accepted branch was integrated locally into `master` at `fd40b0a23066ee8b37261dea1ba89cc64bbd4cc8`. Its source, understanding, and acceptance matrix are `SRC-20260919-TTZ7C-18`, `UND-20260919-TTZ7C-19`, and `REQ-20260919-TTZ7C-20`.
 
 Previously accepted and integrated cycle: `.spiral/cycles/CYC-20260917-TTZ7C-4.md` (`Persisted Offset Indexes`), explicitly accepted on 2026-09-18 and merged into `master` at `0444094`. Conversion and command changesets finalize offsets from their serialized bytes through the configured index module, with a default fallback for existing wrappers. The earlier integrity runtime slice was accepted on 2026-08-19; its compliance correction in `DEF-20260916-TTZ7C-1`, verified by `EVD-20260916-TTZ7C-3`, was explicitly accepted on 2026-09-16 and merged at `e59c6f1`.
 
