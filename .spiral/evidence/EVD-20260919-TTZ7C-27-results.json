@@ -294,5 +294,20 @@
       "verify"
     ],
     "newVmRun": false
+  },
+  "exampleBuildCorrection": {
+    "implementationCommit": "d4136eaf7b0014726a1c90a0d0b8488ece2d6b27",
+    "tests": 106,
+    "passed": 106,
+    "failed": 0,
+    "skipped": 0,
+    "converterTests": 7,
+    "lintErrors": 0,
+    "lintWarnings": 0,
+    "exampleNpmBuildStartQuery": "passed in disposable copy with available port",
+    "overwriteRefused": true,
+    "freshDependencyInstall": false,
+    "existingExampleLock": "preserved",
+    "newVmRun": false
   }
 }

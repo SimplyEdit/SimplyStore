@@ -14,4 +14,7 @@ project:EVD-20260919-TTZ7C-27 a sd:VerificationEvidence ;
         sd:gitCommit "49fa48c123d0035df087b7a9d4c1460da92b85fa" ] ;
     sd:verifies [ a sd:ArtifactReference ;
         sd:artifact project:IMP-20260919-TTZ7C-26 ;
-        sd:gitCommit "5d166a23b664ba9fbe34ae819feb1ed70959046c" ] .
+        sd:gitCommit "5d166a23b664ba9fbe34ae819feb1ed70959046c" ] ;
+    sd:verifies [ a sd:ArtifactReference ;
+        sd:artifact project:IMP-20260919-TTZ7C-26 ;
+        sd:gitCommit "d4136eaf7b0014726a1c90a0d0b8488ece2d6b27" ] .

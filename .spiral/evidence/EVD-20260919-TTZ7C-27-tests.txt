@@ -362,3 +362,178 @@ Conditional/width refactor at 5d166a23b664ba9fbe34ae819feb1ed70959046c
 ℹ skipped 0
 ℹ todo 0
 ℹ duration_ms 6300.329225
+
+Example conversion correction: d4136eaf7b0014726a1c90a0d0b8488ece2d6b27
+✔ atomicity: command mutation followed by failure does not become visible or committed (530.649449ms)
+✔ isolation: mutating data inside a JavaScript query does not affect later queries (421.252932ms)
+✔ consistency: query during an active command sees the previous committed state (1070.76709ms)
+✔ idempotency: duplicate command ID is acknowledged but not applied twice (534.054773ms)
+✔ idempotency: retry during active command reports current status and does not enqueue twice (1017.610332ms)
+task time 4
+task time 4
+✔ administrator recovers trailing missing/waiting commands in log order on a copy (234.338869ms)
+✔ later accepted dataset blocks rerun, including zero-byte no-op (10.913853ms)
+✔ later done dataset blocks rerun, including zero-byte no-op (30.629165ms)
+✔ later unsafe dataset blocks rerun, including zero-byte no-op (15.335214ms)
+✔ new later file makes an approved plan stale before executing a handler (24.505838ms)
+✔ changed code and missing explicit approval reject apply (29.925745ms)
+✔ cooperative ownership excludes competing writer and path aliases (6.074581ms)
+task time 4
+✔ backup and restore validate saved bytes without executing commands (212.675254ms)
+✔ read-only inspection never imports handlers and rejects conflicting done order (8.706261ms)
+✔ historical status order never makes a later log dataset eligible for bypass (5.538214ms)
+task time 4
+task error Error: external effect already happened
+    at Object.addPerson (file:///tmp/simplystore-crash-OXCuMb/commands.mjs:1:156)
+    at runCommand (file:///home/auke/git/slonl/spiral/simplystore/src/command-worker-module.mjs:116:38)
+    at MessagePort.<anonymous> (file:///home/auke/git/slonl/spiral/simplystore/src/command-worker.mjs:8:24)
+✔ interrupted recovery preserves completed attempts and blocks an unfinished candidate (201.539075ms)
+task time 8
+✔ retained digest mismatch stops recovery before replacing integrity or appending done (176.973657ms)
+✔ malformed tails and overlapping paths cannot be accepted as valid stores (9.07078ms)
+task time 6
+task error Error: connection lost after effect
+    at Object.addPerson (file:///tmp/simplystore-crash-PgoTAx/commands.mjs:5:33)
+    at runCommand (file:///home/auke/git/slonl/spiral/simplystore/src/command-worker-module.mjs:116:38)
+    at MessagePort.<anonymous> (file:///home/auke/git/slonl/spiral/simplystore/src/command-worker.mjs:8:24)
+task time 8
+✔ approved recovery resumes from completed candidate prefix without repeating external effects (310.420671ms)
+task time 5
+✔ finishing an interrupted completion report reconstructs data without executing again (127.255539ms)
+✔ multi-directory integrity paths and file permissions survive backup and restore (54.723634ms)
+✔ backup excludes unrelated secrets while retaining declared custom artifacts (33.453306ms)
+✔ a backup remains restorable after transfer to a different directory (21.985454ms)
+task time 4
+✔ promotion verification rejects code changed after completed recovery (94.632834ms)
+task time 8
+task time 3
+task time 3
+task time 3
+task time 3
+task time 5
+task time 3
+✔ verified A prefix permits only missing B, waiting C and missing D in log order (452.363458ms)
+✔ restore reports accepted commands absent from an older backup (19.53747ms)
+✔ identical historical duplicate retains first log position; conflicting duplicate blocks (4.600562ms)
+task time 4
+✔ backup coverage distinguishes changed history and data from missing source data (195.325248ms)
+✔ handler lifecycle: index update failure prevents command commit (495.977502ms)
+✔ handler lifecycle: derived index file can remain after failed command (421.432538ms)
+✔ handler lifecycle: final offset write failure prevents command commit (308.179751ms)
+✔ handler lifecycle: custom finalizer rejection prevents command commit (302.869268ms)
+✔ handler lifecycle: current index update can mutate canonical state before commit (330.828754ms)
+task time 4
+✔ command edit indexes only its changed record using changeset UTF-8 offsets (19.576993ms)
+task time 5
+✔ command addition indexes new entities and preserves interior skip numbers (8.863262ms)
+task time 2
+✔ command offsets include mutations and new records introduced by the index hook (6.888152ms)
+task time 1
+task time 2
+✔ successive command indexes are relative to their own changeset files (8.108558ms)
+task time 1
+✔ no-op commands replace any stale sidecar with an empty offset index (5.530991ms)
+task error Error: EISDIR: illegal operation on a directory, rename '/tmp/simplystore-command-offset-ZWilwl/index.offset.blocked.json.5bd60a71-efd9-4f0a-a14e-a6ecabd87119.tmp' -> '/tmp/simplystore-command-offset-ZWilwl/index.offset.blocked.json'
+    at async Object.rename (node:internal/fs/promises:787:10)
+    at async publishFile (file:///home/auke/git/slonl/spiral/simplystore/src/storage.mjs:137:9)
+    at async Object.writeSerialized (file:///home/auke/git/slonl/spiral/simplystore/src/index.offset.mjs:36:3)
+    at async runCommand (file:///home/auke/git/slonl/spiral/simplystore/src/command-worker-module.mjs:143:13)
+    at async waitForActual (node:assert:644:5)
+    at async strict.rejects (node:assert:767:25)
+    at async TestContext.<anonymous> (file:///home/auke/git/slonl/spiral/simplystore/test/command-offsets.mjs:131:2)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+  errno: -21,
+  code: 'EISDIR',
+  syscall: 'rename',
+  path: '/tmp/simplystore-command-offset-ZWilwl/index.offset.blocked.json.5bd60a71-efd9-4f0a-a14e-a6ecabd87119.tmp',
+  dest: '/tmp/simplystore-command-offset-ZWilwl/index.offset.blocked.json',
+  storageFailure: true
+}
+✔ failure to write final offsets rejects the command before success (5.732417ms)
+task time 24
+✔ commands await custom finalization that delegates to the default index (28.569013ms)
+task time 4
+✔ custom finalization can replace the default without an unconditional offset write (14.88495ms)
+task error Error: custom finalization failed
+    at Object.finalize (file:///tmp/simplystore-command-offset-KrXVTr/index.mjs:1:55)
+    at finalizeIndex (file:///home/auke/git/slonl/spiral/simplystore/src/index.mjs:26:18)
+    at runCommand (file:///home/auke/git/slonl/spiral/simplystore/src/command-worker-module.mjs:143:19)
+    at async waitForActual (node:assert:644:5)
+    at async strict.rejects (node:assert:767:25)
+    at async TestContext.<anonymous> (file:///home/auke/git/slonl/spiral/simplystore/test/command-offsets.mjs:169:2)
+    at async Test.run (node:internal/test_runner/test:1113:7)
+    at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+✔ custom finalization rejection propagates from the command worker (15.605834ms)
+✔ conversion supports the example dataset and its URL values (319.615459ms)
+✔ default conversion offsets match every final record (99.858631ms)
+✔ conversion finalizes offsets after custom indexing changes record sizes and adds records (82.948927ms)
+✔ conversion replaces stale offsets even when the custom hook writes no index (99.469857ms)
+✔ conversion awaits custom finalization with the original receiver and final bytes (140.26764ms)
+✔ conversion propagates rejection from custom finalization (90.291458ms)
+✔ conversion initializes existing-format logs and optional base integrity without overwriting a store (140.787504ms)
+✔ runtime environment defaults to production and ignores production fault points (1.70791ms)
+✔ fault points are inert outside test environment (0.239437ms)
+✔ crash at after-command-log-before-accepted-status preserves evidence and never automatically reruns (543.472158ms)
+✔ crash at after-command-accepted-status-before-response preserves evidence and never automatically reruns (466.784076ms)
+✔ crash at after-active-status-before-command-worker preserves evidence and never automatically reruns (397.562307ms)
+✔ crash at before-command-changeset-write preserves evidence and never automatically reruns (415.927966ms)
+✔ crash at after-command-changeset-write preserves evidence and never automatically reruns (358.284123ms)
+✔ crash at before-command-done-status preserves evidence and never automatically reruns (349.615417ms)
+✔ crash after done status but before query update recovers committed state without replay (453.032633ms)
+✔ crash ownership cannot be stolen automatically (304.197048ms)
+✔ hanging command times out unsafe and later accepted command commits (353.503122ms)
+✔ hanging load worker fails startup explicitly (200.604231ms)
+✔ integrity-enabled command writes changeset digest before done status (326.050121ms)
+✔ normal restart preserves committed state according to reconstruction oracle (450.499881ms)
+✔ accepted command changeset is not treated as committed state on startup (89.709014ms)
+✔ done command with missing changeset refuses recovery instead of silently using base data (74.28066ms)
+✔ malformed base OD-JSONTag file refuses recovery (87.926958ms)
+✔ malformed committed changeset refuses recovery (116.383408ms)
+✔ truncated committed changeset payload refuses recovery before lazy parsing can hide it (69.881388ms)
+✔ malformed uncommitted changeset is ignored during committed startup reconstruction (52.813884ms)
+✔ durable status file selects only done command changesets for startup (63.021015ms)
+✔ durable command log replays only accepted commands (4.553718ms)
+✔ active command at attempt 1 remains unchanged pending administrator assessment (4.411881ms)
+✔ active command at attempt 2 remains unchanged pending administrator assessment (2.707677ms)
+✔ malformed durable status record refuses recovery with explicit integrity error (8.38551ms)
+✔ structurally invalid durable status record refuses recovery (2.233453ms)
+✔ malformed durable command log record refuses recovery with explicit integrity error (2.417322ms)
+✔ structurally invalid durable command log record refuses recovery (3.238178ms)
+✔ OD-JSONTag framing validation catches truncated lazy records (0.366872ms)
+✔ OD-JSONTag framing validation accepts changeset skip records (0.473898ms)
+✔ integrity manifest detects same-length altered base OD-JSONTag payload (76.421226ms)
+✔ integrity manifest detects same-length altered committed changeset payload (75.768513ms)
+✔ integrity enabled requires manifest entry for base data (72.482922ms)
+✔ PL01-05 durable publication survives modeled loss of unsynced names and restart (925.400434ms)
+✔ PL10 an actual short changeset write is completed before acknowledgment (337.850245ms)
+✔ PL07-09/11/18-20 log sync failure stops mutation without false terminal success (241.49423ms)
+✔ PL07-09/11/18-20 acceptance sync failure stops mutation without false terminal success (208.023773ms)
+✔ PL07-09/11/18-20 log close failure stops mutation without false terminal success (204.181151ms)
+✔ PL07-09/11/18-20 changeset sync failure stops mutation without false terminal success (272.554329ms)
+✔ PL07-09/11/18-20 changeset rename failure stops mutation without false terminal success (235.896548ms)
+✔ PL07-09/11/18-20 done sync failure stops mutation without false terminal success (256.456294ms)
+✔ PL15 configured workers cannot receive HTTP execution inputs; command values roundtrip (267.047535ms)
+✔ PL16 delayed append cannot be overtaken (336.666777ms)
+✔ PL16 delayed append cannot be overtaken by duplicate ID (267.117791ms)
+✔ PL02-04/06 missing command-log.jsontag fails open rather than recreating history (323.819448ms)
+✔ PL02-04/06 missing command-status.jsontag fails open rather than recreating history (336.522485ms)
+✔ PL02-04/06 missing data.A.jsontag fails open rather than recreating history (330.718406ms)
+✔ PL12/17 startup preserves uncertain active work without repeating external effects (285.553404ms)
+✔ directory sync failure after rename prevents done (211.426983ms)
+✔ directory close:after failure after rename prevents done (213.647192ms)
+✔ changeset open error is not masked or acknowledged (212.155863ms)
+✔ changeset write error is not masked or acknowledged (188.578415ms)
+✔ changeset close:after error is not masked or acknowledged (191.1675ms)
+✔ short command-log append preserves its entire JSONTag record (237.012495ms)
+✔ complete-write loop preserves bytes through repeated short writes and rejects zero progress (2.216848ms)
+✔ serialized writer preserves order and stops after an uncertain operation (0.450738ms)
+✔ durable publication replaces entire contents and concurrent append retains each record once (33.8786ms)
+ℹ tests 106
+ℹ suites 0
+ℹ pass 106
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6379.304191
