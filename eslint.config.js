@@ -3,6 +3,6 @@ import globals from "globals";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
-  { rules: { curly: ["error", "all"] } },
+  { rules: { curly: ["error", "all"], "brace-style": ["error", "stroustrup", { allowSingleLine: false }] } },
   { files: ["**/*.{js,mjs,cjs}"], plugins: { js }, extends: ["js/recommended"], languageOptions: { globals: globals.browser } },
 ]);

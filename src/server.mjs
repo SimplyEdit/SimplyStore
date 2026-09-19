@@ -50,10 +50,10 @@ async function main(options) {
     assertRuntimeEnvironmentConfiguration()
     if (!options) {
         options = {}
-    }  
+    }
     const port          = options.port          || 3000
     const datafile      = options.datafile      || './data.od-jsontag'
-    const schemaFile    = options.schemaFile    || null 
+    const schemaFile    = options.schemaFile    || null
     const wwwroot       = options.wwwroot       || __dirname+'/www'
     const maxWorkers    = options.maxWorkers    || 8
     const queryWorker   = options.queryWorker   || __dirname+'/src/query-worker.mjs'
@@ -85,15 +85,22 @@ async function main(options) {
     let inspection
     try {
         inspection = await inspectStore(config)
-        if (!inspection.ready) { throw new Error('Administrative recovery required: ' +
+        if (!inspection.ready) {
+            throw new Error('Administrative recovery required: ' +
             [...inspection.errors, ...inspection.commands.filter(c => c.problem).map(c => c.problem),
                 ...inspection.commands.filter(c => c.status === 'accepted' || c.status === 'active').map(c => `${c.id}: ${c.status}; administrator assessment required`),
-                ...inspection.commands.filter(c => c.present && c.status !== 'done').map(c => `${c.id}: uncommitted dataset`)].join('; ')) }
-        for (const [file, digest] of Object.entries(inspection.files)) { if (digest !== null) { await syncFile(file) } }
+                ...inspection.commands.filter(c => c.present && c.status !== 'done').map(c => `${c.id}: uncommitted dataset`)].join('; '))
+        }
+        for (const [file, digest] of Object.entries(inspection.files)) {
+            if (digest !== null) {
+                await syncFile(file)
+            }
+        }
         const data = await loadData(inspection.committed)
         jsontagBuffers = [data.data]
         meta = data.meta
-    } catch (error) {
+    }
+    catch (error) {
         await ownership.release()
         throw error
     }
@@ -103,14 +110,16 @@ async function main(options) {
     let storageFailed = false, closing = false
     let runner = Promise.resolve()
     function failStorage(error) {
-        if (storageFailed) { return }
+        if (storageFailed) {
+            return
+        }
         storageFailed = true
         console.error('Storage outcome uncertain; stopping mutation. Administrator recovery required:', error)
         // Retain ownership evidence; a process exit must never imply a rollback.
         setImmediate(() => process.exit(1))
     }
 
-    const queryWorkerInitTask = () => { 
+    const queryWorkerInitTask = () => {
         return {
             name: 'init',
             req: {
@@ -148,18 +157,29 @@ async function main(options) {
     const listener = server.listen(port, () => {
         console.log('SimplyStore listening on port '+port)
     })
-    listener.on('error', error => { failStorage(error) })
+    listener.on('error', error => {
+        failStorage(error)
+    })
     async function shutdown() {
-        if (closing) { return }
+        if (closing) {
+            return
+        }
         closing = true
         listener.close()
         try {
-            await acceptSerial(async () => {})
+            await acceptSerial(async () => {
+
+            })
             await runner
             queryWorkerPool.close(); slowQueryWorkerPool.close()
-            if (!storageFailed) { await ownership.release() }
+            if (!storageFailed) {
+                await ownership.release()
+            }
             process.exit(storageFailed ? 1 : 0)
-        } catch (error) { failStorage(error) }
+        }
+        catch (error) {
+            failStorage(error)
+        }
     }
     process.once('SIGTERM', shutdown)
     process.once('SIGINT', shutdown)
@@ -208,7 +228,8 @@ async function main(options) {
                     integrityFile: integrityEnabled ? integrityFile : null,
                     integrityRequired: integrityEnabled
                 })
-            } catch (error) {
+            }
+            catch (error) {
                 void finish(reject, error)
             }
         })
@@ -220,7 +241,7 @@ async function main(options) {
             pool = queryWorkerPool
         }
         if ( !accept(req,res,
-            ['application/jsontag','application/json','text/html','text/javascript','image/*'], 
+            ['application/jsontag','application/json','text/html','text/javascript','image/*'],
             function(req, res, accept) {
                 let result = true
                 switch(accept) {
@@ -229,7 +250,7 @@ async function main(options) {
                     case 'text/javascript':
                         handleWebRequest(req,res,{root:wwwroot});
                         result = false
-                    break
+                        break
                 }
                 return result
             }
@@ -251,7 +272,8 @@ async function main(options) {
         try {
             let result = await pool.run('query', request, { timeout })
             sendResponse(result, res)
-        } catch(error) {
+        }
+        catch(error) {
             sendError(error, res)
         }
         let end = Date.now()
@@ -271,7 +293,7 @@ async function main(options) {
         }
         let start = Date.now()
         if ( !accept(req,res,
-            ['application/jsontag','application/json']) 
+            ['application/jsontag','application/json'])
         ) {
             sendError({code:406, message:'Not Acceptable',accept:['application/json','application/jsontag']},res)
             return
@@ -290,12 +312,13 @@ async function main(options) {
         try {
             let result = await pool.run('query', request, {slowTimeout})
             sendResponse(result, res)
-        } catch(error) {
+        }
+        catch(error) {
             sendError(error, res)
         }
         let end = Date.now()
         console.log(path, (end-start), process.memoryUsage())
-//        queryWorkerPool.memoryUsage()
+        //        queryWorkerPool.memoryUsage()
     }
 
     async function handleSlowPostQuery(req, res) {
@@ -303,20 +326,33 @@ async function main(options) {
     }
 
     async function handlePostCommand(req, res) {
-        if (storageFailed || closing) { return sendResponse({code:503, body: JSON.stringify({message:'Store is unavailable'})}, res) }
+        if (storageFailed || closing) {
+            return sendResponse({code:503, body: JSON.stringify({message:'Store is unavailable'})}, res)
+        }
         try {
             await acceptSerial(async () => {
-                if (storageFailed) { throw new Error('Store is unavailable') }
-                if (closing) { return sendResponse({code:503,body:JSON.stringify({message:'Store is closing'})},res) }
+                if (storageFailed) {
+                    throw new Error('Store is unavailable')
+                }
+                if (closing) {
+                    return sendResponse({code:503,body:JSON.stringify({message:'Store is closing'})},res)
+                }
                 const accepted = await checkCommand(req, res)
-                if (!accepted) { return }
-                if (storageFailed) { throw new Error('Store failed during acceptance') }
+                if (!accepted) {
+                    return
+                }
+                if (storageFailed) {
+                    throw new Error('Store failed during acceptance')
+                }
                 commandQueue.push({id: accepted.id, command: accepted.line})
                 sendResponse({code:202, body:JSON.stringify(status.get(accepted.id))}, res)
             })
             void drainCommandQueue()
-        } catch (error) {
-            if (!res.headersSent) { sendResponse({code:500, body:JSON.stringify({message:'Storage outcome uncertain'})}, res) }
+        }
+        catch (error) {
+            if (!res.headersSent) {
+                sendResponse({code:500, body:JSON.stringify({message:'Storage outcome uncertain'})}, res)
+            }
             failStorage(error)
         }
     }
@@ -328,7 +364,8 @@ async function main(options) {
                 jsontag: false,
                 body: JSON.stringify(result)
             },res)
-        } else {
+        }
+        else {
             sendResponse({
                 code: 404,
                 jsontag: false,
@@ -338,7 +375,9 @@ async function main(options) {
     }
 
     function drainCommandQueue() {
-        if (commandRunnerActive || storageFailed) { return runner }
+        if (commandRunnerActive || storageFailed) {
+            return runner
+        }
         commandRunnerActive = true
         runner = (async () => {
             try {
@@ -347,15 +386,21 @@ async function main(options) {
                     console.log('starting command', command.id)
                     const active = nextActiveCommandStatus(command.id, status.get(command.id))
                     await appendFile(commandStatus, JSONTag.stringify(active))
-                    if (storageFailed) { throw new Error('Store failed before execution') }
+                    if (storageFailed) {
+                        throw new Error('Store failed before execution')
+                    }
                     status.set(command.id, active)
                     await faultPoint('after-active-status-before-command-worker')
                     const result = await executeWorker(commandWorker, {...command,
                         meta, data: jsontagBuffers, commandsFile, indexFile, datafile,
                         integrityFile: integrityEnabled ? integrityFile : null,
                         integrityRequired: integrityEnabled}, commandTimeout)
-                    if (storageFailed) { throw new Error('Store failed during execution') }
-                    if (result?.storageFailure) { throw new Error(result.message || 'Worker persistence failure') }
+                    if (storageFailed) {
+                        throw new Error('Store failed during execution')
+                    }
+                    if (result?.storageFailure) {
+                        throw new Error(result.message || 'Worker persistence failure')
+                    }
                     if (!result || result.status === 'failed' || result.status === 'unsafe' || result.code >= 300) {
                         const terminal = {command: command.id, status: result?.status === 'unsafe' ? 'unsafe' : 'failed',
                             code: result?.code || 500, message: result?.message || 'Command failed', attempt: active.attempt}
@@ -363,7 +408,9 @@ async function main(options) {
                         status.set(command.id, terminal)
                         continue
                     }
-                    for (const file of config.requiredFiles) { await syncFile(file) }
+                    for (const file of config.requiredFiles) {
+                        await syncFile(file)
+                    }
                     await faultPoint('before-command-done-status')
                     const done = {command: command.id, code:200, status:'done'}
                     await appendFile(commandStatus, JSONTag.stringify(done))
@@ -376,8 +423,13 @@ async function main(options) {
                         queryWorkerPool.update(task); slowQueryWorkerPool.update(task)
                     }
                 }
-            } catch (error) { failStorage(error) }
-            finally { commandRunnerActive = false }
+            }
+            catch (error) {
+                failStorage(error)
+            }
+            finally {
+                commandRunnerActive = false
+            }
         })()
         return runner
     }
@@ -393,7 +445,8 @@ async function main(options) {
                 code: 202,
                 status: 'accepted'
             }
-        } catch(err) {
+        }
+        catch(err) {
             error = {
                 code: 400,
                 message: "Bad request",
@@ -411,24 +464,26 @@ async function main(options) {
             }
             sendResponse({code: 422, body: JSON.stringify(error)}, res)
             return false
-        } else if (status.has(command.id)) {
+        }
+        else if (status.has(command.id)) {
             const currentStatus = Object.assign({command: command.id}, status.get(command.id))
             sendResponse({body: JSON.stringify(currentStatus)}, res)
             return false
-        } else if (!command.name) {
+        }
+        else if (!command.name) {
             error = {
                 code: 422,
                 message: "Command has no name",
                 details: command
             }
             sendResponse({code:422, body: JSON.stringify(error)}, res)
-            return false      
+            return false
         }
         const line = JSONTag.stringify(command)
         await appendFile(commandLog, line)
         await faultPoint('after-command-log-before-accepted-status')
         await appendFile(commandStatus, JSONTag.stringify(commandOK))
-        status.set(command.id, commandOK) 
+        status.set(command.id, commandOK)
         await faultPoint('after-command-accepted-status-before-response')
         return {id:command.id, line}
     }
@@ -440,7 +495,8 @@ function sendResponse(response, res) {
     }
     if (response.jsontag) {
         res.setHeader('content-type','application/jsontag')
-    } else {
+    }
+    else {
         res.setHeader('content-type','application/json')
     }
     res.send(response.body)+"\n"
@@ -450,7 +506,8 @@ function sendError(error, res) {
     console.error(error)
     if (error.code && httpStatusCodes[error.code]) {
         res.status(error.code)
-    } else {
+    }
+    else {
         res.status(500)
     }
     res.setHeader('content-type','application/json')
@@ -473,8 +530,7 @@ function accept(req, res, mimetypes, handler) {
     return true
 }
 
-function handleWebRequest(req,res,options)
-{
+function handleWebRequest(req,res,options) {
     let path = req.path;
     path = path.replace(/[^a-z0-9_.\-/]*/gi, '') // whitelist acceptable file paths
     path = path.replace(/\.+/g, '.') // blacklist '..'
@@ -489,7 +545,8 @@ function handleWebRequest(req,res,options)
     }
     if (fs.existsSync(fileOptions.root+path)) {
         res.sendFile(path, fileOptions)
-    } else {
+    }
+    else {
         res.sendFile('/index.html', fileOptions)
     }
 }

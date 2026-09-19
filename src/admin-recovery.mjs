@@ -25,19 +25,31 @@ async function codeHashes(code) {
 }
 async function canonicalNew(file) {
     const absolute = path.resolve(file)
-    try { await fs.lstat(absolute); throw new Error(`Destination already exists: ${absolute}`) }
-    catch (error) { if (error.code !== 'ENOENT') { throw error } }
+    try {
+        await fs.lstat(absolute); throw new Error(`Destination already exists: ${absolute}`)
+    }
+    catch (error) {
+        if (error.code !== 'ENOENT') {
+            throw error
+        }
+    }
     return path.join(await fs.realpath(path.dirname(absolute)), path.basename(absolute))
 }
 function outside(target, roots) {
-    for (const root of roots) { if (target === root || target.startsWith(root + path.sep) || root.startsWith(target + path.sep)) {
-        throw new Error(`Overlapping source/destination: ${target} and ${root}`)
-    } }
+    for (const root of roots) {
+        if (target === root || target.startsWith(root + path.sep) || root.startsWith(target + path.sep)) {
+            throw new Error(`Overlapping source/destination: ${target} and ${root}`)
+        }
+    }
 }
 async function assertFresh(plan) {
     const files = await inventory(plan.config)
-    if (hash(JSON.stringify(files)) !== plan.fingerprint) { throw new Error('Stale recovery plan: source inventory changed') }
-    if (JSON.stringify(await codeHashes(plan.code)) !== JSON.stringify(plan.codeHashes)) { throw new Error('Stale recovery plan: selected code changed') }
+    if (hash(JSON.stringify(files)) !== plan.fingerprint) {
+        throw new Error('Stale recovery plan: source inventory changed')
+    }
+    if (JSON.stringify(await codeHashes(plan.code)) !== JSON.stringify(plan.codeHashes)) {
+        throw new Error('Stale recovery plan: selected code changed')
+    }
 }
 export async function planRecovery(options, {quiescent = false} = {}) {
     const report = await inspectStore(options)
@@ -45,10 +57,14 @@ export async function planRecovery(options, {quiescent = false} = {}) {
     const candidates = report.commands.filter(c => ['accepted','active'].includes(c.status) || (c.status === 'done' && !c.present))
     const blocks = [...report.errors]
     for (const command of report.commands) {
-        if (command.condition === 'corrupt' || (command.present && command.status !== 'done')) { blocks.push(`${command.id}: existing uncertain dataset requires diagnosis`) }
+        if (command.condition === 'corrupt' || (command.present && command.status !== 'done')) {
+            blocks.push(`${command.id}: existing uncertain dataset requires diagnosis`)
+        }
     }
     for (const command of candidates) {
-        if (command.laterDatasets.length) { blocks.push(`${command.id}: later accepted datasets exist: ${command.laterDatasets.join(',')}`) }
+        if (command.laterDatasets.length) {
+            blocks.push(`${command.id}: later accepted datasets exist: ${command.laterDatasets.join(',')}`)
+        }
     }
     return {kind:'simplystore-recovery-plan', config:report.config, code, codeHashes:await codeHashes(code),
         files:report.files, fingerprint:report.fingerprint, actionable:quiescent && blocks.length === 0,
@@ -65,19 +81,29 @@ export async function writePlan(file, plan) {
 async function copyStore(config, files, target) {
     const directories = [...new Set(Object.keys(files).map(file => path.dirname(file)))].sort()
     let common = directories[0]
-    while (!directories.every(dir => dir === common || dir.startsWith(common + path.sep) || common === path.parse(common).root)) { common = path.dirname(common) }
+    while (!directories.every(dir => dir === common || dir.startsWith(common + path.sep) || common === path.parse(common).root)) {
+        common = path.dirname(common)
+    }
     const mapFile = file => path.join(target, path.relative(common,file))
-    for (const directory of directories) { await durableMkdir(path.join(target,path.relative(common,directory))) }
+    for (const directory of directories) {
+        await durableMkdir(path.join(target,path.relative(common,directory)))
+    }
     for (const [file,digest] of Object.entries(files)) {
-        if (digest === null) { continue }
+        if (digest === null) {
+            continue
+        }
         const bytes = await fs.readFile(file)
-        if (hash(bytes) !== digest) { throw new Error(`Source changed while copying: ${file}`) }
+        if (hash(bytes) !== digest) {
+            throw new Error(`Source changed while copying: ${file}`)
+        }
         await publishFile(mapFile(file), bytes, {mode:(await fs.stat(file)).mode & 0o777})
     }
     const result = {...config, datafile:mapFile(config.datafile), commandLog:mapFile(config.commandLog),
         commandStatus:mapFile(config.commandStatus), integrityFile:mapFile(config.integrityFile),
         requiredFiles:config.requiredFiles.map(mapFile)}
-    if (config.schemaFile) { result.schemaFile = mapFile(config.schemaFile) }
+    if (config.schemaFile) {
+        result.schemaFile = mapFile(config.schemaFile)
+    }
     return result
 }
 async function prepareWorkspace(target, audit, roots) {
@@ -88,16 +114,24 @@ async function prepareWorkspace(target, audit, roots) {
 }
 
 export async function applyRecovery(plan, {to, auditDir, approveRerun = [], operator, reason} = {}) {
-    if (plan.kind !== 'simplystore-recovery-plan' || !plan.actionable) { throw new Error('Plan is not actionable; inspect a quiescent source and resolve blocking evidence') }
-    if (!operator || !reason) { throw new Error('Operator and assessment reason are required') }
-    if (JSON.stringify(approveRerun) !== JSON.stringify(plan.rerun)) { throw new Error('Explicit approval must match the complete ordered rerun list') }
+    if (plan.kind !== 'simplystore-recovery-plan' || !plan.actionable) {
+        throw new Error('Plan is not actionable; inspect a quiescent source and resolve blocking evidence')
+    }
+    if (!operator || !reason) {
+        throw new Error('Operator and assessment reason are required')
+    }
+    if (JSON.stringify(approveRerun) !== JSON.stringify(plan.rerun)) {
+        throw new Error('Explicit approval must match the complete ordered rerun list')
+    }
     const sourceOwner = await acquireOwnership(mutableDirectories(plan.config))
     let candidateOwner
     try {
         await assertFresh(plan)
         // Do not trust editable plan fields to bypass the source predicate.
         const fresh = await planRecovery({...plan.config,...plan.code}, {quiescent:true})
-        if (!fresh.actionable || JSON.stringify(fresh.rerun) !== JSON.stringify(plan.rerun)) { throw new Error('Source no longer satisfies ordered recovery predicate') }
+        if (!fresh.actionable || JSON.stringify(fresh.rerun) !== JSON.stringify(plan.rerun)) {
+            throw new Error('Source no longer satisfies ordered recovery predicate')
+        }
         const workspace = await prepareWorkspace(to, auditDir, sourceOwner.directories)
         const {target,audit} = workspace
         const rootOwner = await acquireOwnership([target],{purpose:'recovery',auditDir:audit})
@@ -111,14 +145,20 @@ export async function applyRecovery(plan, {to, auditDir, approveRerun = [], oper
         const journal = path.join(audit,'attempts.jsonl')
         await appendRecord(journal, JSON.stringify({event:'authorized',planHash,operator,reason,rerun:plan.rerun,config,attestation:plan.attestation}))
         const inspection = await inspectStore(config)
-        if (inspection.errors.length) { throw new Error(inspection.errors.join('; ')) }
+        if (inspection.errors.length) {
+            throw new Error(inspection.errors.join('; '))
+        }
         const parser = new Parser()
         let data
-        for (const bytes of inspection.buffers) { data = parser.parse(bytes) }
+        for (const bytes of inspection.buffers) {
+            data = parser.parse(bytes)
+        }
         // Serialize committed prefix, rebuilding parser indexes without custom hooks.
         let meta = {index:{id:new Map()}, data:path.dirname(config.datafile), parts:inspection.committed.length}
         const buffers = [serialize(data,{meta})]
-        if (config.schemaFile) { meta.schema = JSONTag.parse(await fs.readFile(config.schemaFile,'utf8')) }
+        if (config.schemaFile) {
+            meta.schema = JSONTag.parse(await fs.readFile(config.schemaFile,'utf8'))
+        }
         const expectedManifest = plan.files[plan.config.integrityFile] != null ? await loadIntegrityManifest(plan.config.integrityFile) : null
         for (const id of plan.rerun) {
             await assertFresh(plan)
@@ -134,7 +174,9 @@ export async function applyRecovery(plan, {to, auditDir, approveRerun = [], oper
                 await appendRecord(journal, JSON.stringify({event:'stopped',id,result:result && {status:result.status,message:result.message}}))
                 throw new Error(`Recovery attempt ${id} uncertain or failed; inspect before approving another attempt`)
             }
-            for (const file of config.requiredFiles) { await syncFile(file) }
+            for (const file of config.requiredFiles) {
+                await syncFile(file)
+            }
             if (expectedManifest && command.status === 'done') {
                 verifyIntegrity(expectedManifest, plan.config.integrityFile, command.file, result.data, {required:true})
             }
@@ -148,66 +190,98 @@ export async function applyRecovery(plan, {to, auditDir, approveRerun = [], oper
             await appendRecord(journal, JSON.stringify({event:'done',id,attempt:active.attempt}))
         }
         const complete = await inspectStore(config)
-        if (!complete.ready) { throw new Error('Recovered candidate is not ready: '+JSON.stringify({errors:complete.errors,commands:complete.commands.filter(c=>c.problem)})) }
+        if (!complete.ready) {
+            throw new Error('Recovered candidate is not ready: '+JSON.stringify({errors:complete.errors,commands:complete.commands.filter(c=>c.problem)}))
+        }
         const report = {kind:'simplystore-recovery-complete',planHash,config,code:plan.code,codeHashes:plan.codeHashes,files:complete.files,
             fingerprint:complete.fingerprint,committed:complete.committed,operator,reason,warnings:complete.warnings}
         await publishFile(path.join(audit,'complete.json'), JSON.stringify(report,null,2))
         await candidateOwner.release(); candidateOwner = null
         await rootOwner.release()
         return report
-    } finally {
+    }
+    finally {
         // On failure retain candidate locks and its audit. The unchanged source can be released.
         await sourceOwner.release()
     }
 }
 
 export async function backupStore(options, {to, quiescent = false} = {}) {
-    if (!quiescent) { throw new Error('Backup requires a stopped/quiescent source') }
+    if (!quiescent) {
+        throw new Error('Backup requires a stopped/quiescent source')
+    }
     const config = storePaths(options), owner = await acquireOwnership(mutableDirectories(config))
     try {
         const report = await inspectStore(config)
-        if (!report.ready) { throw new Error('Backup source is not a complete validated store') }
+        if (!report.ready) {
+            throw new Error('Backup source is not a complete validated store')
+        }
         const target = await canonicalNew(to); outside(target, owner.directories)
         await durableMkdir(target)
         const backupOwner = await acquireOwnership([target])
         const copied = await copyStore(config, report.files, path.join(target,'store'))
         const check = await inspectStore(copied)
-        if (!check.ready) { throw new Error('Backup reconstruction failed') }
-        if (hash(JSON.stringify(await inventory(config))) !== report.fingerprint) { throw new Error('Backup source changed') }
+        if (!check.ready) {
+            throw new Error('Backup reconstruction failed')
+        }
+        if (hash(JSON.stringify(await inventory(config))) !== report.fingerprint) {
+            throw new Error('Backup source changed')
+        }
         const manifest = {kind:'simplystore-backup-complete',root:target,config:copied,files:check.files,fingerprint:check.fingerprint,
             committed:check.committed,sourceFingerprint:report.fingerprint,warnings:report.warnings}
         await publishFile(path.join(target,'complete.json'),JSON.stringify(manifest,null,2))
         await backupOwner.release()
         return manifest
-    } finally { await owner.release() }
+    }
+    finally {
+        await owner.release()
+    }
 }
 
 export async function restoreBackup(backupDirectory, {to, auditDir, source, sourceQuiescent=false} = {}) {
     const backup = await fs.realpath(backupDirectory)
     const manifest = JSON.parse(await fs.readFile(path.join(backup,'complete.json'),'utf8'))
-    if (manifest.kind !== 'simplystore-backup-complete') { throw new Error('Backup is incomplete or unrecognized') }
+    if (manifest.kind !== 'simplystore-backup-complete') {
+        throw new Error('Backup is incomplete or unrecognized')
+    }
     const oldRoot=manifest.root
-    if(typeof oldRoot!=='string' || !path.isAbsolute(oldRoot) || manifest.fingerprint!==hash(JSON.stringify(manifest.files))){ throw new Error('Invalid backup inventory') }
+    if(typeof oldRoot!=='string' || !path.isAbsolute(oldRoot) || manifest.fingerprint!==hash(JSON.stringify(manifest.files))){
+        throw new Error('Invalid backup inventory')
+    }
     const rebase=file=>{
-        if(typeof file!=='string' || file!==path.resolve(file) || !file.startsWith(oldRoot+path.sep)){ throw new Error('Backup manifest points outside backup') }
+        if(typeof file!=='string' || file!==path.resolve(file) || !file.startsWith(oldRoot+path.sep)){
+            throw new Error('Backup manifest points outside backup')
+        }
         return path.join(backup,path.relative(oldRoot,file))
     }
     manifest.files=Object.fromEntries(Object.entries(manifest.files).map(([file,digest])=>[rebase(file),digest]))
     manifest.fingerprint=hash(JSON.stringify(manifest.files))
-    for(const key of ['datafile','commandLog','commandStatus','integrityFile','schemaFile']){ if(manifest.config[key]){ manifest.config[key]=rebase(manifest.config[key]) } }
+    for(const key of ['datafile','commandLog','commandStatus','integrityFile','schemaFile']){
+        if(manifest.config[key]){
+            manifest.config[key]=rebase(manifest.config[key])
+        }
+    }
     manifest.config.requiredFiles=manifest.config.requiredFiles.map(rebase)
-    if (mutableDirectories(manifest.config).some(dir=>dir!==backup && !dir.startsWith(backup+path.sep))) { throw new Error('Backup configuration points outside backup') }
-    if (source && !sourceQuiescent) { throw new Error('Source comparison requires a stopped/quiescent source') }
+    if (mutableDirectories(manifest.config).some(dir=>dir!==backup && !dir.startsWith(backup+path.sep))) {
+        throw new Error('Backup configuration points outside backup')
+    }
+    if (source && !sourceQuiescent) {
+        throw new Error('Source comparison requires a stopped/quiescent source')
+    }
     const owner = await acquireOwnership([...mutableDirectories(manifest.config),...(source ? mutableDirectories(storePaths(source)) : [])])
     try {
         const report = await inspectStore(manifest.config)
-        if (!report.ready || report.fingerprint !== manifest.fingerprint) { throw new Error('Backup contents differ from completed manifest') }
+        if (!report.ready || report.fingerprint !== manifest.fingerprint) {
+            throw new Error('Backup contents differ from completed manifest')
+        }
         const {target,audit} = await prepareWorkspace(to,auditDir,[backup,...owner.directories])
         const rootOwner = await acquireOwnership([target],{purpose:'restore',auditDir:audit})
         const config = await copyStore(manifest.config,manifest.files,target)
         const candidate = await acquireOwnership(mutableDirectories(config).filter(dir=>dir!==target),{ancestorToken:rootOwner.token})
         const check = await inspectStore(config)
-        if (!check.ready) { throw new Error('Restored candidate failed validation') }
+        if (!check.ready) {
+            throw new Error('Restored candidate failed validation')
+        }
         let missingFromBackup = null, sameBase = null
         if (source) {
             const retained = await inspectStore(source)
@@ -220,33 +294,63 @@ export async function restoreBackup(backupDirectory, {to, auditDir, source, sour
         await publishFile(path.join(audit,'complete.json'),JSON.stringify(complete,null,2))
         await candidate.release(); await rootOwner.release()
         return complete
-    } finally { await owner.release() }
+    }
+    finally {
+        await owner.release()
+    }
 }
 
 // Explicit offline operation: no PID-age or liveness heuristic can authorize it.
 export async function releaseOfflineLocks(options, {operator, reason, confirmedStopped = false} = {}) {
-    if (!confirmedStopped || !operator || !reason) { throw new Error('Offline release requires confirmed stopped writer, operator, and reason') }
+    if (!confirmedStopped || !operator || !reason) {
+        throw new Error('Offline release requires confirmed stopped writer, operator, and reason')
+    }
     const config = storePaths(options), report = await inspectStore(config)
     const removed = []
     const lockDirectories = new Set(await Promise.all(mutableDirectories(config).map(dir=>fs.realpath(dir))))
     for (const directory of [...lockDirectories]) {
         for (let parent=path.dirname(directory); path.dirname(parent)!==parent; parent=path.dirname(parent)) {
-            try { await fs.access(path.join(parent,'.simplystore-lock')); lockDirectories.add(parent) } catch(error) { if(error.code!=='ENOENT'){ throw error } }
+            try {
+                await fs.access(path.join(parent,'.simplystore-lock')); lockDirectories.add(parent)
+            }
+            catch(error) {
+                if(error.code!=='ENOENT'){
+                    throw error
+                }
+            }
         }
     }
     for (const directory of [...lockDirectories].sort().reverse()) {
         const lock = path.join(directory,'.simplystore-lock')
         let entries
-        try { entries = await fs.readdir(lock) } catch (error) { if (error.code === 'ENOENT') { continue; } throw error }
-        if (entries.some(entry => entry !== 'owner.json' && !entry.endsWith('.tmp'))) { throw new Error(`Unknown lock contents: ${lock}`) }
+        try {
+            entries = await fs.readdir(lock)
+        }
+        catch (error) {
+            if (error.code === 'ENOENT') {
+                continue;
+            } throw error
+        }
+        if (entries.some(entry => entry !== 'owner.json' && !entry.endsWith('.tmp'))) {
+            throw new Error(`Unknown lock contents: ${lock}`)
+        }
         const saved = []
-        for (const entry of entries) { saved.push({name:entry,bytes:(await fs.readFile(path.join(lock,entry))).toString('base64')}) }
+        for (const entry of entries) {
+            saved.push({name:entry,bytes:(await fs.readFile(path.join(lock,entry))).toString('base64')})
+        }
         const ownerRecord=saved.find(item=>item.name==='owner.json')
         const owner=ownerRecord ? JSON.parse(Buffer.from(ownerRecord.bytes,'base64').toString()) : null
         if (owner?.purpose==='recovery' && report.ready) {
             let completed
-            try { completed=JSON.parse(await fs.readFile(path.join(owner.auditDir,'complete.json'),'utf8')) } catch { /* Missing report is not completion evidence. */ }
-            if(completed?.fingerprint!==report.fingerprint) { throw new Error('Completed-looking recovery candidate requires finish with its retained audit before unlocking') }
+            try {
+                completed=JSON.parse(await fs.readFile(path.join(owner.auditDir,'complete.json'),'utf8'))
+            }
+            catch {
+                /* Missing report is not completion evidence. */
+            }
+            if(completed?.fingerprint!==report.fingerprint) {
+                throw new Error('Completed-looking recovery candidate requires finish with its retained audit before unlocking')
+            }
         }
         removed.push({lock,ownerFiles:saved})
     }
@@ -255,23 +359,33 @@ export async function releaseOfflineLocks(options, {operator, reason, confirmedS
         operator,reason,removed,async finish() {
             for (const {lock,ownerFiles} of removed) {
                 for (const entry of ownerFiles) {
-                    if ((await fs.readFile(path.join(lock,entry.name))).toString('base64') !== entry.bytes) { throw new Error('Lock changed after preview') }
+                    if ((await fs.readFile(path.join(lock,entry.name))).toString('base64') !== entry.bytes) {
+                        throw new Error('Lock changed after preview')
+                    }
                 }
-                for (const entry of ownerFiles) { await fs.unlink(path.join(lock,entry.name)) }
+                for (const entry of ownerFiles) {
+                    await fs.unlink(path.join(lock,entry.name))
+                }
                 await fs.rmdir(lock); await syncDirectory(path.dirname(lock))
             }
         }}
 }
 
 export async function finishRecovery(auditDirectory, {operator,reason,confirmedStopped=false}={}) {
-    if(!confirmedStopped || !operator || !reason){ throw new Error('Finishing requires confirmed stopped writer and administrator assessment') }
+    if(!confirmedStopped || !operator || !reason){
+        throw new Error('Finishing requires confirmed stopped writer and administrator assessment')
+    }
     const audit=await fs.realpath(auditDirectory)
     const plan=JSON.parse(await fs.readFile(path.join(audit,'plan.json'),'utf8'))
     const authorization=JSON.parse((await fs.readFile(path.join(audit,'attempts.jsonl'),'utf8')).split('\n')[0])
-    if(authorization.planHash!==hash(JSON.stringify(plan))){ throw new Error('Audit authorization does not match retained plan') }
+    if(authorization.planHash!==hash(JSON.stringify(plan))){
+        throw new Error('Audit authorization does not match retained plan')
+    }
     await assertFresh(plan)
     const report=await inspectStore(authorization.config)
-    if(!report.ready || plan.rerun.some(id=>!report.committed.includes(id))){ throw new Error('Recovery is incomplete; inspect and approve remaining attempts, never automatically rerun') }
+    if(!report.ready || plan.rerun.some(id=>!report.committed.includes(id))){
+        throw new Error('Recovery is incomplete; inspect and approve remaining attempts, never automatically rerun')
+    }
     const complete={kind:'simplystore-recovery-complete',planHash:authorization.planHash,config:report.config,
         code:plan.code,codeHashes:plan.codeHashes,files:report.files,fingerprint:report.fingerprint,committed:report.committed,operator,reason,warnings:report.warnings}
     await publishFile(path.join(audit,'complete.json'),JSON.stringify(complete,null,2))
@@ -282,9 +396,15 @@ export async function finishRecovery(auditDirectory, {operator,reason,confirmedS
 }
 
 export async function verifyCandidate(report) {
-    if (!['simplystore-recovery-complete','simplystore-restore-complete'].includes(report.kind)) { throw new Error('Expected completed recovery/restore report') }
+    if (!['simplystore-recovery-complete','simplystore-restore-complete'].includes(report.kind)) {
+        throw new Error('Expected completed recovery/restore report')
+    }
     const current = await inspectStore(report.config)
-    if (!current.ready || current.fingerprint !== report.fingerprint) { throw new Error('Candidate changed or is incomplete') }
-    if (report.code && JSON.stringify(await codeHashes(report.code)) !== JSON.stringify(report.codeHashes)) { throw new Error('Selected code changed after recovery') }
+    if (!current.ready || current.fingerprint !== report.fingerprint) {
+        throw new Error('Candidate changed or is incomplete')
+    }
+    if (report.code && JSON.stringify(await codeHashes(report.code)) !== JSON.stringify(report.codeHashes)) {
+        throw new Error('Selected code changed after recovery')
+    }
     return current
 }

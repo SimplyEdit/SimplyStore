@@ -58,7 +58,7 @@ Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifa
 
 ## Working Defaults
 
-- Always use braces for control-flow bodies, including single-statement `if`, `else`, and loop bodies.
+- Always use braces for control-flow bodies, including single-statement `if`, `else`, and loop bodies. Start block contents on the line after `{`, and put the closing `}` on its own line. This includes empty blocks and callbacks; `else`, `catch`, and `finally` start on the next line after `}`.
 
 - Treat `master` as the authoritative branch unless the human states otherwise.
 - For ordinary repository-changing Spiral cycle work, create one dedicated branch from the authoritative branch, normally `spiral/CYC-###-short-goal`.

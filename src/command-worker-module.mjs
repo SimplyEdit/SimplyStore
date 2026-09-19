@@ -34,10 +34,12 @@ export const metaIdProxy = {
         if (!parser.meta.index.id.has(id)) {
             if (ref[getIndex]) {
                 parser.meta.index.id.set(id, ref[getIndex])
-            } else {
+            }
+            else {
                 throw new Error('cannot set index.id for non-proxy')
             }
-        } else {
+        }
+        else {
             let line = parser.meta.index.id.get(id)
             resultArr[line] = ref
         }
@@ -96,13 +98,17 @@ export default async function runCommand(commandStr) {
     let publishing = false
     try {
         let task = JSONTag.parse(commandStr, null, metaReadProxy)
-        if (!task.id) { throw new Error('missing command id') }
-        if (!task.name) { throw new Error('missing command name parameter') }
+        if (!task.id) {
+            throw new Error('missing command id')
+        }
+        if (!task.name) {
+            throw new Error('missing command name parameter')
+        }
         if (commands[task.name]) {
             let time = Date.now()
             await commands[task.name](dataspace, task, undefined, metaProxy)
             //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
-        
+
             const changes = meta.resultArray.filter(e => e[isChanged])
             //FIXME: new entities should also report isChanged = true
             if (changes.length) {
@@ -132,14 +138,16 @@ export default async function runCommand(commandStr) {
             response.meta.parts = meta.parts
             let end = Date.now()
             console.log('task time',end-time)
-        } else {
+        }
+        else {
             console.error('Command not found', task.name)
             throw {
                 code: 404,
                 message: "Command "+task.name+" not found"
             }
         }
-    } catch(err) {
+    }
+    catch(err) {
         console.error('task error', err)
         throw publishing ? storageError(err) : err
     }

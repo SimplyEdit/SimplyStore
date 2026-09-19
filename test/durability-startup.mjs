@@ -253,16 +253,18 @@ test('durable command log replays only accepted commands', async t => {
 	assert.equal(JSONTag.parse(commands[0].command).name, 'addPerson')
 })
 
-for (const attempt of [1, 2]) { test(`active command at attempt ${attempt} remains unchanged pending administrator assessment`, async t => {
-    const fixture = await makeFixture(t)
-    const file = path.join(fixture.dir, 'status.jsontag')
-    await writeJsonTagLines(file, [{command:'A',status:'active',attempt}])
-    const before = await fs.readFile(file)
-    const status = loadCommandStatus(file)
-    await assert.rejects(recoverActiveCommands(status,file,{maxCrashAttempts:2}), /administrator assessment/)
-    assert.equal(status.get('A').status,'active')
-    assert.deepEqual(await fs.readFile(file),before)
-}) }
+for (const attempt of [1, 2]) {
+	test(`active command at attempt ${attempt} remains unchanged pending administrator assessment`, async t => {
+		const fixture = await makeFixture(t)
+		const file = path.join(fixture.dir, 'status.jsontag')
+		await writeJsonTagLines(file, [{command:'A',status:'active',attempt}])
+		const before = await fs.readFile(file)
+		const status = loadCommandStatus(file)
+		await assert.rejects(recoverActiveCommands(status,file,{maxCrashAttempts:2}), /administrator assessment/)
+		assert.equal(status.get('A').status,'active')
+		assert.deepEqual(await fs.readFile(file),before)
+	})
+}
 
 test('malformed durable status record refuses recovery with explicit integrity error', async t => {
 	const fixture = await makeFixture(t)
@@ -272,7 +274,8 @@ test('malformed durable status record refuses recovery with explicit integrity e
 	let error
 	try {
 		loadCommandStatus(statusFile)
-	} catch (caught) {
+	}
+	catch (caught) {
 		error = caught
 	}
 
@@ -293,7 +296,8 @@ test('structurally invalid durable status record refuses recovery', async t => {
 	let error
 	try {
 		loadCommandStatus(statusFile)
-	} catch (caught) {
+	}
+	catch (caught) {
 		error = caught
 	}
 
@@ -313,7 +317,8 @@ test('malformed durable command log record refuses recovery with explicit integr
 	let error
 	try {
 		loadCommandLog(status, commandLog)
-	} catch (caught) {
+	}
+	catch (caught) {
 		error = caught
 	}
 
@@ -335,7 +340,8 @@ test('structurally invalid durable command log record refuses recovery', async t
 	let error
 	try {
 		loadCommandLog(status, commandLog)
-	} catch (caught) {
+	}
+	catch (caught) {
 		error = caught
 	}
 
@@ -352,7 +358,8 @@ test('OD-JSONTag framing validation catches truncated lazy records', () => {
 	let error
 	try {
 		assertOdJsonTagFraming(buffer, 'data.truncated.jsontag', 'changeset OD-JSONTag data')
-	} catch (caught) {
+	}
+	catch (caught) {
 		error = caught
 	}
 

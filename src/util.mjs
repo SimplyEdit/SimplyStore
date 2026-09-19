@@ -2,17 +2,16 @@ import JSONTag from '@muze-nl/jsontag'
 import {appendRecord} from './storage.mjs'
 
 export function deepFreeze(obj) {
-		Object.freeze(obj)
-		Object.keys(obj).forEach(prop => {
-				if (typeof obj[prop] === 'object' && !Object.isFrozen(obj[prop])) {
-						deepFreeze(obj[prop])
-				}
-		})
-		return obj
+    Object.freeze(obj)
+    Object.keys(obj).forEach(prop => {
+        if (typeof obj[prop] === 'object' && !Object.isFrozen(obj[prop])) {
+            deepFreeze(obj[prop])
+        }
+    })
+    return obj
 }
 
-export function isString(s)
-{
+export function isString(s) {
     return typeof s === 'string' || s instanceof String
 }
 
@@ -20,7 +19,8 @@ export function joinArgs(args) {
     return args = args.map(arg => {
         if (isString(arg)) {
             return arg
-        } else {
+        }
+        else {
             return JSONTag.stringify(arg)
         }
     }).join(' ')

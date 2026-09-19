@@ -38,7 +38,8 @@ export default {
 		let filename
 		if (!uuid) {
 			filename = 'index.id.json'
-		} else {
+		}
+		else {
 			filename = 'index.id.'+filename+'.json'
 		}
 		return JSON.parse(fs.readFileSync(meta.data+filename))

@@ -8,15 +8,25 @@ import {writeAll,publishFile,publishFileSync,appendRecord,serialWriter} from '..
 
 test('complete-write loop preserves bytes through repeated short writes and rejects zero progress', async()=>{
     const bytes = Buffer.from('café 漢字 😀'), written=[]
-    await writeAll({async write(buffer,offset,length){ const n=Math.min(3,length);written.push(buffer.subarray(offset,offset+n));return {bytesWritten:n} }},bytes)
+    await writeAll({async write(buffer,offset,length){
+        const n=Math.min(3,length);written.push(buffer.subarray(offset,offset+n));return {bytesWritten:n}
+    }},bytes)
     assert.deepEqual(Buffer.concat(written),bytes)
-    for (const count of [0,-1,NaN,1000]) { await assert.rejects(writeAll({async write(){ return {bytesWritten:count} }},bytes), /progress write/) }
+    for (const count of [0,-1,NaN,1000]) {
+        await assert.rejects(writeAll({async write(){
+            return {bytesWritten:count}
+        }},bytes), /progress write/)
+    }
 })
 test('serialized writer preserves order and stops after an uncertain operation',async()=>{
     const run=serialWriter(), seen=[]
     let release
-    const gate=new Promise(resolve=>{ release=resolve })
-    const first=run(async()=>{ seen.push('A');await gate;throw new Error('uncertain') })
+    const gate=new Promise(resolve=>{
+        release=resolve
+    })
+    const first=run(async()=>{
+        seen.push('A');await gate;throw new Error('uncertain')
+    })
     const second=run(async()=>seen.push('B'))
     release();await assert.rejects(first,/uncertain/);await assert.rejects(second,/uncertain/)
     assert.deepEqual(seen,['A'])

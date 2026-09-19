@@ -27,7 +27,8 @@ function parseDurableRecord(file, line, lineNumber, recordKind) {
 			throw new Error(`${recordKind} record must be an object`)
 		}
 		return record
-	} catch (cause) {
+	}
+	catch (cause) {
 		throw new RecoveryIntegrityError(`Invalid ${recordKind} record`, {
 			file,
 			lineNumber,
@@ -62,10 +63,12 @@ export function loadCommandStatus(commandStatusFile, logger = console) {
 				assertStringField(command, 'status', commandStatusFile, index + 1, 'command status')
 				status.set(command.command, command)
 			}
-		} else {
+		}
+		else {
 			logger.error('Could not open command status', commandStatusFile)
 		}
-	} else {
+	}
+	else {
 		logger.log('no command status', commandStatusFile)
 	}
 	return status
@@ -115,10 +118,10 @@ function readAttempt(record, fallback = 1) {
 }
 
 export async function recoverActiveCommands(status) {
-    if ([...status.values()].some(command => command?.status === activeCommandStatus)) {
-        throw new RecoveryIntegrityError('Active command requires administrator assessment; automatic rerun is disabled')
-    }
-    return status
+	if ([...status.values()].some(command => command?.status === activeCommandStatus)) {
+		throw new RecoveryIntegrityError('Active command requires administrator assessment; automatic rerun is disabled')
+	}
+	return status
 }
 
 export function nextActiveCommandStatus(commandId, currentStatus) {

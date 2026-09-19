@@ -25,7 +25,8 @@ let outputFile = args[1]
 let indexFile = args[2]
 if (indexFile && indexFile[0]!='/') {
 	indexFile = process.cwd()+'/'+indexFile
-} else if (!indexFile) {
+}
+else if (!indexFile) {
 	indexFile = __dirname+'/../src/index.mjs'
 }
 let schemaFile = args[3]
@@ -34,16 +35,16 @@ if (schemaFile && schemaFile[0]!='/') {
 }
 
 async function main() {
-    const directory = path.resolve(path.dirname(outputFile))
-    const logs = ['command-log.jsontag', 'command-status.jsontag'].map(name => path.join(directory, name))
-    const ownership = await acquireOwnership([directory])
-    if ([outputFile, ...logs, getDefaultIntegrityFile(outputFile)].some(file => fs.existsSync(file))) {
-        await ownership.release()
-        throw new Error('Conversion requires new output files; existing store is not overwritten')
-    }
+	const directory = path.resolve(path.dirname(outputFile))
+	const logs = ['command-log.jsontag', 'command-status.jsontag'].map(name => path.join(directory, name))
+	const ownership = await acquireOwnership([directory])
+	if ([outputFile, ...logs, getDefaultIntegrityFile(outputFile)].some(file => fs.existsSync(file))) {
+		await ownership.release()
+		throw new Error('Conversion requires new output files; existing store is not overwritten')
+	}
 	// now create indexes
 	console.log('Using index library:', indexFile)
-	
+
 	const index = await import(indexFile).then(mod => {
 	    return mod.default
 	})
@@ -90,10 +91,16 @@ async function main() {
 	await publishFile(outputFile, strData)
 	// Custom indexes may change record sizes or add records after initial parsing.
 	await finalizeIndex(index, strData, meta)
-	if (integrity) { await appendIntegrityRecord(getDefaultIntegrityFile(outputFile), outputFile, Buffer.from(strData)) }
-	for (const file of logs) { await publishFile(file, '') }
+	if (integrity) {
+		await appendIntegrityRecord(getDefaultIntegrityFile(outputFile), outputFile, Buffer.from(strData))
+	}
+	for (const file of logs) {
+		await publishFile(file, '')
+	}
 	for (const entry of fs.readdirSync(directory, {withFileTypes:true})) {
-		if (entry.isFile()) { await syncFile(path.join(directory, entry.name)) }
+		if (entry.isFile()) {
+			await syncFile(path.join(directory, entry.name))
+		}
 	}
 	await ownership.release()
 	console.log('Converted data written to ',outputFile)

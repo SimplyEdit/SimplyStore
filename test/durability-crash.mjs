@@ -26,7 +26,8 @@ async function postCommandExpectingCrash(port, command) {
 	try {
 		const response = await postCommand(port, command)
 		assert.equal(response.status, 202)
-	} catch (error) {
+	}
+	catch (error) {
 		assert.match(error.message, /fetch failed|terminated|socket|other side closed|aborted/i)
 	}
 }
@@ -84,27 +85,29 @@ test('fault points are inert outside test environment', async () => {
 })
 
 for (const faultPointName of [
-    'after-command-log-before-accepted-status',
-    'after-command-accepted-status-before-response',
-    'after-active-status-before-command-worker',
-    'before-command-changeset-write',
-    'after-command-changeset-write',
-    'before-command-done-status'
-]) { test(`crash at ${faultPointName} preserves evidence and never automatically reruns`, async t => {
-    const fixture=await makeServerFixture(t)
-    const port=await getOpenPort()
-    const first=startServer(t,fixture,{port,runtimeEnvironment:'test',faultPoint:faultPointName})
-    await waitForServer(first.child,first.getOutput,port)
-    await postCommandExpectingCrash(port,{id:'A',name:'addPerson',value:{name:'A'}})
-    assert.equal((await waitForExit(first.child)).signal,'SIGKILL')
-    const before=await fs.readFile(fixture.commandStatus)
-    await unlockStoppedFixture(t,fixture)
-    const second=startServer(t,fixture,{port})
-    assert.equal((await waitForExit(second.child)).code,1)
-    assert.match(second.getOutput(),/Administrative recovery required/)
-    assert.deepEqual(await fs.readFile(fixture.commandStatus),before)
-    assert.equal((await readCommandLogRecords(fixture))[0].id,'A')
-}) }
+	'after-command-log-before-accepted-status',
+	'after-command-accepted-status-before-response',
+	'after-active-status-before-command-worker',
+	'before-command-changeset-write',
+	'after-command-changeset-write',
+	'before-command-done-status'
+]) {
+	test(`crash at ${faultPointName} preserves evidence and never automatically reruns`, async t => {
+		const fixture=await makeServerFixture(t)
+		const port=await getOpenPort()
+		const first=startServer(t,fixture,{port,runtimeEnvironment:'test',faultPoint:faultPointName})
+		await waitForServer(first.child,first.getOutput,port)
+		await postCommandExpectingCrash(port,{id:'A',name:'addPerson',value:{name:'A'}})
+		assert.equal((await waitForExit(first.child)).signal,'SIGKILL')
+		const before=await fs.readFile(fixture.commandStatus)
+		await unlockStoppedFixture(t,fixture)
+		const second=startServer(t,fixture,{port})
+		assert.equal((await waitForExit(second.child)).code,1)
+		assert.match(second.getOutput(),/Administrative recovery required/)
+		assert.deepEqual(await fs.readFile(fixture.commandStatus),before)
+		assert.equal((await readCommandLogRecords(fixture))[0].id,'A')
+	})
+}
 
 test('crash after done status but before query update recovers committed state without replay', async t => {
 	const fixture = await makeServerFixture(t)
@@ -145,15 +148,15 @@ test('crash after done status but before query update recovers committed state w
 })
 
 test('crash ownership cannot be stolen automatically',async t=>{
-    const fixture=await makeServerFixture(t),port=await getOpenPort()
-    const first=startServer(t,fixture,{port,runtimeEnvironment:'test',faultPoint:'before-command-done-status'})
-    await waitForServer(first.child,first.getOutput,port)
-    await postCommandExpectingCrash(port,{id:'A',name:'addPerson',value:{name:'A'}})
-    await waitForExit(first.child)
-    const second=startServer(t,fixture,{port})
-    assert.equal((await waitForExit(second.child)).code,1)
-    assert.match(second.getOutput(),/Store is locked/)
-    assert.equal((await readCommandStatusRecords(fixture)).filter(s=>s.status==='active').length,1)
+	const fixture=await makeServerFixture(t),port=await getOpenPort()
+	const first=startServer(t,fixture,{port,runtimeEnvironment:'test',faultPoint:'before-command-done-status'})
+	await waitForServer(first.child,first.getOutput,port)
+	await postCommandExpectingCrash(port,{id:'A',name:'addPerson',value:{name:'A'}})
+	await waitForExit(first.child)
+	const second=startServer(t,fixture,{port})
+	assert.equal((await waitForExit(second.child)).code,1)
+	assert.match(second.getOutput(),/Store is locked/)
+	assert.equal((await readCommandStatusRecords(fixture)).filter(s=>s.status==='active').length,1)
 })
 
 test('hanging command times out unsafe and later accepted command commits', async t => {

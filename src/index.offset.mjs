@@ -44,7 +44,8 @@ export default {
 		let filename
 		if (!uuid) {
 			filename = 'index.offset.json'
-		} else {
+		}
+		else {
 			filename = 'index.offset.'+filename+'.json'
 		}
 		return JSON.parse(fs.readFileSync(meta.data+filename))

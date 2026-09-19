@@ -20,8 +20,10 @@ if (configFile) {
 	const scoped = file => typeof file === 'string' &&
 		(file === root || file.startsWith(root + path.sep))
 	function record(op, file, extra = {}) {
-		if (scoped(file)) { raw.appendFileSync(config.trace,
-			JSON.stringify({op, file, threadId, ...extra}) + '\n') }
+		if (scoped(file)) {
+			raw.appendFileSync(config.trace,
+				JSON.stringify({op, file, threadId, ...extra}) + '\n')
+		}
 	}
 	function snapshot(file) {
 		return raw.statSync(file).isDirectory() ? {} : {bytes: raw.readFileSync(file).toString('base64')}
@@ -30,19 +32,27 @@ if (configFile) {
 		const rule = config.fault
 		if (injected || !rule || rule.op !== op || !scoped(file) ||
 			!path.basename(file).startsWith(rule.file) ||
-			(rule.contains && !content.includes(rule.contains))) { return false }
-		if (rule.after && !raw.readFileSync(config.trace,'utf8').split('\n').filter(Boolean).map(JSON.parse).some(event => event.op === rule.after.op && path.basename(event.file) === rule.after.file)) { return false }
+			(rule.contains && !content.includes(rule.contains))) {
+			return false
+		}
+		if (rule.after && !raw.readFileSync(config.trace,'utf8').split('\n').filter(Boolean).map(JSON.parse).some(event => event.op === rule.after.op && path.basename(event.file) === rule.after.file)) {
+			return false
+		}
 		injected = true
 		record('injected', file, {operation: op, action: rule.action})
 		if (rule.action === 'pause') {
 			const deadline = Date.now() + 15000
 			while (!raw.existsSync(config.release)) {
-				if (Date.now() > deadline) { throw new Error('Baseline gate was not released') }
+				if (Date.now() > deadline) {
+					throw new Error('Baseline gate was not released')
+				}
 				await new Promise(resolve => setTimeout(resolve, 5))
 			}
-		} else if (rule.action === 'short-write') {
+		}
+		else if (rule.action === 'short-write') {
 			return true
-		} else {
+		}
+		else {
 			throw Object.assign(new Error(`Injected ${rule.code || 'EIO'} at ${op}`), {code: rule.code || 'EIO'})
 		}
 		return false
@@ -59,16 +69,24 @@ if (configFile) {
 		const existed = raw.existsSync(absolute)
 		await fault('open', absolute)
 		const handle = await open(file, ...args)
-		if (!scoped(absolute)) { return handle }
+		if (!scoped(absolute)) {
+			return handle
+		}
 		record('open', absolute, {existed, flags: args[0]})
 		let content = ''
 		for (const method of ['appendFile', 'write', 'datasync', 'sync', 'close']) {
 			const original = handle[method].bind(handle)
 			handle[method] = async (...params) => {
-				if (method === 'appendFile') { content = String(params[0]) }
-				if (method === 'write') { content = String(params[0].subarray(params[1], params[1]+params[2])) }
+				if (method === 'appendFile') {
+					content = String(params[0])
+				}
+				if (method === 'write') {
+					content = String(params[0].subarray(params[1], params[1]+params[2]))
+				}
 				const short = await fault(method, absolute, content)
-				if (short && method === 'write') { params[2] = Math.max(1, Math.floor(params[2]/2)) }
+				if (short && method === 'write') {
+					params[2] = Math.max(1, Math.floor(params[2]/2))
+				}
 				const result = await original(...params)
 				record(method, absolute, method === 'datasync' || method === 'sync'
 					? snapshot(absolute) : method === 'write' ? {bytesWritten:result.bytesWritten} : {})
@@ -102,7 +120,9 @@ if (configFile) {
 				args[2] = Math.max(1, Math.floor(args[2] / 2))
 			}
 			raw.write(fd, ...args, (error, bytes, buffer) => {
-				if (!error) { record('write', file, {bytesWritten: bytes}) }
+				if (!error) {
+					record('write', file, {bytesWritten: bytes})
+				}
 				callback(error, bytes, buffer)
 			})
 		}).catch(callback)
@@ -110,7 +130,9 @@ if (configFile) {
 	fs.fsync = function(fd, callback) {
 		const file = handles.get(fd)
 		void fault('fsync', file).then(() => raw.fsync(fd, error => {
-			if (!error && scoped(file)) { record('sync', file, snapshot(file)) }
+			if (!error && scoped(file)) {
+				record('sync', file, snapshot(file))
+			}
 			callback(error)
 		})).catch(callback)
 	}
@@ -127,7 +149,9 @@ if (configFile) {
 	fs.rename = function(from, to, callback) {
 		const file = path.resolve(String(to))
 		void fault('rename', file).then(() => raw.rename(from, to, error => {
-			if (!error) { record('rename', file, {from: path.resolve(String(from))}) }
+			if (!error) {
+				record('rename', file, {from: path.resolve(String(from))})
+			}
 			callback(error)
 		})).catch(callback)
 	}

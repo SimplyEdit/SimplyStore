@@ -115,7 +115,9 @@ export async function waitForServer(child, getOutput, port) {
 			reject(new Error(`Server exited before startup (${code || signal}):\n${getOutput()}`))
 		}
 		const checkReady = () => {
-			if (finished) { return }
+			if (finished) {
+				return
+			}
 			if (getOutput().includes(`SimplyStore listening on port ${port}`)) {
 				finished = true
 				clearTimeout(timeout)
@@ -192,7 +194,8 @@ async function readJsonTagLines(file) {
 	let text
 	try {
 		text = await fs.readFile(file, 'utf8')
-	} catch (error) {
+	}
+	catch (error) {
 		if (error.code === 'ENOENT') {
 			return []
 		}
@@ -240,11 +243,11 @@ export async function reconstructCommittedPersonNames(fixture) {
 
 // Explicit administrator action in disposable fixtures whose writer has exited.
 export async function unlockStoppedFixture(t, fixture) {
-    const {releaseOfflineLocks} = await import('../src/admin-recovery.mjs')
-    const {publishFile} = await import('../src/storage.mjs')
-    const audit = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-unlock-audit-'))
-    t.after(() => fs.rm(audit, {recursive:true,force:true}))
-    const release = await releaseOfflineLocks(fixture, {operator:'test administrator',reason:'Fixture writer has exited; inspect before startup',confirmedStopped:true})
-    await publishFile(path.join(audit,'release.json'),JSON.stringify(release))
-    await release.finish()
+	const {releaseOfflineLocks} = await import('../src/admin-recovery.mjs')
+	const {publishFile} = await import('../src/storage.mjs')
+	const audit = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-unlock-audit-'))
+	t.after(() => fs.rm(audit, {recursive:true,force:true}))
+	const release = await releaseOfflineLocks(fixture, {operator:'test administrator',reason:'Fixture writer has exited; inspect before startup',confirmedStopped:true})
+	await publishFile(path.join(audit,'release.json'),JSON.stringify(release))
+	await release.finish()
 }

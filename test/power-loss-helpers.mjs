@@ -36,7 +36,12 @@ export async function submit(store, port, command, query = '') {
 	})
 	const text = await response.text()
 	let body
-	try { body = JSON.parse(text) } catch { body = {raw: text} }
+	try {
+		body = JSON.parse(text)
+	}
+	catch {
+		body = {raw: text}
+	}
 	await observe(store, {event: 'response', id: command.id, http: response.status, body})
 	return {http: response.status, body}
 }
@@ -45,7 +50,9 @@ export async function eventually(fn, description, timeout = 6000) {
 	const end = Date.now() + timeout
 	while (Date.now() < end) {
 		const result = await fn()
-		if (result) { return result }
+		if (result) {
+			return result
+		}
 		await new Promise(resolve => setTimeout(resolve, 10))
 	}
 	assert.fail(`Timed out: ${description}`)
@@ -77,8 +84,12 @@ export async function launch(t, store, port, options = {}) {
 		stdio: ['ignore', 'pipe', 'pipe']
 	})
 	let output = ''
-	child.stdout.on('data', data => { output += data })
-	child.stderr.on('data', data => { output += data })
+	child.stdout.on('data', data => {
+		output += data
+	})
+	child.stderr.on('data', data => {
+		output += data
+	})
 	t.after(() => stopServer(child))
 	return {child, getOutput: () => output}
 }
@@ -107,7 +118,9 @@ export async function loseUnpublishedName(store, image, original) {
 	assert.ok(publication >= 0, `trace contains publication of ${original}`)
 	const durable = trace.slice(publication + 1).some(e =>
 		e.file === path.dirname(original) && e.op === 'sync')
-	if (!durable) { await fs.rm(path.join(image.dir, path.basename(original))) }
+	if (!durable) {
+		await fs.rm(path.join(image.dir, path.basename(original)))
+	}
 	return !durable
 }
 
