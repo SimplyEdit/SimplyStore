@@ -11,7 +11,7 @@ project:DES-20260919-TTZ7C-32
     sd:satisfies [
         a sd:ArtifactReference ;
         sd:artifact project:REQ-20260919-TTZ7C-30 ;
-        sd:gitCommit "fd540903dc9bdc286986c6c011cb77b61f7a7b78"
+        sd:gitCommit "3cf8bf46531276557801200260672ba9f142319d"
     ] ;
     sd:shapedBy [
         a sd:ArtifactReference ;
@@ -25,10 +25,10 @@ project:DES-20260919-TTZ7C-32
     sd:changeCausedBy [
         a sd:ArtifactReference ;
         sd:artifact project:SRC-20260919-TTZ7C-28 ;
-        sd:gitCommit "212d3000cc6a7011d2700ca6454414c7024428fa"
+        sd:gitCommit "b5bf0a7734f49ecd7054f4853e434c01defa05fc"
     ] ;
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:DES-20260919-TTZ7C-32 ;
-        sd:gitCommit "dd0382ef49a50cada7a3699cb021df0929d02315"
+        sd:gitCommit "0c9ab7fd5c443f977ed7bf0e59acf20714bb7b02"
     ] .
