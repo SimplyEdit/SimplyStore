@@ -21,4 +21,7 @@ project:DES-20260919-TTZ7C-24 a sd:Design ;
         sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41" ],
         [ a sd:ArtifactReference ;
         sd:artifact culture:CUL-MUZE-LIB-001 ;
-        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41" ] .
+        sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41" ] ;
+    sd:changeCausedBy [ a sd:ArtifactReference ;
+        sd:artifact project:SRC-20260919-TTZ7C-18 ;
+        sd:gitCommit "9fecb10ba1b58c79779394130e1c5cf500206ea9" ] .
