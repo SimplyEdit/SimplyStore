@@ -20,5 +20,5 @@ project:CYC-20260919-TTZ7C-31
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:CYC-20260919-TTZ7C-31 ;
-        sd:gitCommit "2c6858f06f134519705b0d90225c7342d4e72c72"
+        sd:gitCommit "821e37e672b39638c567ab52be26b6dc15b6c8ee"
     ] .

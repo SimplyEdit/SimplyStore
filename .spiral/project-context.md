@@ -34,9 +34,11 @@ command-log ordering and the accepted durability/recovery behavior. The
 maintainer authorized correcting the ineffective slow-query timeout; normal and
 slow GET and POST tasks now pass the selected configured duration through the
 worker's `timeout` property. `IMP-20260919-TTZ7C-34` aligns supported root and
-example dependencies. `EVD-20260919-TTZ7C-35` records 111 passing regression
-tests, clean focused lint and audit results, and successful package/example
-verification. The cycle remains Active until explicitly accepted.
+example dependencies. Storage failure reporting is now explicitly optional,
+without an empty default callback; failure state and mutation refusal remain
+mandatory. `EVD-20260919-TTZ7C-35` records 112 passing regression tests, clean
+focused lint and audit results, and successful package/example verification. The
+cycle remains Active until explicitly accepted.
 
 Latest accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-17.md` (`Power-Loss Durability And Administrative Recovery`), committed by the maintainer on 2026-09-19 and opened on `spiral/CYC-20260919-TTZ7C-17-power-loss-recovery` from `master` at `44ea91717a328ad7b5e049c6c0845b5e3bcc1718`. The maintainer accepted the cycle on 2026-09-19 after running tests and the example. The accepted branch was integrated locally into `master` at `fd40b0a23066ee8b37261dea1ba89cc64bbd4cc8`. Its source, understanding, and acceptance matrix are `SRC-20260919-TTZ7C-18`, `UND-20260919-TTZ7C-19`, and `REQ-20260919-TTZ7C-20`.
 
