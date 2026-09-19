@@ -245,5 +245,54 @@
     ],
     "changedFileLint": "passed",
     "newVmRun": false
+  },
+  "conditionalWidthRefactor": {
+    "implementation": "5d166a23b664ba9fbe34ae819feb1ed70959046c",
+    "passed": 105,
+    "failed": 0,
+    "skipped": 0,
+    "todo": 0,
+    "style": {
+      "files": 26,
+      "originalTernaries": 36,
+      "currentTernaries": 10,
+      "styleErrors": 0,
+      "styleWarnings": 0,
+      "fullLint": [
+        {
+          "file": "src/index.id.mjs",
+          "messages": [
+            {
+              "line": 49,
+              "rule": "no-undef",
+              "message": "'meta' is not defined."
+            }
+          ]
+        },
+        {
+          "file": "src/index.offset.mjs",
+          "messages": [
+            {
+              "line": 74,
+              "rule": "no-undef",
+              "message": "'meta' is not defined."
+            }
+          ]
+        }
+      ]
+    },
+    "formatterSyntaxTreesMatched": 27,
+    "generatedVmModulesMatched": 4,
+    "storePathConfigurationsMatched": 16,
+    "cliSmoke": [
+      "convert",
+      "inspect",
+      "apply A",
+      "backup",
+      "restore with source",
+      "restore without source",
+      "verify"
+    ],
+    "newVmRun": false
   }
 }
