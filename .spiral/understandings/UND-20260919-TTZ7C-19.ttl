@@ -1,0 +1,19 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:UND-20260919-TTZ7C-19
+    a sd:Understanding ;
+    dcterms:identifier "UND-20260919-TTZ7C-19" ;
+    sd:repositoryPath ".spiral/understandings/UND-20260919-TTZ7C-19.md" ;
+    sd:status sd:Active ;
+    sd:provenanceConfidence sd:Evidenced ;
+    sd:interprets [
+        a sd:ArtifactReference ;
+        sd:artifact project:SRC-20260919-TTZ7C-18 ;
+        sd:gitCommit "806da371341225ee90cd9da1e0f71f9f3b5564e6"
+    ], [
+        a sd:ArtifactReference ;
+        sd:artifact project:SRC-001 ;
+        sd:gitCommit "44ea91717a328ad7b5e049c6c0845b5e3bcc1718"
+    ] .
