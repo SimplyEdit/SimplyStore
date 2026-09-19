@@ -279,12 +279,21 @@ export class StoreRuntime {
 
     runQuery(request, { slow = false } = {}) {
         let pool = this.queryWorkerPool
-        let timeout = this.configuration.timeout
         if (slow) {
             pool = this.slowQueryWorkerPool
-            timeout = this.configuration.slowTimeout
         }
-        return pool.run('query', request, { timeout })
+
+        if (request.method === 'GET') {
+            return pool.run('query', request, {
+                timeout: this.configuration.timeout
+            })
+        }
+
+        let slowTimeout = this.configuration.timeout
+        if (slow) {
+            slowTimeout = this.configuration.slowTimeout
+        }
+        return pool.run('query', request, { slowTimeout })
     }
 
     getCommandStatus(commandId) {

@@ -38,12 +38,14 @@ async function openRuntime(t, overrides = {}) {
         },
         createWorkerPool() {
             const pool = {
+                runs: [],
                 updates: [],
                 close() {
                     events.push('query pool closed')
                 },
-                run() {
-                    throw new Error('Query execution was not expected')
+                run(name, request, options) {
+                    this.runs.push({ name, request, options })
+                    return Promise.resolve({ body: '{}' })
                 },
                 update(task) {
                     this.updates.push(task)
@@ -93,6 +95,13 @@ test('runtime opens committed state and closes its owned resources', async t => 
     assert.equal(opened.runtime.meta.parts, 1)
     assert.equal(opened.pools.length, 2)
     assert.equal(opened.ownershipReleased(), false)
+
+    await opened.runtime.runQuery({ method: 'GET' })
+    await opened.runtime.runQuery({ method: 'POST' }, { slow: true })
+    assert.deepEqual(opened.pools[0].runs[0].options, { timeout: 1000 })
+    assert.deepEqual(opened.pools[1].runs[0].options, {
+        slowTimeout: 10000
+    })
 
     await opened.runtime.close()
 
