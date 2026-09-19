@@ -26,7 +26,8 @@ remaining randomized/soak roadmap work to correct the central runtime boundary
 exposed by the accepted durability cycle. Its source, understanding, request and
 design are `SRC-20260919-TTZ7C-28`, `UND-20260919-TTZ7C-29`,
 `REQ-20260919-TTZ7C-30` and `DES-20260919-TTZ7C-32`. The maintainer accepted the
-cycle on 2026-09-19; integration is pending and no new cycle is active.
+cycle on 2026-09-19. The accepted branch was integrated locally into `master` at
+`0d23ed0354fb9f1285d9bc3b15c0a1089583d65b`; no new cycle is active.
 
 Accepted-cycle outcome: `IMP-20260919-TTZ7C-33` moves
 opened-store state and lifecycle into one cohesive `StoreRuntime`, leaving
