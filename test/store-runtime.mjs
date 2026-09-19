@@ -97,11 +97,19 @@ test('runtime opens committed state and closes its owned resources', async t => 
     assert.equal(opened.ownershipReleased(), false)
 
     await opened.runtime.runQuery({ method: 'GET' })
+    await opened.runtime.runQuery({ method: 'POST' })
+    await opened.runtime.runQuery({ method: 'GET' }, { slow: true })
     await opened.runtime.runQuery({ method: 'POST' }, { slow: true })
-    assert.deepEqual(opened.pools[0].runs[0].options, { timeout: 1000 })
-    assert.deepEqual(opened.pools[1].runs[0].options, {
-        slowTimeout: 10000
-    })
+    const normalOptions = opened.pools[0].runs.map(run => run.options)
+    const slowOptions = opened.pools[1].runs.map(run => run.options)
+    assert.deepEqual(normalOptions, [
+        { timeout: 1000 },
+        { timeout: 1000 }
+    ])
+    assert.deepEqual(slowOptions, [
+        { timeout: 10000 },
+        { timeout: 10000 }
+    ])
 
     await opened.runtime.close()
 
