@@ -18,20 +18,21 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Active cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
+Latest accepted cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
 Workflows, on spiral/CYC-20260919-TTZ7C-36-runtime-contracts. The maintainer
 confirmed this cycle after independent review found three regressions in the
 accepted runtime refactor. It deliberately precedes remaining randomized/soak
 work to repair shutdown completion, storage-failure acceptance and duplicate-ID
 compatibility, and clarify inspection/recovery coordinators. Source SRC-37,
 understanding UND-38, request REQ-39 and design DES-40 use the full
-20260919-TTZ7C namespace. Stop at evaluation; acceptance and integration remain
-separate decisions. Implementation is complete and human acceptance is pending:
+20260919-TTZ7C namespace. The maintainer accepted the evaluated branch tip
+061571e48c453e5f3d7086a33af0d94926b2f7ea on 2026-09-19. Integration is pending
+a separate decision; no cycle is active. Implementation and acceptance are complete:
 118 regression tests and focused lint pass; EVD-20260919-TTZ7C-41 records six
 new regression cases and the restored contracts. The production change adds
 18 net lines across runtime, inspection and administrative recovery.
 
-Latest accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-31.md` (`Readable
+Previously accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-31.md` (`Readable
 Store Runtime And Dependency Maintenance`), opened on
 `spiral/CYC-20260919-TTZ7C-31-runtime-boundaries` from `master` at
 `e31e07c9bc8d4fc6458da1d213609dbf1aa4a7a2`. It deliberately precedes the
@@ -40,7 +41,7 @@ exposed by the accepted durability cycle. Its source, understanding, request and
 design are `SRC-20260919-TTZ7C-28`, `UND-20260919-TTZ7C-29`,
 `REQ-20260919-TTZ7C-30` and `DES-20260919-TTZ7C-32`. The maintainer accepted the
 cycle on 2026-09-19. The accepted branch was integrated locally into `master` at
-`0d23ed0354fb9f1285d9bc3b15c0a1089583d65b`; the correction cycle above is now active.
+`0d23ed0354fb9f1285d9bc3b15c0a1089583d65b`; the correction cycle above is accepted and awaits integration.
 
 Accepted-cycle outcome: `IMP-20260919-TTZ7C-33` moves
 opened-store state and lifecycle into one cohesive `StoreRuntime`, leaving
