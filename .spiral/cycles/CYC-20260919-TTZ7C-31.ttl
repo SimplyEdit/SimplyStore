@@ -10,15 +10,15 @@ project:CYC-20260919-TTZ7C-31
     sd:derivedFrom [
         a sd:ArtifactReference ;
         sd:artifact project:REQ-20260919-TTZ7C-30 ;
-        sd:gitCommit "fd540903dc9bdc286986c6c011cb77b61f7a7b78"
+        sd:gitCommit "3cf8bf46531276557801200260672ba9f142319d"
     ] ;
     sd:constrainedBy [
         a sd:ArtifactReference ;
         sd:artifact project:SRC-20260919-TTZ7C-28 ;
-        sd:gitCommit "212d3000cc6a7011d2700ca6454414c7024428fa"
+        sd:gitCommit "b5bf0a7734f49ecd7054f4853e434c01defa05fc"
     ] ;
     sd:transforms [
         a sd:ArtifactReference ;
         sd:artifact project:CYC-20260919-TTZ7C-31 ;
-        sd:gitCommit "821e37e672b39638c567ab52be26b6dc15b6c8ee"
+        sd:gitCommit "5f76a550174c50e3d58818d58f0965fdfe3d7054"
     ] .
