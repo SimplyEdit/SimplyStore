@@ -6,7 +6,7 @@ project:CYC-20260919-TTZ7C-17
     a sd:Cycle ;
     dcterms:identifier "CYC-20260919-TTZ7C-17" ;
     sd:repositoryPath ".spiral/cycles/CYC-20260919-TTZ7C-17.md" ;
-    sd:status sd:Active ;
+    sd:status sd:Accepted ;
     sd:derivedFrom [
         a sd:ArtifactReference ;
         sd:artifact project:REQ-20260919-TTZ7C-20 ;
