@@ -22,4 +22,9 @@ project:IMP-20260919-TTZ7C-33
         sd:artifact project:IMP-20260919-TTZ7C-26 ;
         sd:gitCommit "e31e07c9bc8d4fc6458da1d213609dbf1aa4a7a2"
     ] ;
-    sd:implementationChangeKind sd:Refactor .
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-20260919-TTZ7C-33 ;
+        sd:gitCommit "d27414a31cbc40bcc7efc92eb85b21bc97126bef"
+    ] ;
+    sd:implementationChangeKind sd:BehaviorPreservingChange .
