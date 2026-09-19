@@ -174,6 +174,7 @@ export class StoreRuntime {
         this.commandRunnerActive = false
         this.storageFailed = false
         this.closing = false
+        this.closure = null
         this.ownership = null
         this.queryWorkerPool = null
         this.slowQueryWorkerPool = null
@@ -334,15 +335,6 @@ export class StoreRuntime {
             return candidate.result
         }
         const { command, line } = candidate
-        if (this.status.has(command.id)) {
-            return {
-                code: 200,
-                value: {
-                    command: command.id,
-                    ...this.status.get(command.id)
-                }
-            }
-        }
 
         const accepted = {
             command: command.id,
@@ -361,6 +353,9 @@ export class StoreRuntime {
         await this.mechanisms.faultPoint(
             'after-command-accepted-status-before-response'
         )
+        if (this.storageFailed) {
+            throw new Error('Store failed during acceptance')
+        }
         this.commandQueue.push({ id: command.id, command: line })
 
         return {
@@ -396,6 +391,17 @@ export class StoreRuntime {
                         code: 422,
                         message: 'Command has no id',
                         details: command
+                    }
+                }
+            }
+        }
+        if (this.status.has(command.id)) {
+            return {
+                result: {
+                    code: 200,
+                    value: {
+                        command: command.id,
+                        ...this.status.get(command.id)
                     }
                 }
             }
@@ -576,14 +582,16 @@ export class StoreRuntime {
         }
     }
 
-    async close() {
-        if (this.closing) {
-            return
+    close() {
+        if (!this.closure) {
+            this.closing = true
+            this.closure = this.closeResources()
         }
-        this.closing = true
-        await this.serializeAcceptance(async () => {
+        return this.closure
+    }
 
-        })
+    async closeResources() {
+        await this.serializeAcceptance()
         await this.runner
         this.queryWorkerPool.close()
         this.slowQueryWorkerPool.close()
