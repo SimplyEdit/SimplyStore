@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
-import {randomUUID} from 'node:crypto'
-import {Buffer} from 'node:buffer'
+import { randomUUID } from 'node:crypto'
+import { Buffer } from 'node:buffer'
 
 export function storageError(error) {
     if (!(error instanceof Error)) {
@@ -52,8 +52,17 @@ export async function writeAll(handle, data) {
     const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data)
     let offset = 0
     while (offset < bytes.length) {
-        const {bytesWritten} = await handle.write(bytes, offset, bytes.length - offset, null)
-        if (!Number.isInteger(bytesWritten) || bytesWritten <= 0 || bytesWritten > bytes.length - offset) {
+        const { bytesWritten } = await handle.write(
+            bytes,
+            offset,
+            bytes.length - offset,
+            null
+        )
+        if (
+            !Number.isInteger(bytesWritten) ||
+            bytesWritten <= 0 ||
+            bytesWritten > bytes.length - offset
+        ) {
             throw storageError(new Error('Invalid or zero-progress write'))
         }
         offset += bytesWritten
@@ -97,7 +106,7 @@ export async function durableMkdir(directory) {
     await syncDirectory(path.dirname(directory))
 }
 
-export async function publishFile(file, data, {mode} = {}) {
+export async function publishFile(file, data, { mode } = {}) {
     const temporary = `${file}.${randomUUID()}.tmp`
     let renamed = false
     try {
@@ -113,13 +122,18 @@ export async function publishFile(file, data, {mode} = {}) {
                 throw error
             }
         }
-        await withHandle(temporary, 'wx', async handle => {
-            if (mode !== undefined) {
-                await handle.chmod(mode)
-            }
-            await writeAll(handle, data)
-            await handle.sync()
-        }, mode)
+        await withHandle(
+            temporary,
+            'wx',
+            async handle => {
+                if (mode !== undefined) {
+                    await handle.chmod(mode)
+                }
+                await writeAll(handle, data)
+                await handle.sync()
+            },
+            mode
+        )
         await fsp.rename(temporary, file)
         renamed = true
         await syncDirectory(path.dirname(file))
@@ -152,7 +166,9 @@ export function appendRecord(file, record) {
 // Existing synchronous index hooks keep their contract while gaining barriers.
 export function publishFileSync(file, data) {
     const temporary = `${file}.${randomUUID()}.tmp`
-    let fd, failure, renamed = false
+    let fd,
+        failure,
+        renamed = false
     try {
         const bytes = Buffer.from(data)
         let mode
@@ -170,12 +186,16 @@ export function publishFileSync(file, data) {
         }
         fd = fs.openSync(temporary, 'wx', mode)
         if (mode !== undefined) {
-            fs.fchmodSync(fd,mode)
+            fs.fchmodSync(fd, mode)
         }
         let offset = 0
         while (offset < bytes.length) {
             const count = fs.writeSync(fd, bytes, offset, bytes.length - offset)
-            if (!Number.isInteger(count) || count <= 0 || count > bytes.length - offset) {
+            if (
+                !Number.isInteger(count) ||
+                count <= 0 ||
+                count > bytes.length - offset
+            ) {
                 throw new Error('Invalid or zero-progress write')
             }
             offset += count

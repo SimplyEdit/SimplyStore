@@ -24,11 +24,12 @@ project:IMP-20260919-TTZ7C-26 a sd:Implementation ;
     sd:implementationLocation "test/storage.mjs" ;
     sd:implementationLocation "docs/recovery.md" ;
     sd:implementationLocation "DURABILITY.md" ;
+    sd:implementationLocation "eslint.config.js" ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260919-TTZ7C-24 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260919-TTZ7C-25 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-003 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260917-TTZ7C-14 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260819-09ZEF-7 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260919-TTZ7C-18 ; sd:gitCommit "529272489ca03b50271c3555987eb96dd2279ed5" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "529272489ca03b50271c3555987eb96dd2279ed5" ] ;
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260919-TTZ7C-18 ; sd:gitCommit "f14d13e2bf4b0f6ab3afeea7e9900ef60488590e" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "f14d13e2bf4b0f6ab3afeea7e9900ef60488590e" ] ;
     sd:implementationChangeKind sd:BehaviorPreservingChange .

@@ -1,5 +1,5 @@
 import JSONTag from '@muze-nl/jsontag'
-import {appendRecord} from './storage.mjs'
+import { appendRecord } from './storage.mjs'
 
 export function deepFreeze(obj) {
     Object.freeze(obj)
@@ -16,14 +16,16 @@ export function isString(s) {
 }
 
 export function joinArgs(args) {
-    return args = args.map(arg => {
-        if (isString(arg)) {
-            return arg
-        }
-        else {
-            return JSONTag.stringify(arg)
-        }
-    }).join(' ')
+    return (args = args
+        .map(arg => {
+            if (isString(arg)) {
+                return arg
+            }
+            else {
+                return JSONTag.stringify(arg)
+            }
+        })
+        .join(' '))
 }
 
 /**

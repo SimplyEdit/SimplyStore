@@ -1,20 +1,25 @@
-import {setImmediate} from 'node:timers'
+import { setImmediate } from 'node:timers'
 import express from 'express'
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
-import {from, _, anyOf, not} from '@muze-nl/jaqt'
+import { from, _, anyOf, not } from '@muze-nl/jaqt'
 import WorkerPool from './workerPool.mjs'
 import { Worker } from 'worker_threads'
 import { fileURLToPath } from 'url'
-import {appendFile} from './util.mjs'
+import { appendFile } from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
 import { nextActiveCommandStatus } from './recovery.mjs'
-import {serialWriter, syncFile} from './storage.mjs'
-import {inspectStore, storePaths, mutableDirectories, validCommandId} from './store-inspection.mjs'
-import {acquireOwnership} from './store-ownership.mjs'
-import {executeWorker} from './execute-worker.mjs'
+import { serialWriter, syncFile } from './storage.mjs'
+import {
+    inspectStore,
+    storePaths,
+    mutableDirectories,
+    validCommandId
+} from './store-inspection.mjs'
+import { acquireOwnership } from './store-ownership.mjs'
+import { executeWorker } from './execute-worker.mjs'
 import { assertRuntimeEnvironmentConfiguration } from './runtime-environment.mjs'
 import { faultPoint } from './faults.mjs'
 import { getDefaultIntegrityFile } from './integrity.mjs'
@@ -37,12 +42,19 @@ class WorkerTimeoutError extends Error {
 }
 
 function normalizeWorkerTimeout(name, value, defaultValue) {
-    if (value === 0 || value === false || value === null || value === Infinity) {
+    if (
+        value === 0 ||
+        value === false ||
+        value === null ||
+        value === Infinity
+    ) {
         return 0
     }
     const timeout = value ?? defaultValue
     if (!Number.isFinite(timeout) || timeout < 0) {
-        throw new Error(`${name} must be a non-negative finite number, 0, false, null, or Infinity`)
+        throw new Error(
+            `${name} must be a non-negative finite number, 0, false, null, or Infinity`
+        )
     }
     return timeout
 }
@@ -52,36 +64,63 @@ async function main(options) {
     if (!options) {
         options = {}
     }
-    const port          = options.port          || 3000
-    const datafile      = options.datafile      || './data.od-jsontag'
-    const schemaFile    = options.schemaFile    || null
-    const wwwroot       = options.wwwroot       || __dirname+'/www'
-    const maxWorkers    = options.maxWorkers    || 8
-    const queryWorker   = options.queryWorker   || __dirname+'/src/query-worker.mjs'
-    const loadWorker    = options.loadWorker    || __dirname+'/src/load-worker.mjs'
-    const commandWorker = options.commandWorker || __dirname+'/src/command-worker.mjs'
-    const commandsFile  = options.commandsFile  || __dirname+'/src/commands.mjs'
-    const indexFile     = options.indexFile     || __dirname+'/src/index.mjs'
-    const commandLog    = options.commandLog    || './command-log.jsontag'
+    const port = options.port || 3000
+    const datafile = options.datafile || './data.od-jsontag'
+    const schemaFile = options.schemaFile || null
+    const wwwroot = options.wwwroot || __dirname + '/www'
+    const maxWorkers = options.maxWorkers || 8
+    const queryWorker =
+        options.queryWorker || __dirname + '/src/query-worker.mjs'
+    const loadWorker = options.loadWorker || __dirname + '/src/load-worker.mjs'
+    const commandWorker =
+        options.commandWorker || __dirname + '/src/command-worker.mjs'
+    const commandsFile = options.commandsFile || __dirname + '/src/commands.mjs'
+    const indexFile = options.indexFile || __dirname + '/src/index.mjs'
+    const commandLog = options.commandLog || './command-log.jsontag'
     const commandStatus = options.commandStatus || './command-status.jsontag'
-    const integrityFile = options.integrityFile || getDefaultIntegrityFile(datafile)
-    const integrityEnabled = Boolean(options.integrity || options.integrityFile || fs.existsSync(integrityFile))
-    const access        = options.access        || null
-    const timeout       = options.timeout       || 1000
-    const slowTimeout   = options.slowTimeout   || 10000
-    const commandTimeout = normalizeWorkerTimeout('commandTimeout', options.commandTimeout, defaultCommandTimeout)
-    const loadTimeout    = normalizeWorkerTimeout('loadTimeout', options.loadTimeout, defaultLoadTimeout)
+    const integrityFile =
+        options.integrityFile || getDefaultIntegrityFile(datafile)
+    const integrityEnabled = Boolean(
+        options.integrity ||
+            options.integrityFile ||
+            fs.existsSync(integrityFile)
+    )
+    const activeIntegrityFile = integrityEnabled ? integrityFile : null
+    const access = options.access || null
+    const timeout = options.timeout || 1000
+    const slowTimeout = options.slowTimeout || 10000
+    const commandTimeout = normalizeWorkerTimeout(
+        'commandTimeout',
+        options.commandTimeout,
+        defaultCommandTimeout
+    )
+    const loadTimeout = normalizeWorkerTimeout(
+        'loadTimeout',
+        options.loadTimeout,
+        defaultLoadTimeout
+    )
 
     server.get('/', serveHomepage)
 
     // allow access to raw body, used to parse a query send as post body
-    server.use(express.raw({
-        type: () => true, // parse body on all requests
-        limit: '50MB'
-    }))
+    server.use(
+        express.raw({
+            type: () => true, // parse body on all requests
+            limit: '50MB'
+        })
+    )
 
-    const config = storePaths({...options, datafile, commandLog, commandStatus, integrity: integrityEnabled,
-        ...(integrityEnabled ? {integrityFile} : {})})
+    const storeOptions = {
+        ...options,
+        datafile,
+        commandLog,
+        commandStatus,
+        integrity: integrityEnabled
+    }
+    if (integrityEnabled) {
+        storeOptions.integrityFile = integrityFile
+    }
+    const config = storePaths(storeOptions)
     const ownership = await acquireOwnership(mutableDirectories(config))
     let inspection
     try {
@@ -90,17 +129,17 @@ async function main(options) {
             const commands = from(inspection.commands)
 
             const problems = commands
-                .where({problem: Boolean})
+                .where({ problem: Boolean })
                 .select(_.problem)
 
             const pending = commands
-                .where({status: anyOf('accepted', 'active')})
+                .where({ status: anyOf('accepted', 'active') })
                 .select(command => {
                     return `${command.id}: ${command.status}; administrator assessment required`
                 })
 
             const uncommitted = commands
-                .where({present: Boolean, status: not('done')})
+                .where({ present: Boolean, status: not('done') })
                 .select(command => {
                     return `${command.id}: uncommitted dataset`
                 })
@@ -128,18 +167,25 @@ async function main(options) {
         await ownership.release()
         throw error
     }
-    const status = new Map(inspection.commands.map(c => [c.id, c.history.at(-1)]))
+    const status = new Map(
+        inspection.commands.map(c => [c.id, c.history.at(-1)])
+    )
     const commandQueue = []
     const acceptSerial = serialWriter()
-    let storageFailed = false, closing = false
+    let storageFailed = false,
+        closing = false
     let runner = Promise.resolve()
     function failStorage(error) {
         if (storageFailed) {
             return
         }
         storageFailed = true
-        console.error('Storage outcome uncertain; stopping mutation. Administrator recovery required:', error)
-        // Retain ownership evidence; a process exit must never imply a rollback.
+        console.error(
+            'Storage outcome uncertain; stopping mutation. Administrator recovery required:',
+            error
+        )
+        // Retain ownership evidence; a process exit must never imply a
+        // rollback.
         setImmediate(() => process.exit(1))
     }
 
@@ -161,25 +207,37 @@ async function main(options) {
         return result
     }
 
-    let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
-    let slowQueryWorkerPool = new WorkerPool(1, queryWorker, slowQueryWorkerInitTask())
+    let queryWorkerPool = new WorkerPool(
+        maxWorkers,
+        queryWorker,
+        queryWorkerInitTask()
+    )
+    let slowQueryWorkerPool = new WorkerPool(
+        1,
+        queryWorker,
+        slowQueryWorkerInitTask()
+    )
     let commandRunnerActive = false
 
-    server.get('/query/', (req,next) => handleGetQuery(req,next))
-    server.get('/query/*remainder', (req,next) => handleGetQuery(req,next))
-    server.get('/slowquery/', (req,next) => handleSlowGetQuery(req,next))
-    server.get('/slowquery/*remainder', (req,next) => handleSlowGetQuery(req,next))
-    server.post('/query/', (req,next) => handlePostQuery(req,next))
-    server.post('/query/*remainder', (req,next) => handlePostQuery(req,next))
-    server.post('/slowquery/', (req,next) => handleSlowPostQuery(req,next))
-    server.post('/slowquery/*remainder', (req,next) => handleSlowPostQuery(req,next))
-    server.post('/command', (req,next) => handlePostCommand(req,next))
-    server.get('/command/:id', (req,next) => handleGetCommand(req,next))
+    server.get('/query/', (req, next) => handleGetQuery(req, next))
+    server.get('/query/*remainder', (req, next) => handleGetQuery(req, next))
+    server.get('/slowquery/', (req, next) => handleSlowGetQuery(req, next))
+    server.get('/slowquery/*remainder', (req, next) =>
+        handleSlowGetQuery(req, next)
+    )
+    server.post('/query/', (req, next) => handlePostQuery(req, next))
+    server.post('/query/*remainder', (req, next) => handlePostQuery(req, next))
+    server.post('/slowquery/', (req, next) => handleSlowPostQuery(req, next))
+    server.post('/slowquery/*remainder', (req, next) =>
+        handleSlowPostQuery(req, next)
+    )
+    server.post('/command', (req, next) => handlePostCommand(req, next))
+    server.get('/command/:id', (req, next) => handleGetCommand(req, next))
 
     server.use(express.static(wwwroot))
 
     const listener = server.listen(port, () => {
-        console.log('SimplyStore listening on port '+port)
+        console.log('SimplyStore listening on port ' + port)
     })
     listener.on('error', error => {
         failStorage(error)
@@ -195,7 +253,8 @@ async function main(options) {
 
             })
             await runner
-            queryWorkerPool.close(); slowQueryWorkerPool.close()
+            queryWorkerPool.close()
+            slowQueryWorkerPool.close()
             if (!storageFailed) {
                 await ownership.release()
             }
@@ -211,12 +270,12 @@ async function main(options) {
     /* ------ */
 
     function serveHomepage(req, res) {
-        res.setHeader('content-type', 'text/html');
-        res.send(fs.readFileSync(wwwroot+'/home.html'))
+        res.setHeader('content-type', 'text/html')
+        res.send(fs.readFileSync(wwwroot + '/home.html'))
     }
 
     function loadData(commands) {
-        return new Promise((resolve,reject) => {
+        return new Promise((resolve, reject) => {
             let worker = new Worker(loadWorker)
             let settled = false
             let timeoutId
@@ -233,7 +292,10 @@ async function main(options) {
             }
             if (loadTimeout) {
                 timeoutId = setTimeout(() => {
-                    const error = new WorkerTimeoutError('load worker', loadTimeout)
+                    const error = new WorkerTimeoutError(
+                        'load worker',
+                        loadTimeout
+                    )
                     void finish(reject, error)
                 }, loadTimeout)
             }
@@ -245,11 +307,11 @@ async function main(options) {
             })
             try {
                 worker.postMessage({
-                    dataFile:datafile,
+                    dataFile: datafile,
                     indexFile,
                     schemaFile,
                     commands,
-                    integrityFile: integrityEnabled ? integrityFile : null,
+                    integrityFile: activeIntegrityFile,
                     integrityRequired: integrityEnabled
                 })
             }
@@ -259,56 +321,66 @@ async function main(options) {
         })
     }
 
-    async function handleGetQuery(req, res, pool=null) {
+    async function handleGetQuery(req, res, pool = null) {
         let start = Date.now()
         if (!pool) {
             pool = queryWorkerPool
         }
-        if ( !accept(req,res,
-            ['application/jsontag','application/json','text/html','text/javascript','image/*'],
-            function(req, res, accept) {
-                let result = true
-                switch(accept) {
-                    case 'text/html':
-                    case 'image/*':
-                    case 'text/javascript':
-                        handleWebRequest(req,res,{root:wwwroot});
-                        result = false
-                        break
+        if (
+            !accept(
+                req,
+                res,
+                [
+                    'application/jsontag',
+                    'application/json',
+                    'text/html',
+                    'text/javascript',
+                    'image/*'
+                ],
+                function (req, res, accept) {
+                    let result = true
+                    switch (accept) {
+                        case 'text/html':
+                        case 'image/*':
+                        case 'text/javascript':
+                            handleWebRequest(req, res, { root: wwwroot })
+                            result = false
+                            break
+                    }
+                    return result
                 }
-                return result
-            }
-        )) {
+            )
+        ) {
             // done
             return
         }
         let path = req.params.remainder?.join('/') || '/'
-        console.log('query',path)
+        console.log('query', path)
         let request = {
             method: req.method,
             url: req.originalUrl,
             query: req.query,
             path: path
         }
-        if (accept(req,res,['application/jsontag'])) {
+        if (accept(req, res, ['application/jsontag'])) {
             request.jsontag = true
         }
         try {
             let result = await pool.run('query', request, { timeout })
             sendResponse(result, res)
         }
-        catch(error) {
+        catch (error) {
             sendError(error, res)
         }
         let end = Date.now()
-        console.log(path, (end-start), process.memoryUsage())
+        console.log(path, end - start, process.memoryUsage())
     }
 
     async function handleSlowGetQuery(req, res) {
         return handleGetQuery(req, res, slowQueryWorkerPool)
     }
 
-    async function handlePostQuery(req,res,pool=null, slowTimeout=null) {
+    async function handlePostQuery(req, res, pool = null, slowTimeout = null) {
         if (!pool) {
             pool = queryWorkerPool
         }
@@ -316,10 +388,15 @@ async function main(options) {
             slowTimeout = timeout
         }
         let start = Date.now()
-        if ( !accept(req,res,
-            ['application/jsontag','application/json'])
-        ) {
-            sendError({code:406, message:'Not Acceptable',accept:['application/json','application/jsontag']},res)
+        if (!accept(req, res, ['application/jsontag', 'application/json'])) {
+            sendError(
+                {
+                    code: 406,
+                    message: 'Not Acceptable',
+                    accept: ['application/json', 'application/jsontag']
+                },
+                res
+            )
             return
         }
         let path = req.params.remainder?.join('/') || '/'
@@ -330,18 +407,18 @@ async function main(options) {
             path: path,
             body: req.body.toString()
         }
-        if (accept(req,res,['application/jsontag'])) {
+        if (accept(req, res, ['application/jsontag'])) {
             request.jsontag = true
         }
         try {
-            let result = await pool.run('query', request, {slowTimeout})
+            let result = await pool.run('query', request, { slowTimeout })
             sendResponse(result, res)
         }
-        catch(error) {
+        catch (error) {
             sendError(error, res)
         }
         let end = Date.now()
-        console.log(path, (end-start), process.memoryUsage())
+        console.log(path, end - start, process.memoryUsage())
         //        queryWorkerPool.memoryUsage()
     }
 
@@ -351,7 +428,13 @@ async function main(options) {
 
     async function handlePostCommand(req, res) {
         if (storageFailed || closing) {
-            return sendResponse({code:503, body: JSON.stringify({message:'Store is unavailable'})}, res)
+            return sendResponse(
+                {
+                    code: 503,
+                    body: JSON.stringify({ message: 'Store is unavailable' })
+                },
+                res
+            )
         }
         try {
             await acceptSerial(async () => {
@@ -359,7 +442,15 @@ async function main(options) {
                     throw new Error('Store is unavailable')
                 }
                 if (closing) {
-                    return sendResponse({code:503,body:JSON.stringify({message:'Store is closing'})},res)
+                    return sendResponse(
+                        {
+                            code: 503,
+                            body: JSON.stringify({
+                                message: 'Store is closing'
+                            })
+                        },
+                        res
+                    )
                 }
                 const accepted = await checkCommand(req, res)
                 if (!accepted) {
@@ -368,14 +459,28 @@ async function main(options) {
                 if (storageFailed) {
                     throw new Error('Store failed during acceptance')
                 }
-                commandQueue.push({id: accepted.id, command: accepted.line})
-                sendResponse({code:202, body:JSON.stringify(status.get(accepted.id))}, res)
+                commandQueue.push({ id: accepted.id, command: accepted.line })
+                sendResponse(
+                    {
+                        code: 202,
+                        body: JSON.stringify(status.get(accepted.id))
+                    },
+                    res
+                )
             })
             void drainCommandQueue()
         }
         catch (error) {
             if (!res.headersSent) {
-                sendResponse({code:500, body:JSON.stringify({message:'Storage outcome uncertain'})}, res)
+                sendResponse(
+                    {
+                        code: 500,
+                        body: JSON.stringify({
+                            message: 'Storage outcome uncertain'
+                        })
+                    },
+                    res
+                )
             }
             failStorage(error)
         }
@@ -384,17 +489,27 @@ async function main(options) {
     function handleGetCommand(req, res) {
         if (status.has(req.params.id)) {
             let result = status.get(req.params.id)
-            sendResponse({
-                jsontag: false,
-                body: JSON.stringify(result)
-            },res)
+            sendResponse(
+                {
+                    jsontag: false,
+                    body: JSON.stringify(result)
+                },
+                res
+            )
         }
         else {
-            sendResponse({
-                code: 404,
-                jsontag: false,
-                body: JSON.stringify({code: 404, message: "Command not found", details: req.params.id})
-            }, res)
+            sendResponse(
+                {
+                    code: 404,
+                    jsontag: false,
+                    body: JSON.stringify({
+                        code: 404,
+                        message: 'Command not found',
+                        details: req.params.id
+                    })
+                },
+                res
+            )
         }
     }
 
@@ -408,27 +523,61 @@ async function main(options) {
                 while (commandQueue.length && !storageFailed) {
                     const command = commandQueue.shift()
                     console.log('starting command', command.id)
-                    const active = nextActiveCommandStatus(command.id, status.get(command.id))
+                    const active = nextActiveCommandStatus(
+                        command.id,
+                        status.get(command.id)
+                    )
                     await appendFile(commandStatus, JSONTag.stringify(active))
                     if (storageFailed) {
                         throw new Error('Store failed before execution')
                     }
                     status.set(command.id, active)
-                    await faultPoint('after-active-status-before-command-worker')
-                    const result = await executeWorker(commandWorker, {...command,
-                        meta, data: jsontagBuffers, commandsFile, indexFile, datafile,
-                        integrityFile: integrityEnabled ? integrityFile : null,
-                        integrityRequired: integrityEnabled}, commandTimeout)
+                    await faultPoint(
+                        'after-active-status-before-command-worker'
+                    )
+                    const result = await executeWorker(
+                        commandWorker,
+                        {
+                            ...command,
+                            meta,
+                            data: jsontagBuffers,
+                            commandsFile,
+                            indexFile,
+                            datafile,
+                            integrityFile: activeIntegrityFile,
+                            integrityRequired: integrityEnabled
+                        },
+                        commandTimeout
+                    )
                     if (storageFailed) {
                         throw new Error('Store failed during execution')
                     }
                     if (result?.storageFailure) {
-                        throw new Error(result.message || 'Worker persistence failure')
+                        throw new Error(
+                            result.message || 'Worker persistence failure'
+                        )
                     }
-                    if (!result || result.status === 'failed' || result.status === 'unsafe' || result.code >= 300) {
-                        const terminal = {command: command.id, status: result?.status === 'unsafe' ? 'unsafe' : 'failed',
-                            code: result?.code || 500, message: result?.message || 'Command failed', attempt: active.attempt}
-                        await appendFile(commandStatus, JSONTag.stringify(terminal))
+                    if (
+                        !result ||
+                        result.status === 'failed' ||
+                        result.status === 'unsafe' ||
+                        result.code >= 300
+                    ) {
+                        let terminalStatus = 'failed'
+                        if (result?.status === 'unsafe') {
+                            terminalStatus = 'unsafe'
+                        }
+                        const terminal = {
+                            command: command.id,
+                            status: terminalStatus,
+                            code: result?.code || 500,
+                            message: result?.message || 'Command failed',
+                            attempt: active.attempt
+                        }
+                        await appendFile(
+                            commandStatus,
+                            JSONTag.stringify(terminal)
+                        )
                         status.set(command.id, terminal)
                         continue
                     }
@@ -436,15 +585,25 @@ async function main(options) {
                         await syncFile(file)
                     }
                     await faultPoint('before-command-done-status')
-                    const done = {command: command.id, code:200, status:'done'}
+                    const done = {
+                        command: command.id,
+                        code: 200,
+                        status: 'done'
+                    }
                     await appendFile(commandStatus, JSONTag.stringify(done))
-                    await faultPoint('after-command-done-status-before-query-update')
+                    await faultPoint(
+                        'after-command-done-status-before-query-update'
+                    )
                     status.set(command.id, done)
                     if (result.data) {
                         jsontagBuffers.push(result.data)
                         Object.assign(meta, result.meta)
-                        const task = {name:'update', req:{body:result.data, meta}}
-                        queryWorkerPool.update(task); slowQueryWorkerPool.update(task)
+                        const task = {
+                            name: 'update',
+                            req: { body: result.data, meta }
+                        }
+                        queryWorkerPool.update(task)
+                        slowQueryWorkerPool.update(task)
                     }
                 }
             }
@@ -470,37 +629,40 @@ async function main(options) {
                 status: 'accepted'
             }
         }
-        catch(err) {
+        catch (err) {
             error = {
                 code: 400,
-                message: "Bad request",
+                message: 'Bad request',
                 details: err.message
             }
-            console.error('Error: ',err)
-            sendResponse({code: 400, body: JSON.stringify(error)}, res)
+            console.error('Error: ', err)
+            sendResponse({ code: 400, body: JSON.stringify(error) }, res)
             return false
         }
         if (!command || !validCommandId(command.id)) {
             error = {
                 code: 422,
-                message: "Command has no id",
+                message: 'Command has no id',
                 details: command
             }
-            sendResponse({code: 422, body: JSON.stringify(error)}, res)
+            sendResponse({ code: 422, body: JSON.stringify(error) }, res)
             return false
         }
         else if (status.has(command.id)) {
-            const currentStatus = Object.assign({command: command.id}, status.get(command.id))
-            sendResponse({body: JSON.stringify(currentStatus)}, res)
+            const currentStatus = Object.assign(
+                { command: command.id },
+                status.get(command.id)
+            )
+            sendResponse({ body: JSON.stringify(currentStatus) }, res)
             return false
         }
         else if (!command.name) {
             error = {
                 code: 422,
-                message: "Command has no name",
+                message: 'Command has no name',
                 details: command
             }
-            sendResponse({code:422, body: JSON.stringify(error)}, res)
+            sendResponse({ code: 422, body: JSON.stringify(error) }, res)
             return false
         }
         const line = JSONTag.stringify(command)
@@ -509,7 +671,7 @@ async function main(options) {
         await appendFile(commandStatus, JSONTag.stringify(commandOK))
         status.set(command.id, commandOK)
         await faultPoint('after-command-accepted-status-before-response')
-        return {id:command.id, line}
+        return { id: command.id, line }
     }
 }
 
@@ -518,12 +680,12 @@ function sendResponse(response, res) {
         res.status(response.code)
     }
     if (response.jsontag) {
-        res.setHeader('content-type','application/jsontag')
+        res.setHeader('content-type', 'application/jsontag')
     }
     else {
-        res.setHeader('content-type','application/json')
+        res.setHeader('content-type', 'application/json')
     }
-    res.send(response.body)+"\n"
+    res.send(response.body) + '\n'
 }
 
 function sendError(error, res) {
@@ -534,7 +696,7 @@ function sendError(error, res) {
     else {
         res.status(500)
     }
-    res.setHeader('content-type','application/json')
+    res.setHeader('content-type', 'application/json')
     res.send(JSON.stringify(error))
 }
 
@@ -545,7 +707,7 @@ function accept(req, res, mimetypes, handler) {
     let accept = req.accepts(mimetypes)
     if (!accept) {
         res.status(406)
-        res.send("<h1>406 Unacceptable</h1>\n")
+        res.send('<h1>406 Unacceptable</h1>\n')
         return false
     }
     if (typeof handler === 'function') {
@@ -554,20 +716,20 @@ function accept(req, res, mimetypes, handler) {
     return true
 }
 
-function handleWebRequest(req,res,options) {
-    let path = req.path;
+function handleWebRequest(req, res, options) {
+    let path = req.path
     path = path.replace(/[^a-z0-9_.\-/]*/gi, '') // whitelist acceptable file paths
     path = path.replace(/\.+/g, '.') // blacklist '..'
     if (!path) {
         path = '/'
     }
-    if (path.substring(path.length-1)==='/') {
+    if (path.substring(path.length - 1) === '/') {
         path += 'index.html'
     }
     const fileOptions = {
         root: options.root
     }
-    if (fs.existsSync(fileOptions.root+path)) {
+    if (fs.existsSync(fileOptions.root + path)) {
         res.sendFile(path, fileOptions)
     }
     else {

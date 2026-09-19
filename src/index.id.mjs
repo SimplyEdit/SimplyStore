@@ -1,12 +1,13 @@
-import {publishFileSync} from './storage.mjs'
+import { publishFileSync } from './storage.mjs'
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
 import { getIndex } from '@muze-nl/od-jsontag/src/symbols.mjs'
 
 export default {
 	create(data, meta) {
-		console.log('creating '+meta.data+'/index.id.json')
-		// jsontag parse automatically fills meta.index.id, so no need to create anything
+		console.log('creating ' + meta.data + '/index.id.json')
+		// jsontag parse automatically fills meta.index.id, so no need to create
+		// anything
 		// just store meta.index.id in index.id.json
 		const index = {}
 		for (const key of meta.index.id.keys()) {
@@ -19,7 +20,7 @@ export default {
 			}
 			index[key] = entity[getIndex]
 		}
-		publishFileSync(meta.data+'/index.id.json', JSON.stringify(index))
+		publishFileSync(meta.data + '/index.id.json', JSON.stringify(index))
 	},
 	update(data, meta, changes) {
 		if (!changes.length) {
@@ -32,16 +33,19 @@ export default {
 				index[id] = entry[getIndex]
 			}
 		}
-		publishFileSync(meta.data+'/index.id.'+changes.uuid+'.json', JSON.stringify(index))
+		publishFileSync(
+			meta.data + '/index.id.' + changes.uuid + '.json',
+			JSON.stringify(index)
+		)
 	},
-	load(uuid=null) {
+	load(uuid = null) {
 		let filename
 		if (!uuid) {
 			filename = 'index.id.json'
 		}
 		else {
-			filename = 'index.id.'+filename+'.json'
+			filename = 'index.id.' + filename + '.json'
 		}
-		return JSON.parse(fs.readFileSync(meta.data+filename))
+		return JSON.parse(fs.readFileSync(meta.data + filename))
 	}
 }

@@ -1,42 +1,100 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import JSONTag from '@muze-nl/jsontag'
-import {from, _, anyOf, not} from '@muze-nl/jaqt'
+import { from, _, anyOf, not } from '@muze-nl/jaqt'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
-import {createHash} from 'node:crypto'
-import {assertOdJsonTagFraming, getChangesetPath} from './recovery.mjs'
-import {getDefaultIntegrityFile, loadIntegrityManifest, verifyIntegrity} from './integrity.mjs'
+import { createHash } from 'node:crypto'
+import { assertOdJsonTagFraming, getChangesetPath } from './recovery.mjs'
+import {
+    getDefaultIntegrityFile,
+    loadIntegrityManifest,
+    verifyIntegrity
+} from './integrity.mjs'
 
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex')
-export const validCommandId = id => typeof id === 'string' && id.length > 0 && !/[/\\\0]/.test(id)
+export const validCommandId = id =>
+    typeof id === 'string' && id.length > 0 && !/[/\\\0]/.test(id)
 export function storePaths(options = {}) {
     const datafile = path.resolve(options.datafile || './data.od-jsontag')
-    return {datafile, commandLog: path.resolve(options.commandLog || './command-log.jsontag'),
-        commandStatus: path.resolve(options.commandStatus || './command-status.jsontag'),
-        integrityFile: path.resolve(options.integrityFile || getDefaultIntegrityFile(datafile)),
-        integrity: options.integrity === undefined ? Boolean(options.integrityFile) : Boolean(options.integrity),
-        requiredFiles: (options.requiredFiles || []).map(file => path.resolve(file)),
-        ...(options.schemaFile ? {schemaFile: path.resolve(options.schemaFile)} : {})}
+    let integrity
+    if (options.integrity === undefined) {
+        integrity = Boolean(options.integrityFile)
+    }
+    else {
+        integrity = Boolean(options.integrity)
+    }
+    const config = {
+        datafile,
+        commandLog: path.resolve(options.commandLog || './command-log.jsontag'),
+        commandStatus: path.resolve(
+            options.commandStatus || './command-status.jsontag'
+        ),
+        integrityFile: path.resolve(
+            options.integrityFile || getDefaultIntegrityFile(datafile)
+        ),
+        integrity,
+        requiredFiles: (options.requiredFiles || []).map(file =>
+            path.resolve(file)
+        )
+    }
+    if (options.schemaFile) {
+        config.schemaFile = path.resolve(options.schemaFile)
+    }
+    return config
 }
 export function mutableDirectories(config) {
-    return [...new Set([config.datafile, config.commandLog, config.commandStatus,
-        config.integrityFile, ...config.requiredFiles].map(file => path.dirname(file)))].sort()
+    return [
+        ...new Set(
+            [
+                config.datafile,
+                config.commandLog,
+                config.commandStatus,
+                config.integrityFile,
+                ...config.requiredFiles
+            ].map(file => path.dirname(file))
+        )
+    ].sort()
 }
 export async function inventory(config) {
     const files = {}
-    const expected = new Set([config.datafile,config.commandLog,config.commandStatus,config.integrityFile,...config.requiredFiles,...(config.schemaFile?[config.schemaFile]:[])])
-    const extension = path.extname(config.datafile), stem = path.basename(config.datafile,extension)+'.'
+    const artifacts = [
+        config.datafile,
+        config.commandLog,
+        config.commandStatus,
+        config.integrityFile,
+        ...config.requiredFiles
+    ]
+    if (config.schemaFile) {
+        artifacts.push(config.schemaFile)
+    }
+    const expected = new Set(artifacts)
+    const extension = path.extname(config.datafile),
+        stem = path.basename(config.datafile, extension) + '.'
     for (const directory of mutableDirectories(config)) {
-        const entries = await fs.readdir(directory, {withFileTypes: true})
-        for (const entry of entries.sort((a,b) => a.name.localeCompare(b.name))) {
+        const entries = await fs.readdir(directory, { withFileTypes: true })
+        for (const entry of entries.sort((a, b) =>
+            a.name.localeCompare(b.name)
+        )) {
             if (entry.name === '.simplystore-lock') {
                 continue
             }
             const file = path.join(directory, entry.name)
-            const dataArtifact = directory===path.dirname(config.datafile) && entry.name.startsWith(stem) && (entry.name.endsWith(extension) || entry.name.endsWith('.tmp'))
-            const indexArtifact = directory===path.dirname(config.datafile) && entry.name.startsWith('index.')
-            const temporary = [...expected].some(name=>file.startsWith(name+'.') && file.endsWith('.tmp'))
-            if (!expected.has(file) && !dataArtifact && !indexArtifact && !temporary) {
+            const dataArtifact =
+                directory === path.dirname(config.datafile) &&
+                entry.name.startsWith(stem) &&
+                (entry.name.endsWith(extension) || entry.name.endsWith('.tmp'))
+            const indexArtifact =
+                directory === path.dirname(config.datafile) &&
+                entry.name.startsWith('index.')
+            const temporary = [...expected].some(
+                name => file.startsWith(name + '.') && file.endsWith('.tmp')
+            )
+            if (
+                !expected.has(file) &&
+                !dataArtifact &&
+                !indexArtifact &&
+                !temporary
+            ) {
                 continue
             }
             if (entry.isSymbolicLink()) {
@@ -47,9 +105,15 @@ export async function inventory(config) {
             }
         }
     }
-    for (const file of [config.datafile, config.commandLog, config.commandStatus,
-        ...(config.integrity ? [config.integrityFile] : []), ...config.requiredFiles,
-        ...(config.schemaFile ? [config.schemaFile] : [])]) {
+    const required = [config.datafile, config.commandLog, config.commandStatus]
+    if (config.integrity) {
+        required.push(config.integrityFile)
+    }
+    required.push(...config.requiredFiles)
+    if (config.schemaFile) {
+        required.push(config.schemaFile)
+    }
+    for (const file of required) {
         if (!(file in files)) {
             try {
                 files[file] = hash(await fs.readFile(file))
@@ -62,7 +126,9 @@ export async function inventory(config) {
             }
         }
     }
-    return Object.fromEntries(Object.entries(files).sort(([a],[b]) => a.localeCompare(b)))
+    return Object.fromEntries(
+        Object.entries(files).sort(([a], [b]) => a.localeCompare(b))
+    )
 }
 
 async function records(file, errors, kind) {
@@ -71,7 +137,8 @@ async function records(file, errors, kind) {
         text = await fs.readFile(file, 'utf8')
     }
     catch (error) {
-        errors.push(`${kind}: ${error.message}`); return []
+        errors.push(`${kind}: ${error.message}`)
+        return []
     }
     if (text && !text.endsWith('\n')) {
         errors.push(`${kind}: incomplete final record in ${file}`)
@@ -86,7 +153,7 @@ async function records(file, errors, kind) {
             if (!value || typeof value !== 'object' || Array.isArray(value)) {
                 throw new Error('record is not an object')
             }
-            result.push({value, line, lineNumber: index + 1})
+            result.push({ value, line, lineNumber: index + 1 })
         }
         catch (error) {
             errors.push(`${kind} ${file}:${index + 1}: ${error.message}`)
@@ -95,50 +162,80 @@ async function records(file, errors, kind) {
     return result
 }
 
-// Reads canonical files only; deliberately never imports user handlers/index modules.
+// Reads canonical files only; deliberately never imports user handlers/index
+// modules.
 export async function inspectStore(options = {}) {
     const config = storePaths(options)
-    const errors = [], warnings = []
+    const errors = [],
+        warnings = []
     const configuredPaths = [
         config.datafile,
         config.commandLog,
         config.commandStatus,
         config.integrityFile
     ]
-    const canonicalPaths = await Promise.all(configuredPaths.map(async file => {
-        const directory = await fs.realpath(path.dirname(file))
-        return path.join(directory, path.basename(file))
-    }))
+    const canonicalPaths = await Promise.all(
+        configuredPaths.map(async file => {
+            const directory = await fs.realpath(path.dirname(file))
+            return path.join(directory, path.basename(file))
+        })
+    )
     if (new Set(canonicalPaths).size !== canonicalPaths.length) {
         errors.push('Configured canonical artifact paths overlap')
     }
     const before = await inventory(config)
     const log = await records(config.commandLog, errors, 'command log')
-    const statuses = await records(config.commandStatus, errors, 'command status')
-    const commands = [], byId = new Map()
+    const statuses = await records(
+        config.commandStatus,
+        errors,
+        'command status'
+    )
+    const commands = [],
+        byId = new Map()
     for (const record of log) {
-        const {id, name} = record.value
+        const { id, name } = record.value
         if (!validCommandId(id) || typeof name !== 'string' || !name) {
-            errors.push(`Invalid command at log line ${record.lineNumber}`); continue
+            errors.push(`Invalid command at log line ${record.lineNumber}`)
+            continue
         }
         if (byId.has(id)) {
-            if (JSONTag.stringify(byId.get(id).command) !== JSONTag.stringify(record.value)) {
+            if (
+                JSONTag.stringify(byId.get(id).command) !==
+                JSONTag.stringify(record.value)
+            ) {
                 errors.push(`Conflicting command ID ${id}`)
             }
             continue
         }
-        const command = {id, position: commands.length, command: record.value, line: record.line,
-            history: [], accepted: false, status: null, file: getChangesetPath(config.datafile, id)}
-        byId.set(id, command); commands.push(command)
+        const command = {
+            id,
+            position: commands.length,
+            command: record.value,
+            line: record.line,
+            history: [],
+            accepted: false,
+            status: null,
+            file: getChangesetPath(config.datafile, id)
+        }
+        byId.set(id, command)
+        commands.push(command)
     }
     const doneOrder = new Map()
-    for (const {value, lineNumber} of statuses) {
+    for (const { value, lineNumber } of statuses) {
         const command = byId.get(value.command)
         if (!command) {
-            errors.push(`Status line ${lineNumber} has no logged command: ${value.command}`); continue
+            errors.push(
+                `Status line ${lineNumber} has no logged command: ${value.command}`
+            )
+            continue
         }
-        if (!['accepted', 'active', 'done', 'failed', 'unsafe'].includes(value.status)) {
-            errors.push(`Unknown status for ${command.id}: ${value.status}`); continue
+        if (
+            !['accepted', 'active', 'done', 'failed', 'unsafe'].includes(
+                value.status
+            )
+        ) {
+            errors.push(`Unknown status for ${command.id}: ${value.status}`)
+            continue
         }
         if (value.status === 'accepted') {
             command.accepted = true
@@ -147,9 +244,11 @@ export async function inspectStore(options = {}) {
             errors.push(`No acceptance evidence for ${command.id}`)
         }
         if (value.status === 'done') {
-            doneOrder.delete(command.id); doneOrder.set(command.id, command.position)
+            doneOrder.delete(command.id)
+            doneOrder.set(command.id, command.position)
         }
-        command.history.push(value); command.status = value.status
+        command.history.push(value)
+        command.status = value.status
     }
     let lastDonePosition = -1
     for (const [id, position] of doneOrder) {
@@ -157,17 +256,22 @@ export async function inspectStore(options = {}) {
             continue
         }
         if (position < lastDonePosition) {
-            errors.push(`Committed execution differs from command-log order at ${id}`)
+            errors.push(
+                `Committed execution differs from command-log order at ${id}`
+            )
         }
         lastDonePosition = position
     }
     let manifest
     try {
-        // Preserve optional existence-based compatibility; required integrity is explicit.
+        // Preserve optional existence-based compatibility; required integrity
+        // is explicit.
         const enabled = config.integrity || before[config.integrityFile] != null
         if (enabled) {
             if (before[config.integrityFile] == null) {
-                throw new Error(`Missing integrity manifest ${config.integrityFile}`)
+                throw new Error(
+                    `Missing integrity manifest ${config.integrityFile}`
+                )
             }
             await records(config.integrityFile, errors, 'integrity manifest')
             manifest = await loadIntegrityManifest(config.integrityFile)
@@ -177,13 +281,17 @@ export async function inspectStore(options = {}) {
         errors.push(error.message)
     }
     const parser = new Parser()
-    const buffers = [], committed = []
-    let data, prefixValid = errors.length === 0
+    const buffers = [],
+        committed = []
+    let data,
+        prefixValid = errors.length === 0
     async function validateData(file) {
         const bytes = await fs.readFile(file)
         assertOdJsonTagFraming(bytes, file)
         if (manifest) {
-            verifyIntegrity(manifest, config.integrityFile, file, bytes, {required: true})
+            verifyIntegrity(manifest, config.integrityFile, file, bytes, {
+                required: true
+            })
         }
         return bytes
     }
@@ -192,10 +300,12 @@ export async function inspectStore(options = {}) {
         if (!bytes.length) {
             throw new Error('Empty base dataset')
         }
-        data = parser.parse(bytes); buffers.push(bytes)
+        data = parser.parse(bytes)
+        buffers.push(bytes)
     }
     catch (error) {
-        errors.push(error.message); prefixValid = false
+        errors.push(error.message)
+        prefixValid = false
     }
     for (const command of commands) {
         command.present = before[command.file] != null
@@ -208,7 +318,8 @@ export async function inspectStore(options = {}) {
                 await validateData(command.file)
             }
             catch (error) {
-                command.condition = 'corrupt'; command.problem = error.message
+                command.condition = 'corrupt'
+                command.problem = error.message
             }
         }
         if (command.status === 'done') {
@@ -219,14 +330,20 @@ export async function inspectStore(options = {}) {
             else if (prefixValid) {
                 try {
                     const bytes = await validateData(command.file)
-                    data = parser.parse(bytes); buffers.push(bytes); committed.push(command.id)
+                    data = parser.parse(bytes)
+                    buffers.push(bytes)
+                    committed.push(command.id)
                 }
                 catch (error) {
-                    command.problem = error.message; prefixValid = false
+                    command.problem = error.message
+                    prefixValid = false
                 }
             }
         }
-        else if (command.status === 'accepted' || command.status === 'active') {
+        else if (
+            command.status === 'accepted' ||
+            command.status === 'active'
+        ) {
             prefixValid = false
         }
         const laterDatasets = from(commands)
@@ -238,10 +355,18 @@ export async function inspectStore(options = {}) {
             .select(_.id)
         command.laterDatasets = [...laterDatasets]
     }
-    const extension = path.extname(config.datafile), stem = path.basename(config.datafile, extension) + '.'
+    const extension = path.extname(config.datafile),
+        stem = path.basename(config.datafile, extension) + '.'
     const known = new Set(commands.map(command => command.file))
     for (const file of Object.keys(before)) {
-        if (path.dirname(file) === path.dirname(config.datafile) && path.basename(file).startsWith(stem) && file.endsWith(extension) && file !== config.datafile && file !== config.integrityFile && !known.has(file)) {
+        if (
+            path.dirname(file) === path.dirname(config.datafile) &&
+            path.basename(file).startsWith(stem) &&
+            file.endsWith(extension) &&
+            file !== config.datafile &&
+            file !== config.integrityFile &&
+            !known.has(file)
+        ) {
             errors.push(`Unexplained changeset: ${file}`)
         }
     }
@@ -255,13 +380,25 @@ export async function inspectStore(options = {}) {
         errors.push('Store changed during inspection')
     }
     const commandQuery = from(commands)
-    const pending = commandQuery.where({status: anyOf('accepted', 'active')})
-    const damaged = commandQuery.where(anyOf(
-        {problem: Boolean},
-        {present: Boolean, status: not('done')}
-    ))
-    const ready = errors.length === 0 && pending.length === 0 && damaged.length === 0
-    warnings.push('History completeness and original code/hidden inputs require independent administrator evidence; current files alone cannot prove them.')
-    return {config, files: before, fingerprint: hash(JSON.stringify(before)), errors, warnings,
-        commands, committed, ready, data, buffers}
+    const pending = commandQuery.where({ status: anyOf('accepted', 'active') })
+    const damaged = commandQuery.where(
+        anyOf({ problem: Boolean }, { present: Boolean, status: not('done') })
+    )
+    const ready =
+        errors.length === 0 && pending.length === 0 && damaged.length === 0
+    warnings.push(
+        'History completeness and original code/hidden inputs require independent administrator evidence; current files alone cannot prove them.'
+    )
+    return {
+        config,
+        files: before,
+        fingerprint: hash(JSON.stringify(before)),
+        errors,
+        warnings,
+        commands,
+        committed,
+        ready,
+        data,
+        buffers
+    }
 }

@@ -10,7 +10,9 @@ import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import { getChangesetPath } from '../src/recovery.mjs'
 
-export const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
+export const rootDir = path.dirname(
+	path.dirname(fileURLToPath(import.meta.url))
+)
 const serverModule = path.join(rootDir, 'src/server.mjs')
 
 export async function getOpenPort() {
@@ -26,7 +28,7 @@ export async function getOpenPort() {
 
 export async function makeServerFixture(t, options = {}) {
 	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-crash-'))
-	t.after(() => fs.rm(dir, {recursive: true, force: true}))
+	t.after(() => fs.rm(dir, { recursive: true, force: true }))
 
 	const datafile = path.join(dir, 'data.jsontag')
 	const commandsFile = path.join(dir, 'commands.mjs')
@@ -37,21 +39,43 @@ export async function makeServerFixture(t, options = {}) {
 
 	await fs.writeFile(commandLog, '')
 	await fs.writeFile(commandStatus, '')
-	await fs.writeFile(datafile, serialize(JSONTag.parse(options.initialData || '{"persons":[]}')))
-	await fs.writeFile(commandsFile, options.commandsSource || `export default {
+	await fs.writeFile(
+		datafile,
+		serialize(JSONTag.parse(options.initialData || '{"persons":[]}'))
+	)
+	await fs.writeFile(
+		commandsFile,
+		options.commandsSource ||
+			`export default {
 	addPerson: (dataspace, command) => {
 		dataspace.persons.push(command.value)
 	}
 }
-`)
-	await fs.writeFile(indexFile, options.indexSource || 'export default { create() {}, update() {}, load() { return {} } }\n')
-	await fs.writeFile(runner, `import SimplyStore from ${JSON.stringify(serverModule)}
+`
+	)
+	await fs.writeFile(
+		indexFile,
+		options.indexSource ||
+			'export default { create() {}, update() {}, load() { return {} } }\n'
+	)
+	await fs.writeFile(
+		runner,
+		`import SimplyStore from ${JSON.stringify(serverModule)}
 
 const options = JSON.parse(process.env.SIMPLYSTORE_TEST_OPTIONS)
 SimplyStore.run(options)
-`)
+`
+	)
 
-	return {dir, datafile, commandsFile, indexFile, commandLog, commandStatus, runner}
+	return {
+		dir,
+		datafile,
+		commandsFile,
+		indexFile,
+		commandLog,
+		commandStatus,
+		runner
+	}
 }
 
 export function startServer(t, fixture, options = {}) {
@@ -91,7 +115,7 @@ export function startServer(t, fixture, options = {}) {
 
 	t.after(() => stopServer(child))
 
-	return {child, getOutput: () => output}
+	return { child, getOutput: () => output }
 }
 
 export async function stopServer(child) {
@@ -107,12 +131,20 @@ export async function waitForServer(child, getOutput, port) {
 		const timeout = setTimeout(() => {
 			finished = true
 			child.off('exit', onExit)
-			reject(new Error(`Server did not start on port ${port}:\n${getOutput()}`))
+			reject(
+				new Error(
+					`Server did not start on port ${port}:\n${getOutput()}`
+				)
+			)
 		}, 5000)
 		const onExit = (code, signal) => {
 			clearTimeout(timeout)
 			finished = true
-			reject(new Error(`Server exited before startup (${code || signal}):\n${getOutput()}`))
+			reject(
+				new Error(
+					`Server exited before startup (${code || signal}):\n${getOutput()}`
+				)
+			)
 		}
 		const checkReady = () => {
 			if (finished) {
@@ -135,7 +167,7 @@ export async function waitForServer(child, getOutput, port) {
 export async function waitForExit(child, timeoutMs = 5000) {
 	return new Promise((resolve, reject) => {
 		if (child.exitCode !== null || child.signalCode) {
-			resolve({code: child.exitCode, signal: child.signalCode})
+			resolve({ code: child.exitCode, signal: child.signalCode })
 			return
 		}
 		const timeout = setTimeout(() => {
@@ -144,7 +176,7 @@ export async function waitForExit(child, timeoutMs = 5000) {
 		}, timeoutMs)
 		const onExit = (code, signal) => {
 			clearTimeout(timeout)
-			resolve({code, signal})
+			resolve({ code, signal })
 		}
 		child.once('exit', onExit)
 	})
@@ -172,20 +204,27 @@ export async function queryPersons(port) {
 		signal: AbortSignal.timeout(5000)
 	})
 	if (!response.ok) {
-		throw new Error(`Query failed with ${response.status}: ${await response.text()}`)
+		throw new Error(
+			`Query failed with ${response.status}: ${await response.text()}`
+		)
 	}
 	return JSONTag.parse(await response.text())
 }
 
 export async function getCommandStatus(port, commandId) {
-	const response = await fetch(`http://127.0.0.1:${port}/command/${commandId}`, {
-		headers: {
-			accept: 'application/json'
-		},
-		signal: AbortSignal.timeout(5000)
-	})
+	const response = await fetch(
+		`http://127.0.0.1:${port}/command/${commandId}`,
+		{
+			headers: {
+				accept: 'application/json'
+			},
+			signal: AbortSignal.timeout(5000)
+		}
+	)
 	if (!response.ok) {
-		throw new Error(`Command status failed with ${response.status}: ${await response.text()}`)
+		throw new Error(
+			`Command status failed with ${response.status}: ${await response.text()}`
+		)
 	}
 	return response.json()
 }
@@ -230,7 +269,9 @@ export async function reconstructCommittedDataset(fixture) {
 		if (applied.has(command.id) || finalStatus.get(command.id) !== 'done') {
 			continue
 		}
-		data = parser.parse(await fs.readFile(getChangesetPath(fixture.datafile, command.id)))
+		data = parser.parse(
+			await fs.readFile(getChangesetPath(fixture.datafile, command.id))
+		)
 		applied.add(command.id)
 	}
 	return data
@@ -243,11 +284,17 @@ export async function reconstructCommittedPersonNames(fixture) {
 
 // Explicit administrator action in disposable fixtures whose writer has exited.
 export async function unlockStoppedFixture(t, fixture) {
-	const {releaseOfflineLocks} = await import('../src/admin-recovery.mjs')
-	const {publishFile} = await import('../src/storage.mjs')
-	const audit = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-unlock-audit-'))
-	t.after(() => fs.rm(audit, {recursive:true,force:true}))
-	const release = await releaseOfflineLocks(fixture, {operator:'test administrator',reason:'Fixture writer has exited; inspect before startup',confirmedStopped:true})
-	await publishFile(path.join(audit,'release.json'),JSON.stringify(release))
+	const { releaseOfflineLocks } = await import('../src/admin-recovery.mjs')
+	const { publishFile } = await import('../src/storage.mjs')
+	const audit = await fs.mkdtemp(
+		path.join(os.tmpdir(), 'simplystore-unlock-audit-')
+	)
+	t.after(() => fs.rm(audit, { recursive: true, force: true }))
+	const release = await releaseOfflineLocks(fixture, {
+		operator: 'test administrator',
+		reason: 'Fixture writer has exited; inspect before startup',
+		confirmedStopped: true
+	})
+	await publishFile(path.join(audit, 'release.json'), JSON.stringify(release))
 	await release.finish()
 }

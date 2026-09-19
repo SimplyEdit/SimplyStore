@@ -9,10 +9,11 @@ export const defaultMaxCommandCrashAttempts = 2
 
 export class RecoveryIntegrityError extends Error {
 	constructor(message, options = {}) {
-		const location = options.file && options.lineNumber
-			? ` (${options.file}:${options.lineNumber})`
-			: ''
-		super(`${message}${location}`, {cause: options.cause})
+		let location = ''
+		if (options.file && options.lineNumber) {
+			location = ` (${options.file}:${options.lineNumber})`
+		}
+		super(`${message}${location}`, { cause: options.cause })
 		this.name = 'RecoveryIntegrityError'
 		this.file = options.file
 		this.lineNumber = options.lineNumber
@@ -40,11 +41,14 @@ function parseDurableRecord(file, line, lineNumber, recordKind) {
 
 function assertStringField(record, field, file, lineNumber, recordKind) {
 	if (typeof record[field] !== 'string' || record[field] === '') {
-		throw new RecoveryIntegrityError(`Invalid ${recordKind} record: missing string field "${field}"`, {
-			file,
-			lineNumber,
-			recordKind
-		})
+		throw new RecoveryIntegrityError(
+			`Invalid ${recordKind} record: missing string field "${field}"`,
+			{
+				file,
+				lineNumber,
+				recordKind
+			}
+		)
 	}
 }
 
@@ -53,14 +57,31 @@ export function loadCommandStatus(commandStatusFile, logger = console) {
 	if (fs.existsSync(commandStatusFile)) {
 		const file = fs.readFileSync(commandStatusFile, 'utf-8')
 		if (file) {
-			const lines = file.split("\n")
+			const lines = file.split('\n')
 			for (const [index, line] of lines.entries()) {
 				if (!line) {
 					continue
 				}
-				const command = parseDurableRecord(commandStatusFile, line, index + 1, 'command status')
-				assertStringField(command, 'command', commandStatusFile, index + 1, 'command status')
-				assertStringField(command, 'status', commandStatusFile, index + 1, 'command status')
+				const command = parseDurableRecord(
+					commandStatusFile,
+					line,
+					index + 1,
+					'command status'
+				)
+				assertStringField(
+					command,
+					'command',
+					commandStatusFile,
+					index + 1,
+					'command status'
+				)
+				assertStringField(
+					command,
+					'status',
+					commandStatusFile,
+					index + 1,
+					'command status'
+				)
 				status.set(command.command, command)
 			}
 		}
@@ -88,20 +109,34 @@ export function loadCommandLog(status, commandLog, taskDefaults = {}) {
 	const queuedCommandIds = new Set()
 	const log = fs.readFileSync(commandLog, 'utf-8')
 	if (log) {
-		const lines = log.split("\n")
+		const lines = log.split('\n')
 		for (const [index, line] of lines.entries()) {
 			if (!line) {
 				continue
 			}
-			const command = parseDurableRecord(commandLog, line, index + 1, 'command log')
-			assertStringField(command, 'id', commandLog, index + 1, 'command log')
+			const command = parseDurableRecord(
+				commandLog,
+				line,
+				index + 1,
+				'command log'
+			)
+			assertStringField(
+				command,
+				'id',
+				commandLog,
+				index + 1,
+				'command log'
+			)
 			const state = status.get(command.id)?.status
-			if (state === pendingCommandStatus && !queuedCommandIds.has(command.id)) {
+			if (
+				state === pendingCommandStatus &&
+				!queuedCommandIds.has(command.id)
+			) {
 				queuedCommandIds.add(command.id)
 				commands.push({
 					...taskDefaults,
 					id: command.id,
-					command: line,
+					command: line
 				})
 			}
 		}
@@ -118,8 +153,14 @@ function readAttempt(record, fallback = 1) {
 }
 
 export async function recoverActiveCommands(status) {
-	if ([...status.values()].some(command => command?.status === activeCommandStatus)) {
-		throw new RecoveryIntegrityError('Active command requires administrator assessment; automatic rerun is disabled')
+	if (
+		[...status.values()].some(
+			command => command?.status === activeCommandStatus
+		)
+	) {
+		throw new RecoveryIntegrityError(
+			'Active command requires administrator assessment; automatic rerun is disabled'
+		)
 	}
 	return status
 }
@@ -135,27 +176,44 @@ export function nextActiveCommandStatus(commandId, currentStatus) {
 
 export function getChangesetPath(dataFile, commandId) {
 	const extension = dataFile.split('.').pop()
-	const basefile = dataFile.substring(0, dataFile.length - (extension.length + 1))
+	const basefile = dataFile.substring(
+		0,
+		dataFile.length - (extension.length + 1)
+	)
 	return `${basefile}.${commandId}.${extension}`
 }
 
 export function assertChangesetExists(dataFile, commandId) {
 	const changesetPath = getChangesetPath(dataFile, commandId)
 	if (!fs.existsSync(changesetPath)) {
-		throw new Error(`Missing changeset for committed command ${commandId}: ${changesetPath}`)
+		throw new Error(
+			`Missing changeset for committed command ${commandId}: ${changesetPath}`
+		)
 	}
 	return changesetPath
 }
 
-export function assertOdJsonTagFraming(buffer, file, recordKind = 'OD-JSONTag data') {
+export function assertOdJsonTagFraming(
+	buffer,
+	file,
+	recordKind = 'OD-JSONTag data'
+) {
 	scanOdJsonTagRecords(buffer, file, recordKind)
 }
 
-export function scanOdJsonTagRecords(buffer, file, recordKind = 'OD-JSONTag data', onRecord) {
+export function scanOdJsonTagRecords(
+	buffer,
+	file,
+	recordKind = 'OD-JSONTag data',
+	onRecord
+) {
 	let offset = 0
 	let record = 0
 	while (offset < buffer.length) {
-		while (offset < buffer.length && (buffer[offset] === 10 || buffer[offset] === 13)) {
+		while (
+			offset < buffer.length &&
+			(buffer[offset] === 10 || buffer[offset] === 13)
+		) {
 			offset++
 		}
 		if (offset >= buffer.length) {
@@ -164,43 +222,74 @@ export function scanOdJsonTagRecords(buffer, file, recordKind = 'OD-JSONTag data
 		if (buffer[offset] === 43) {
 			offset++
 			const skipStart = offset
-			while (offset < buffer.length && buffer[offset] >= 48 && buffer[offset] <= 57) {
+			while (
+				offset < buffer.length &&
+				buffer[offset] >= 48 &&
+				buffer[offset] <= 57
+			) {
 				offset++
 			}
-			if (offset === skipStart || (offset < buffer.length && buffer[offset] !== 10 && buffer[offset] !== 13)) {
-				throw new RecoveryIntegrityError(`Invalid ${recordKind}: malformed skip record`, {
-					file,
-					recordKind
-				})
+			if (
+				offset === skipStart ||
+				(offset < buffer.length &&
+					buffer[offset] !== 10 &&
+					buffer[offset] !== 13)
+			) {
+				throw new RecoveryIntegrityError(
+					`Invalid ${recordKind}: malformed skip record`,
+					{
+						file,
+						recordKind
+					}
+				)
 			}
-			record += Number.parseInt(buffer.subarray(skipStart, offset).toString('utf8'), 10)
+			record += Number.parseInt(
+				buffer.subarray(skipStart, offset).toString('utf8'),
+				10
+			)
 			continue
 		}
 		if (buffer[offset] !== 40) {
-			throw new RecoveryIntegrityError(`Invalid ${recordKind}: expected record length`, {
-				file,
-				recordKind
-			})
+			throw new RecoveryIntegrityError(
+				`Invalid ${recordKind}: expected record length`,
+				{
+					file,
+					recordKind
+				}
+			)
 		}
 		offset++
 		const lengthStart = offset
-		while (offset < buffer.length && buffer[offset] >= 48 && buffer[offset] <= 57) {
+		while (
+			offset < buffer.length &&
+			buffer[offset] >= 48 &&
+			buffer[offset] <= 57
+		) {
 			offset++
 		}
 		if (offset === lengthStart || buffer[offset] !== 41) {
-			throw new RecoveryIntegrityError(`Invalid ${recordKind}: malformed record length`, {
-				file,
-				recordKind
-			})
+			throw new RecoveryIntegrityError(
+				`Invalid ${recordKind}: malformed record length`,
+				{
+					file,
+					recordKind
+				}
+			)
 		}
-		const payloadLength = Number.parseInt(buffer.subarray(lengthStart, offset).toString('utf8'), 10)
+		const payloadLength = Number.parseInt(
+			buffer.subarray(lengthStart, offset).toString('utf8'),
+			10
+		)
 		offset++
 		const payloadEnd = offset + payloadLength
 		if (payloadEnd > buffer.length) {
-			throw new RecoveryIntegrityError(`Invalid ${recordKind}: truncated record payload`, {
-				file,
-				recordKind
-			})
+			throw new RecoveryIntegrityError(
+				`Invalid ${recordKind}: truncated record payload`,
+				{
+					file,
+					recordKind
+				}
+			)
 		}
 		onRecord?.(record++, offset, payloadEnd)
 		offset = payloadEnd

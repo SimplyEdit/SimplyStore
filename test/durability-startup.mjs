@@ -9,7 +9,10 @@ import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import { appendIntegrityRecord, getDefaultIntegrityFile } from '../src/integrity.mjs'
+import {
+	appendIntegrityRecord,
+	getDefaultIntegrityFile
+} from '../src/integrity.mjs'
 import {
 	getCommittedCommandIds,
 	getChangesetPath,
@@ -17,7 +20,7 @@ import {
 	loadCommandLog,
 	loadCommandStatus,
 	recoverActiveCommands,
-	RecoveryIntegrityError,
+	RecoveryIntegrityError
 } from '../src/recovery.mjs'
 
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -29,21 +32,29 @@ function parseOd(buffer) {
 }
 
 async function makeFixture(t) {
-	const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-durability-'))
-	t.after(() => fs.rm(dir, {recursive: true, force: true}))
+	const dir = await fs.mkdtemp(
+		path.join(os.tmpdir(), 'simplystore-durability-')
+	)
+	t.after(() => fs.rm(dir, { recursive: true, force: true }))
 
 	const dataFile = path.join(dir, 'data.jsontag')
 	const indexFile = path.join(dir, 'index.mjs')
 	const base = serialize(JSONTag.parse('{"persons":[]}'))
 
 	await fs.writeFile(dataFile, base)
-	await fs.writeFile(indexFile, 'export default { create() {}, update() {}, load() { return {} } }\n')
+	await fs.writeFile(
+		indexFile,
+		'export default { create() {}, update() {}, load() { return {} } }\n'
+	)
 
-	return {dir, dataFile, indexFile}
+	return { dir, dataFile, indexFile }
 }
 
 async function writeJsonTagLines(file, records) {
-	await fs.writeFile(file, records.map(record => JSONTag.stringify(record)).join('\n') + '\n')
+	await fs.writeFile(
+		file,
+		records.map(record => JSONTag.stringify(record)).join('\n') + '\n'
+	)
 }
 
 async function writeChangeset(dataFile, commandId, change) {
@@ -54,14 +65,26 @@ async function writeChangeset(dataFile, commandId, change) {
 	change(data)
 
 	const extension = dataFile.split('.').pop()
-	const basefile = dataFile.substring(0, dataFile.length - (extension.length + 1))
-	await fs.writeFile(`${basefile}.${commandId}.${extension}`, serialize(data, {
-		meta: parser.meta,
-		changes: true
-	}))
+	const basefile = dataFile.substring(
+		0,
+		dataFile.length - (extension.length + 1)
+	)
+	await fs.writeFile(
+		`${basefile}.${commandId}.${extension}`,
+		serialize(data, {
+			meta: parser.meta,
+			changes: true
+		})
+	)
 }
 
-function loadDataset({dataFile, indexFile, commands, integrityFile = null, integrityRequired = false}) {
+function loadDataset({
+	dataFile,
+	indexFile,
+	commands,
+	integrityFile = null,
+	integrityRequired = false
+}) {
 	return new Promise((resolve, reject) => {
 		const worker = new Worker(loadWorker)
 		worker.on('message', result => {
@@ -90,11 +113,14 @@ async function writeIntegrityEntry(integrityFile, file) {
 test('accepted command changeset is not treated as committed state on startup', async t => {
 	const fixture = await makeFixture(t)
 	await writeChangeset(fixture.dataFile, 'accepted-command', data => {
-		data.persons.push({name: 'Ada'})
+		data.persons.push({ name: 'Ada' })
 	})
 
 	const status = new Map([
-		['accepted-command', {command: 'accepted-command', code: 202, status: 'accepted'}]
+		[
+			'accepted-command',
+			{ command: 'accepted-command', code: 202, status: 'accepted' }
+		]
 	])
 	const result = await loadDataset({
 		...fixture,
@@ -102,13 +128,24 @@ test('accepted command changeset is not treated as committed state on startup', 
 	})
 	const data = parseOd(result.data)
 
-	assert.equal(data.persons.length, 0, 'accepted-but-not-done changesets must not become visible after restart')
+	assert.equal(
+		data.persons.length,
+		0,
+		'accepted-but-not-done changesets must not become visible after restart'
+	)
 })
 
 test('done command with missing changeset refuses recovery instead of silently using base data', async t => {
 	const fixture = await makeFixture(t)
 	const status = new Map([
-		['done-command-with-missing-changeset', {command: 'done-command-with-missing-changeset', code: 200, status: 'done'}]
+		[
+			'done-command-with-missing-changeset',
+			{
+				command: 'done-command-with-missing-changeset',
+				code: 200,
+				status: 'done'
+			}
+		]
 	])
 
 	await assert.rejects(
@@ -137,9 +174,15 @@ test('malformed base OD-JSONTag file refuses recovery', async t => {
 test('malformed committed changeset refuses recovery', async t => {
 	const fixture = await makeFixture(t)
 	const status = new Map([
-		['malformed-changeset', {command: 'malformed-changeset', code: 200, status: 'done'}]
+		[
+			'malformed-changeset',
+			{ command: 'malformed-changeset', code: 200, status: 'done' }
+		]
 	])
-	await fs.writeFile(getChangesetPath(fixture.dataFile, 'malformed-changeset'), '{"persons":[{"name":"Bad"}]}')
+	await fs.writeFile(
+		getChangesetPath(fixture.dataFile, 'malformed-changeset'),
+		'{"persons":[{"name":"Bad"}]}'
+	)
 
 	await assert.rejects(
 		loadDataset({
@@ -154,14 +197,17 @@ test('truncated committed changeset payload refuses recovery before lazy parsing
 	const fixture = await makeFixture(t)
 	const commandId = 'truncated-changeset'
 	const status = new Map([
-		[commandId, {command: commandId, code: 200, status: 'done'}]
+		[commandId, { command: commandId, code: 200, status: 'done' }]
 	])
 	await writeChangeset(fixture.dataFile, commandId, data => {
-		data.persons.push({name: 'Truncated'})
+		data.persons.push({ name: 'Truncated' })
 	})
 	const changesetPath = getChangesetPath(fixture.dataFile, commandId)
 	const changeset = await fs.readFile(changesetPath)
-	await fs.writeFile(changesetPath, changeset.subarray(0, changeset.length - 3))
+	await fs.writeFile(
+		changesetPath,
+		changeset.subarray(0, changeset.length - 3)
+	)
 
 	await assert.rejects(
 		loadDataset({
@@ -174,9 +220,15 @@ test('truncated committed changeset payload refuses recovery before lazy parsing
 
 test('malformed uncommitted changeset is ignored during committed startup reconstruction', async t => {
 	const fixture = await makeFixture(t)
-	await fs.writeFile(getChangesetPath(fixture.dataFile, 'accepted-command'), '{"persons":[{"name":"Ignored"}]}')
+	await fs.writeFile(
+		getChangesetPath(fixture.dataFile, 'accepted-command'),
+		'{"persons":[{"name":"Ignored"}]}'
+	)
 	const status = new Map([
-		['accepted-command', {command: 'accepted-command', code: 202, status: 'accepted'}]
+		[
+			'accepted-command',
+			{ command: 'accepted-command', code: 202, status: 'accepted' }
+		]
 	])
 
 	const result = await loadDataset({
@@ -193,18 +245,18 @@ test('durable status file selects only done command changesets for startup', asy
 	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
 
 	await writeChangeset(fixture.dataFile, 'accepted-command', data => {
-		data.persons.push({name: 'Accepted'})
+		data.persons.push({ name: 'Accepted' })
 	})
 	await writeChangeset(fixture.dataFile, 'done-command', data => {
-		data.persons.push({name: 'Done'})
+		data.persons.push({ name: 'Done' })
 	})
 
 	await writeJsonTagLines(statusFile, [
-		{command: 'accepted-command', code: 202, status: 'accepted'},
-		{command: 'done-command', code: 202, status: 'accepted'},
-		{command: 'done-command', code: 200, status: 'done'},
-		{command: 'failed-command', code: 202, status: 'accepted'},
-		{command: 'failed-command', code: 500, status: 'failed'}
+		{ command: 'accepted-command', code: 202, status: 'accepted' },
+		{ command: 'done-command', code: 202, status: 'accepted' },
+		{ command: 'done-command', code: 200, status: 'done' },
+		{ command: 'failed-command', code: 202, status: 'accepted' },
+		{ command: 'failed-command', code: 500, status: 'failed' }
 	])
 
 	const status = loadCommandStatus(statusFile)
@@ -214,7 +266,10 @@ test('durable status file selects only done command changesets for startup', asy
 	})
 	const data = parseOd(result.data)
 
-	assert.deepEqual(data.persons.map(person => person.name), ['Done'])
+	assert.deepEqual(
+		data.persons.map(person => person.name),
+		['Done']
+	)
 })
 
 test('durable command log replays only accepted commands', async t => {
@@ -223,18 +278,22 @@ test('durable command log replays only accepted commands', async t => {
 	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
 
 	await writeJsonTagLines(statusFile, [
-		{command: 'accepted-command', code: 202, status: 'accepted'},
-		{command: 'done-command', code: 200, status: 'done'},
-		{command: 'failed-command', code: 500, status: 'failed'}
+		{ command: 'accepted-command', code: 202, status: 'accepted' },
+		{ command: 'done-command', code: 200, status: 'done' },
+		{ command: 'failed-command', code: 500, status: 'failed' }
 	])
 	await writeJsonTagLines(commandLog, [
-		{id: 'accepted-command', name: 'addPerson', value: {name: 'Accepted'}},
-		{id: 'done-command', name: 'addPerson', value: {name: 'Done'}},
-		{id: 'failed-command', name: 'addPerson', value: {name: 'Failed'}}
+		{
+			id: 'accepted-command',
+			name: 'addPerson',
+			value: { name: 'Accepted' }
+		},
+		{ id: 'done-command', name: 'addPerson', value: { name: 'Done' } },
+		{ id: 'failed-command', name: 'addPerson', value: { name: 'Failed' } }
 	])
 
 	const taskDefaults = {
-		meta: {source: 'test-meta'},
+		meta: { source: 'test-meta' },
 		data: ['test-data'],
 		commandsFile: '/commands.mjs',
 		indexFile: '/index.mjs',
@@ -248,7 +307,11 @@ test('durable command log replays only accepted commands', async t => {
 	assert.deepEqual(commands[0], {
 		...taskDefaults,
 		id: 'accepted-command',
-		command: JSONTag.stringify({id: 'accepted-command', name: 'addPerson', value: {name: 'Accepted'}}),
+		command: JSONTag.stringify({
+			id: 'accepted-command',
+			name: 'addPerson',
+			value: { name: 'Accepted' }
+		})
 	})
 	assert.equal(JSONTag.parse(commands[0].command).name, 'addPerson')
 })
@@ -257,12 +320,17 @@ for (const attempt of [1, 2]) {
 	test(`active command at attempt ${attempt} remains unchanged pending administrator assessment`, async t => {
 		const fixture = await makeFixture(t)
 		const file = path.join(fixture.dir, 'status.jsontag')
-		await writeJsonTagLines(file, [{command:'A',status:'active',attempt}])
+		await writeJsonTagLines(file, [
+			{ command: 'A', status: 'active', attempt }
+		])
 		const before = await fs.readFile(file)
 		const status = loadCommandStatus(file)
-		await assert.rejects(recoverActiveCommands(status,file,{maxCrashAttempts:2}), /administrator assessment/)
-		assert.equal(status.get('A').status,'active')
-		assert.deepEqual(await fs.readFile(file),before)
+		await assert.rejects(
+			recoverActiveCommands(status, file, { maxCrashAttempts: 2 }),
+			/administrator assessment/
+		)
+		assert.equal(status.get('A').status, 'active')
+		assert.deepEqual(await fs.readFile(file), before)
 	})
 }
 
@@ -289,9 +357,7 @@ test('malformed durable status record refuses recovery with explicit integrity e
 test('structurally invalid durable status record refuses recovery', async t => {
 	const fixture = await makeFixture(t)
 	const statusFile = path.join(fixture.dir, 'command-status.jsontag')
-	await writeJsonTagLines(statusFile, [
-		{code: 202, status: 'accepted'}
-	])
+	await writeJsonTagLines(statusFile, [{ code: 202, status: 'accepted' }])
 
 	let error
 	try {
@@ -334,7 +400,7 @@ test('structurally invalid durable command log record refuses recovery', async t
 	const commandLog = path.join(fixture.dir, 'command-log.jsontag')
 	const status = new Map()
 	await writeJsonTagLines(commandLog, [
-		{name: 'addPerson', value: {name: 'No id'}}
+		{ name: 'addPerson', value: { name: 'No id' } }
 	])
 
 	let error
@@ -353,11 +419,18 @@ test('structurally invalid durable command log record refuses recovery', async t
 })
 
 test('OD-JSONTag framing validation catches truncated lazy records', () => {
-	const buffer = Buffer.from('(16){"persons":[~1]}\n(14){"name":"Ada"', 'utf8')
+	const buffer = Buffer.from(
+		'(16){"persons":[~1]}\n(14){"name":"Ada"',
+		'utf8'
+	)
 
 	let error
 	try {
-		assertOdJsonTagFraming(buffer, 'data.truncated.jsontag', 'changeset OD-JSONTag data')
+		assertOdJsonTagFraming(
+			buffer,
+			'data.truncated.jsontag',
+			'changeset OD-JSONTag data'
+		)
 	}
 	catch (caught) {
 		error = caught
@@ -370,10 +443,17 @@ test('OD-JSONTag framing validation catches truncated lazy records', () => {
 })
 
 test('OD-JSONTag framing validation accepts changeset skip records', () => {
-	const buffer = Buffer.from('(18){"persons":[~1-2]}\n+1\n(15){"name":"Once"}', 'utf8')
+	const buffer = Buffer.from(
+		'(18){"persons":[~1-2]}\n+1\n(15){"name":"Once"}',
+		'utf8'
+	)
 
 	assert.doesNotThrow(() => {
-		assertOdJsonTagFraming(buffer, 'data.patch.jsontag', 'changeset OD-JSONTag data')
+		assertOdJsonTagFraming(
+			buffer,
+			'data.patch.jsontag',
+			'changeset OD-JSONTag data'
+		)
 	})
 })
 
@@ -400,12 +480,12 @@ test('integrity manifest detects same-length altered committed changeset payload
 	const fixture = await makeFixture(t)
 	const commandId = 'tampered-changeset'
 	const status = new Map([
-		[commandId, {command: commandId, code: 200, status: 'done'}]
+		[commandId, { command: commandId, code: 200, status: 'done' }]
 	])
 	const integrityFile = getDefaultIntegrityFile(fixture.dataFile)
 	await writeIntegrityEntry(integrityFile, fixture.dataFile)
 	await writeChangeset(fixture.dataFile, commandId, data => {
-		data.persons.push({name: 'Ada'})
+		data.persons.push({ name: 'Ada' })
 	})
 	const changesetPath = getChangesetPath(fixture.dataFile, commandId)
 	await writeIntegrityEntry(integrityFile, changesetPath)

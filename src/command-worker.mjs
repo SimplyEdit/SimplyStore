@@ -8,8 +8,12 @@ parentPort.on('message', async data => {
         result = await runCommand(data.command)
     }
     catch (error) {
-        result = {status: 'failed', code: 500, message: error.message,
-            storageFailure: Boolean(error.storageFailure)}
+        result = {
+            status: 'failed',
+            code: 500,
+            message: error.message,
+            storageFailure: Boolean(error.storageFailure)
+        }
     }
     parentPort.postMessage(result)
 })
