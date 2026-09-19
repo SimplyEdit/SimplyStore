@@ -71,8 +71,24 @@ async function verifyOffsets({ dir, output }) {
 		payloads.length,
 		'no missing or extra offsets'
 	)
-	return { payloads, data: new Parser('').parse(bytes.toString('utf8')) }
+	return { payloads, data: new Parser().parse(bytes.toString('utf8')) }
 }
+
+test('conversion supports the example dataset and its URL values', async t => {
+	const files = await fixture(t)
+	await fs.copyFile(
+		new URL('../example/swdb.jsontag', import.meta.url),
+		files.input
+	)
+	await convert(files)
+	const { data } = await verifyOffsets(files)
+	assert.equal(String(data.people[0].name), 'Luke Skywalker')
+	assert.equal(
+		String(data.people[0].homeworld.url),
+		'http://swapi.co/api/planets/1/'
+	)
+	assert.equal(String(data.planets[0].url), 'http://swapi.co/api/planets/2/')
+})
 
 test('default conversion offsets match every final record', async t => {
 	const files = await fixture(t)

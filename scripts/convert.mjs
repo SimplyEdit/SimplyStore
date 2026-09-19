@@ -81,7 +81,8 @@ async function main() {
 
 	// indexes need the position data which is only available after
 	// parsing the od-jsontag data
-	const parser = new Parser('', false) // allow mutations
+	// Keep the default URL base and allow index mutations.
+	const parser = new Parser(undefined, false)
 	const odData = parser.parse(strData)
 
 	let meta = {
@@ -124,4 +125,7 @@ async function main() {
 	console.log('Converted data written to ', outputFile)
 }
 
-main()
+main().catch(error => {
+	console.error('Conversion failed:', error)
+	process.exitCode = 1
+})

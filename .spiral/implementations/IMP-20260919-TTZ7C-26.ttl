@@ -17,6 +17,9 @@ project:IMP-20260919-TTZ7C-26 a sd:Implementation ;
     sd:implementationLocation "src/index.id.mjs" ;
     sd:implementationLocation "src/recovery.mjs" ;
     sd:implementationLocation "scripts/convert.mjs" ;
+    sd:implementationLocation "example/package.json" ;
+    sd:implementationLocation "example/README.md" ;
+    sd:implementationLocation "test/conversion-offsets.mjs" ;
     sd:implementationLocation "scripts/recover.mjs" ;
     sd:implementationLocation "scripts/power-loss-vm/exercise.py" ;
     sd:implementationLocation "test/power-loss-baseline.mjs" ;
@@ -30,6 +33,6 @@ project:IMP-20260919-TTZ7C-26 a sd:Implementation ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-003 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260917-TTZ7C-14 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260819-09ZEF-7 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260919-TTZ7C-18 ; sd:gitCommit "f14d13e2bf4b0f6ab3afeea7e9900ef60488590e" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "f14d13e2bf4b0f6ab3afeea7e9900ef60488590e" ] ;
-    sd:implementationChangeKind sd:BehaviorPreservingChange .
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260919-TTZ7C-18 ; sd:gitCommit "9b4a340facd57f22edbead07a195700b0237c9ad" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "9b4a340facd57f22edbead07a195700b0237c9ad" ] ;
+    sd:implementationChangeKind sd:SemanticChange .
