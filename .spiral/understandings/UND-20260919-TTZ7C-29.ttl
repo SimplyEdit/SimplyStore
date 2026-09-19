@@ -11,5 +11,10 @@ project:UND-20260919-TTZ7C-29
     sd:interprets [
         a sd:ArtifactReference ;
         sd:artifact project:SRC-20260919-TTZ7C-28 ;
-        sd:gitCommit "ffe879c66c68d4e981e86c78b1c02e2b1b7ed652"
+        sd:gitCommit "212d3000cc6a7011d2700ca6454414c7024428fa"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:UND-20260919-TTZ7C-29 ;
+        sd:gitCommit "5f415d9ad70561802f360390cc2baf16005820e8"
     ] .
