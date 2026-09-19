@@ -9,7 +9,17 @@ project:CTX-001
     dcterms:identifier "CTX-001" ;
     sd:repositoryPath ".spiral/project-context.md" ;
     sd:status sd:Active ;
-    sd:productionReadinessFocus "Primarily developers evaluating, using, or extending SimplyStore; secondarily the curriculum-store environment; operators are a tertiary audience." ;
+    sd:productionReadinessFocus "Developers evaluating, using or extending SimplyStore; the UI prioritizes query/exploration developers, then maintenance administrators, then extended administration. Public-query suitability remains a future evaluation target." ;
+    sd:derivedFrom [
+        a sd:ArtifactReference ;
+        sd:artifact project:SRC-20260919-TTZ7C-43 ;
+        sd:gitCommit "79fcf670d4558c75b9933743e6f2ea5616221eb0"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:CTX-001 ;
+        sd:gitCommit "b482053bdf0d3b3fc8902cce3169408d31ed9f6e"
+    ] ;
     sd:developerEvaluationReadinessBar "Developers should be able to evaluate bounded durability claims from invariants, executable tests, evidence artifacts, explicit failure behavior, and documented known gaps." ;
     sd:hasAudience project:AUD-DEVELOPERS, project:AUD-END-USERS, project:AUD-OPERATORS ;
     sd:hasDownstreamProject project:DOWNSTREAM-CURRICULUM-STORE ;
@@ -37,14 +47,14 @@ project:AUD-DEVELOPERS
 project:AUD-END-USERS
     a sd:ProjectAudience ;
     dcterms:identifier "end-users" ;
-    sd:priority "secondary" ;
-    dcterms:description "End users interacting with systems built on SimplyStore, including query and command UI users where relevant." .
+    sd:priority "downstream-context" ;
+    dcterms:description "End users of systems built on SimplyStore; their UI needs remain specific to those downstream systems." .
 
 project:AUD-OPERATORS
     a sd:ProjectAudience ;
     dcterms:identifier "operators" ;
-    sd:priority "tertiary" ;
-    dcterms:description "Operators running SimplyStore-backed systems." .
+    sd:priority "secondary" ;
+    dcterms:description "Administrators checking status and performing standard maintenance, followed by extended schema, command, grants/accounts and audit work." .
 
 project:DOWNSTREAM-CURRICULUM-STORE
     a sd:DownstreamProject ;

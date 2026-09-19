@@ -52,7 +52,16 @@ administrative recovery path, complete logged command inputs, and ordered rerun
 eligibility; it records separate new-store rebuild semantics without making
 full rebuild tooling part of the current power-loss cycle.
 
-Before proposing a next durability/production-readiness cycle, re-read those durable references, identify the current position in the ordered plan, reconcile the latest evidence with that plan, and state whether the proposal continues, revises, or deliberately deviates from it.
+The 2026-09-19 roadmap interview in
+`.spiral/sources/SRC-20260919-TTZ7C-43.md` revises priorities and clarifies scope.
+Read `ROADMAP.md` for current direction. Its order is presentational: Spiral
+Developer risk analysis selects the actual next task. Preserve open decisions
+such as workspace merge execution and sandbox selection as investigations.
+
+Before proposing a cycle, re-read the roadmap and applicable durable references,
+reconcile current behavior and accepted evidence, and state whether the proposal
+continues, revises or deliberately deviates from that direction. Earlier risk
+snapshots are not proof that a defect remains unresolved.
 
 Do not create Spiral artifacts merely to populate folders. Add `.spiral/` artifacts and companion Turtle resources only when they are causally useful for an actual cycle, decision, implementation, evidence, acceptance, or lesson.
 
