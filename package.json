@@ -8,7 +8,9 @@
 		"test": "node --test test/durability-startup.mjs test/conversion-offsets.mjs test/command-offsets.mjs",
 		"test:acid": "node --test test/acid-baseline.mjs",
 		"test:durability": "node --test test/durability-crash.mjs",
-		"test:handlers": "node --test test/after-change-handlers.mjs"
+		"test:handlers": "node --test test/after-change-handlers.mjs",
+		"test:power-loss": "node --test --test-reporter=tap test/power-loss-baseline.mjs",
+		"test:power-loss:strict": "SIMPLYSTORE_BASELINE_STRICT=1 node --test --test-reporter=tap test/power-loss-baseline.mjs"
 	},
 	"author": "auke@muze.nl",
 	"license": "MIT",
