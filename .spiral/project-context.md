@@ -26,7 +26,10 @@ work to repair shutdown completion, storage-failure acceptance and duplicate-ID
 compatibility, and clarify inspection/recovery coordinators. Source SRC-37,
 understanding UND-38, request REQ-39 and design DES-40 use the full
 20260919-TTZ7C namespace. Stop at evaluation; acceptance and integration remain
-separate decisions.
+separate decisions. Implementation is complete and human acceptance is pending:
+118 regression tests and focused lint pass; EVD-20260919-TTZ7C-41 records six
+new regression cases and the restored contracts. The production change adds
+18 net lines across runtime, inspection and administrative recovery.
 
 Latest accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-31.md` (`Readable
 Store Runtime And Dependency Maintenance`), opened on
