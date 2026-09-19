@@ -1,8 +1,12 @@
 import js from '@eslint/js'
 import globals from 'globals'
-import { defineConfig } from 'eslint/config'
+import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
+    globalIgnores([
+        '.spiral-core/**',
+        'www/codemirror/**'
+    ]),
     {
         rules: {
             curly: ['error', 'all'],
@@ -21,6 +25,6 @@ export default defineConfig([
         files: ['**/*.{js,mjs,cjs}'],
         plugins: { js },
         extends: ['js/recommended'],
-        languageOptions: { globals: globals.browser }
+        languageOptions: { globals: globals.node }
     }
 ])
