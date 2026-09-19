@@ -9,6 +9,11 @@ project:CYC-20260919-TTZ7C-36
     sd:status sd:Active ;
     sd:derivedFrom [
         a sd:ArtifactReference ;
-        sd:artifact project:REQ-20260919-TTZ7C-30 ;
-        sd:gitCommit "a60545cc68058302d82ba5dcd1847fe722396e51"
+        sd:artifact project:REQ-20260919-TTZ7C-39 ;
+        sd:gitCommit "13f9b33f3fe7d7dc97ad9e3b53870764685b95bd"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:CYC-20260919-TTZ7C-36 ;
+        sd:gitCommit "f5ea142ec16911b410137af015ad683446bd07f2"
     ] .
