@@ -1,6 +1,5 @@
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
-import { appendFile } from './util.mjs'
 
 export const committedCommandStatus = 'done'
 export const pendingCommandStatus = 'accepted'
@@ -100,7 +99,6 @@ export function loadCommandLog(status, commandLog, taskDefaults = {}) {
 					...taskDefaults,
 					id: command.id,
 					command: line,
-					request: null
 				})
 			}
 		}
@@ -116,37 +114,11 @@ function readAttempt(record, fallback = 1) {
 	return fallback
 }
 
-export async function recoverActiveCommands(status, commandStatusFile, options = {}) {
-	const maxCrashAttempts = options.maxCrashAttempts ?? defaultMaxCommandCrashAttempts
-
-	for (const [commandId, command] of status.entries()) {
-		if (command?.status !== activeCommandStatus) {
-			continue
-		}
-		const attempt = readAttempt(command)
-		let nextStatus
-		if (attempt >= maxCrashAttempts) {
-			nextStatus = {
-				command: commandId,
-				code: 500,
-				status: unsafeCommandStatus,
-				message: `Command marked unsafe after ${attempt} crashed active attempt(s)`,
-				attempt
-			}
-		} else {
-			nextStatus = {
-				command: commandId,
-				code: 202,
-				status: pendingCommandStatus,
-				message: `Retrying command after ${attempt} crashed active attempt(s)`,
-				attempt
-			}
-		}
-		status.set(commandId, nextStatus)
-		await appendFile(commandStatusFile, JSONTag.stringify(nextStatus))
-	}
-
-	return status
+export async function recoverActiveCommands(status) {
+    if ([...status.values()].some(command => command?.status === activeCommandStatus)) {
+        throw new RecoveryIntegrityError('Active command requires administrator assessment; automatic rerun is disabled')
+    }
+    return status
 }
 
 export function nextActiveCommandStatus(commandId, currentStatus) {

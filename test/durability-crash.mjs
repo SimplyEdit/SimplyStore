@@ -7,6 +7,7 @@ import { appendIntegrityRecord, getDefaultIntegrityFile, loadIntegrityManifest }
 import { getChangesetPath } from '../src/recovery.mjs'
 import { assertRuntimeEnvironmentConfiguration, getRuntimeEnvironment } from '../src/runtime-environment.mjs'
 import {
+	unlockStoppedFixture,
 	getCommandStatus,
 	getOpenPort,
 	makeServerFixture,
@@ -82,110 +83,27 @@ test('fault points are inert outside test environment', async () => {
 	}), false)
 })
 
-test('crash after command log but before accepted status is not committed', async t => {
-	const fixture = await makeServerFixture(t)
-	const port = await getOpenPort()
-	const command = {
-		id: 'crash-after-log',
-		name: 'addPerson',
-		value: {name: 'After Log'}
-	}
-
-	const first = startServer(t, fixture, {
-		port,
-		runtimeEnvironment: 'test',
-		faultPoint: 'after-command-log-before-accepted-status'
-	})
-	await waitForServer(first.child, first.getOutput, port)
-	await postCommandExpectingCrash(port, command)
-	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
-
-	const second = startServer(t, fixture, {port})
-	await waitForServer(second.child, second.getOutput, port)
-
-	await assertServerStateMatchesOracle(port, fixture, [])
-	assert.deepEqual(await readCommandStatusRecords(fixture), [])
-	assert.equal((await readCommandLogRecords(fixture)).length, 1)
-})
-
-test('duplicate command log records do not replay an accepted command twice', async t => {
-	const fixture = await makeServerFixture(t)
-	const port = await getOpenPort()
-	const command = {
-		id: 'duplicate-log-command',
-		name: 'addPerson',
-		value: {name: 'Once'}
-	}
-
-	const first = startServer(t, fixture, {
-		port,
-		runtimeEnvironment: 'test',
-		faultPoint: 'after-command-log-before-accepted-status'
-	})
-	await waitForServer(first.child, first.getOutput, port)
-	await postCommandExpectingCrash(port, command)
-	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
-
-	const second = startServer(t, fixture, {
-		port,
-		runtimeEnvironment: 'test',
-		faultPoint: 'after-command-accepted-status-before-response'
-	})
-	await waitForServer(second.child, second.getOutput, port)
-	await postCommandExpectingCrash(port, command)
-	assert.equal((await waitForExit(second.child)).signal, 'SIGKILL')
-
-	const third = startServer(t, fixture, {port})
-	await waitForServer(third.child, third.getOutput, port)
-
-	await assertServerStateMatchesOracle(port, fixture, ['Once'])
-	assert.equal((await readCommandLogRecords(fixture)).length, 2)
-	assert.equal((await readCommandStatusRecords(fixture)).filter(record => record.status === 'done').length, 1)
-})
-
-test('accepted command crash boundaries replay to one committed state', async t => {
-	const replayFaultPoints = [
-		'after-command-accepted-status-before-response',
-		'after-active-status-before-command-worker',
-		'before-command-changeset-write',
-		'after-command-changeset-write',
-		'before-command-done-status'
-	]
-
-	for (const faultPointName of replayFaultPoints) {
-		await t.test(faultPointName, async t => {
-			const fixture = await makeServerFixture(t)
-			const port = await getOpenPort()
-			const command = {
-				id: faultPointName,
-				name: 'addPerson',
-				value: {name: faultPointName}
-			}
-
-			const first = startServer(t, fixture, {
-				port,
-				runtimeEnvironment: 'test',
-				faultPoint: faultPointName
-			})
-			await waitForServer(first.child, first.getOutput, port)
-			await postCommandExpectingCrash(port, command)
-			assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
-
-			const second = startServer(t, fixture, {port})
-			await waitForServer(second.child, second.getOutput, port)
-
-			const retryStatus = await postCommandStatus(port, {
-				id: command.id,
-				name: 'addPerson',
-				value: {name: `${faultPointName} duplicate`}
-			})
-			assert.equal(retryStatus.command, command.id)
-			assert.equal(retryStatus.status, 'done')
-
-			await assertServerStateMatchesOracle(port, fixture, [faultPointName])
-			assert.equal((await getCommandStatus(port, command.id)).status, 'done')
-		})
-	}
+for (const faultPointName of [
+    'after-command-log-before-accepted-status',
+    'after-command-accepted-status-before-response',
+    'after-active-status-before-command-worker',
+    'before-command-changeset-write',
+    'after-command-changeset-write',
+    'before-command-done-status'
+]) test(`crash at ${faultPointName} preserves evidence and never automatically reruns`, async t => {
+    const fixture=await makeServerFixture(t)
+    const port=await getOpenPort()
+    const first=startServer(t,fixture,{port,runtimeEnvironment:'test',faultPoint:faultPointName})
+    await waitForServer(first.child,first.getOutput,port)
+    await postCommandExpectingCrash(port,{id:'A',name:'addPerson',value:{name:'A'}})
+    assert.equal((await waitForExit(first.child)).signal,'SIGKILL')
+    const before=await fs.readFile(fixture.commandStatus)
+    await unlockStoppedFixture(t,fixture)
+    const second=startServer(t,fixture,{port})
+    assert.equal((await waitForExit(second.child)).code,1)
+    assert.match(second.getOutput(),/Administrative recovery required/)
+    assert.deepEqual(await fs.readFile(fixture.commandStatus),before)
+    assert.equal((await readCommandLogRecords(fixture))[0].id,'A')
 })
 
 test('crash after done status but before query update recovers committed state without replay', async t => {
@@ -206,6 +124,7 @@ test('crash after done status but before query update recovers committed state w
 	await postCommandExpectingCrash(port, command)
 	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
 
+	await unlockStoppedFixture(t,fixture)
 	const statusAfterCrash = await readCommandStatusRecords(fixture)
 	assert.equal(statusAfterCrash.at(-1).status, 'done')
 
@@ -225,55 +144,16 @@ test('crash after done status but before query update recovers committed state w
 	assert.equal((await getCommandStatus(port, command.id)).status, 'done')
 })
 
-test('repeated active command crashes are marked unsafe instead of replaying forever', async t => {
-	const fixture = await makeServerFixture(t)
-	const port = await getOpenPort()
-	const commandId = 'poison-command'
-	const crashOptions = {
-		port,
-		runtimeEnvironment: 'test',
-		faultPoint: 'before-command-done-status',
-		maxCommandCrashAttempts: 2
-	}
-
-	const first = startServer(t, fixture, crashOptions)
-	await waitForServer(first.child, first.getOutput, port)
-	await postCommandExpectingCrash(port, {
-		id: commandId,
-		name: 'addPerson',
-		value: {name: 'Poison'}
-	})
-
-	assert.equal((await waitForExit(first.child)).signal, 'SIGKILL')
-
-	const second = startServer(t, fixture, crashOptions)
-	assert.equal((await waitForExit(second.child)).signal, 'SIGKILL')
-
-	const third = startServer(t, fixture, {
-		port,
-		maxCommandCrashAttempts: 2
-	})
-	await waitForServer(third.child, third.getOutput, port)
-
-	const commandStatus = await getCommandStatus(port, commandId)
-	assert.equal(commandStatus.status, 'unsafe')
-	assert.equal(commandStatus.attempt, 2)
-
-	const retryStatus = await postCommandStatus(port, {
-		id: commandId,
-		name: 'addPerson',
-		value: {name: 'Retry'}
-	})
-	assert.equal(retryStatus.command, commandId)
-	assert.equal(retryStatus.status, 'unsafe')
-	assert.equal(retryStatus.attempt, 2)
-
-	await assertServerStateMatchesOracle(port, fixture, [])
-
-	const statusFile = await fs.readFile(fixture.commandStatus, 'utf8')
-	assert.match(statusFile, /"status":"active","attempt":1/)
-	assert.match(statusFile, /"status":"active","attempt":2/)
-	assert.match(statusFile, /"status":"unsafe"/)
+test('crash ownership cannot be stolen automatically',async t=>{
+    const fixture=await makeServerFixture(t),port=await getOpenPort()
+    const first=startServer(t,fixture,{port,runtimeEnvironment:'test',faultPoint:'before-command-done-status'})
+    await waitForServer(first.child,first.getOutput,port)
+    await postCommandExpectingCrash(port,{id:'A',name:'addPerson',value:{name:'A'}})
+    await waitForExit(first.child)
+    const second=startServer(t,fixture,{port})
+    assert.equal((await waitForExit(second.child)).code,1)
+    assert.match(second.getOutput(),/Store is locked/)
+    assert.equal((await readCommandStatusRecords(fixture)).filter(s=>s.status==='active').length,1)
 })
 
 test('hanging command times out unsafe and later accepted command commits', async t => {

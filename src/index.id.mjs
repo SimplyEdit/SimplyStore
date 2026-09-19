@@ -1,3 +1,4 @@
+import {publishFileSync} from './storage.mjs'
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
 import { getIndex } from '@muze-nl/od-jsontag/src/symbols.mjs'
@@ -18,7 +19,7 @@ export default {
 			}
 			index[key] = entity[getIndex]
 		}
-		fs.writeFileSync(meta.data+'/index.id.json', JSON.stringify(index))
+		publishFileSync(meta.data+'/index.id.json', JSON.stringify(index))
 	},
 	update(data, meta, changes) {
 		if (!changes.length) {
@@ -31,7 +32,7 @@ export default {
 				index[id] = entry[getIndex]
 			}
 		}
-		fs.writeFileSync(meta.data+'/index.id.'+changes.uuid+'.json', JSON.stringify(index))
+		publishFileSync(meta.data+'/index.id.'+changes.uuid+'.json', JSON.stringify(index))
 	},
 	load(uuid=null) {
 		let filename

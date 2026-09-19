@@ -1,7 +1,8 @@
+import {publishFileSync} from './storage.mjs'
 import fs from 'fs'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
-import writeFileAtomic from 'write-file-atomic'
+import {publishFile as writeFileAtomic} from './storage.mjs'
 import { getIndex, position } from '@muze-nl/od-jsontag/src/symbols.mjs'
 import { scanOdJsonTagRecords } from './recovery.mjs'
 
@@ -24,7 +25,7 @@ export default {
 			const entity = meta.resultArray[i]
 			index[i] = [ entity[position].start, entity[position].end ]
 		}
-		fs.writeFileSync(meta.data+'/index.offset.json', JSON.stringify(index))
+		publishFileSync(meta.data+'/index.offset.json', JSON.stringify(index))
 	},
 	update(data, meta, changes) {
 		if (!changes.length) {
@@ -37,7 +38,7 @@ export default {
 				index[entry[getIndex]] = [ pos.start, pos.end ]
 			}
 		}
-		fs.writeFileSync(meta.data+'/index.offset.'+changes.uuid+'.json', JSON.stringify(index))
+		publishFileSync(meta.data+'/index.offset.'+changes.uuid+'.json', JSON.stringify(index))
 	},
 	load(uuid=null) {
 		let filename

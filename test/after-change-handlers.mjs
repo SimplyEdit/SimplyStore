@@ -1,3 +1,4 @@
+import {waitForExit} from './durability-helpers.mjs'
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -118,14 +119,16 @@ test('handler lifecycle: final offset write failure prevents command commit', as
 	const server = startServer(t, fixture, {port})
 	await waitForServer(server.child, server.getOutput, port)
 
-	const status = await postAndWait(port, {
+	const response = await postCommand(port, {
 		id: commandId,
 		name: 'addPerson',
 		value: {name: 'Should Not Commit'}
-	}, 'failed')
+	})
+	assert.equal(response.status,202)
+	assert.equal((await waitForExit(server.child)).code,1)
+	assert.match(server.getOutput(),/Storage outcome uncertain/)
 
-	assert.match(status.message, /EISDIR|EEXIST|ENOTEMPTY/)
-	assert.deepEqual(await queryNames(port), ['Initial'])
+	assert.match(server.getOutput(), /EISDIR|EEXIST|ENOTEMPTY/)
 	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
 })
 
@@ -139,11 +142,13 @@ test('handler lifecycle: custom finalizer rejection prevents command commit', as
 	const server = startServer(t, fixture, {port})
 	await waitForServer(server.child, server.getOutput, port)
 
-	const status = await postAndWait(port, {
+	const response = await postCommand(port, {
 		id: 'custom-finalizer-fails', name: 'addPerson', value: {name: 'Should Not Commit'}
-	}, 'failed')
-	assert.match(status.message, /custom finalization failed/)
-	assert.deepEqual(await queryNames(port), ['Initial'])
+	})
+	assert.equal(response.status,202)
+	assert.equal((await waitForExit(server.child)).code,1)
+	assert.match(server.getOutput(),/Storage outcome uncertain/)
+	assert.match(server.getOutput(), /custom finalization failed/)
 	assert.deepEqual(await reconstructCommittedPersonNames(fixture), ['Initial'])
 })
 

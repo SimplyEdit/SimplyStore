@@ -35,6 +35,8 @@ export async function makeServerFixture(t, options = {}) {
 	const commandStatus = path.join(dir, 'command-status.jsontag')
 	const runner = path.join(dir, 'run-server.mjs')
 
+	await fs.writeFile(commandLog, '')
+	await fs.writeFile(commandStatus, '')
 	await fs.writeFile(datafile, serialize(JSONTag.parse(options.initialData || '{"persons":[]}')))
 	await fs.writeFile(commandsFile, options.commandsSource || `export default {
 	addPerson: (dataspace, command) => {
@@ -100,17 +102,22 @@ export async function stopServer(child) {
 }
 
 export async function waitForServer(child, getOutput, port) {
+	let finished = false
 	await new Promise((resolve, reject) => {
 		const timeout = setTimeout(() => {
+			finished = true
 			child.off('exit', onExit)
 			reject(new Error(`Server did not start on port ${port}:\n${getOutput()}`))
 		}, 5000)
 		const onExit = (code, signal) => {
 			clearTimeout(timeout)
+			finished = true
 			reject(new Error(`Server exited before startup (${code || signal}):\n${getOutput()}`))
 		}
 		const checkReady = () => {
+			if (finished) return
 			if (getOutput().includes(`SimplyStore listening on port ${port}`)) {
+				finished = true
 				clearTimeout(timeout)
 				child.off('exit', onExit)
 				resolve()
@@ -229,4 +236,15 @@ export async function reconstructCommittedDataset(fixture) {
 export async function reconstructCommittedPersonNames(fixture) {
 	const data = await reconstructCommittedDataset(fixture)
 	return data.persons.map(person => person.name)
+}
+
+// Explicit administrator action in disposable fixtures whose writer has exited.
+export async function unlockStoppedFixture(t, fixture) {
+    const {releaseOfflineLocks} = await import('../src/admin-recovery.mjs')
+    const {publishFile} = await import('../src/storage.mjs')
+    const audit = await fs.mkdtemp(path.join(os.tmpdir(), 'simplystore-unlock-audit-'))
+    t.after(() => fs.rm(audit, {recursive:true,force:true}))
+    const release = await releaseOfflineLocks(fixture, {operator:'test administrator',reason:'Fixture writer has exited; inspect before startup',confirmedStopped:true})
+    await publishFile(path.join(audit,'release.json'),JSON.stringify(release))
+    await release.finish()
 }

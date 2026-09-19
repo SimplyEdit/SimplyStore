@@ -1,5 +1,5 @@
 import JSONTag from '@muze-nl/jsontag'
-import fs from 'node:fs/promises'
+import {appendRecord} from './storage.mjs'
 
 export function deepFreeze(obj) {
 		Object.freeze(obj)
@@ -32,15 +32,4 @@ export function joinArgs(args) {
  * @param  {string} data     The line to write
  * @return {void}
  */
-export async function appendFile(filename, data) {
-	let handle;
-	try {
-		handle = await fs.open(filename, 'a+')
-		await handle.appendFile(data+"\n")
-		await handle.datasync()
-		return true
-	} finally {
-		await handle.close()
-	}
-}
-
+export const appendFile = appendRecord

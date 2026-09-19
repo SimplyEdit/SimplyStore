@@ -1,3 +1,4 @@
+import {setImmediate} from 'node:timers'
 import express from 'express'
 import fs from 'fs'
 import JSONTag from '@muze-nl/jsontag'
@@ -8,7 +9,11 @@ import {appendFile} from './util.mjs'
 import path from 'path'
 import httpStatusCodes from './statusCodes.mjs'
 import process from 'node:process'
-import { getCommittedCommandIds, loadCommandLog, loadCommandStatus, nextActiveCommandStatus, pendingCommandStatus, recoverActiveCommands, unsafeCommandStatus } from './recovery.mjs'
+import { nextActiveCommandStatus } from './recovery.mjs'
+import {serialWriter, syncFile} from './storage.mjs'
+import {inspectStore, storePaths, mutableDirectories, validCommandId} from './store-inspection.mjs'
+import {acquireOwnership} from './store-ownership.mjs'
+import {executeWorker} from './execute-worker.mjs'
 import { assertRuntimeEnvironmentConfiguration } from './runtime-environment.mjs'
 import { faultPoint } from './faults.mjs'
 import { getDefaultIntegrityFile } from './integrity.mjs'
@@ -60,7 +65,6 @@ async function main(options) {
     const commandStatus = options.commandStatus || './command-status.jsontag'
     const integrityFile = options.integrityFile || getDefaultIntegrityFile(datafile)
     const integrityEnabled = Boolean(options.integrity || options.integrityFile || fs.existsSync(integrityFile))
-    const maxCommandCrashAttempts = options.maxCommandCrashAttempts ?? 2
     const access        = options.access        || null
     const timeout       = options.timeout       || 1000
     const slowTimeout   = options.slowTimeout   || 10000
@@ -75,29 +79,36 @@ async function main(options) {
         limit: '50MB'
     }))
 
-    let status = loadCommandStatus(commandStatus)
-    status = await recoverActiveCommands(status, commandStatus, {
-        maxCrashAttempts: maxCommandCrashAttempts
-    })
-
+    const config = storePaths({...options, datafile, commandLog, commandStatus, integrity: integrityEnabled,
+        ...(integrityEnabled ? {integrityFile} : {})})
+    const ownership = await acquireOwnership(mutableDirectories(config))
+    let inspection
     try {
-        let data = await loadData(getCommittedCommandIds(status)) // only completed command ids are used to generate filenames of committed changes
+        inspection = await inspectStore(config)
+        if (!inspection.ready) throw new Error('Administrative recovery required: ' +
+            [...inspection.errors, ...inspection.commands.filter(c => c.problem).map(c => c.problem),
+                ...inspection.commands.filter(c => c.status === 'accepted' || c.status === 'active').map(c => `${c.id}: ${c.status}; administrator assessment required`),
+                ...inspection.commands.filter(c => c.present && c.status !== 'done').map(c => `${c.id}: uncommitted dataset`)].join('; '))
+        for (const [file, digest] of Object.entries(inspection.files)) if (digest !== null) await syncFile(file)
+        const data = await loadData(inspection.committed)
         jsontagBuffers = [data.data]
         meta = data.meta
-    } catch(err) {
-        console.error('ERROR: SimplyStore cannot load '+datafile, err)
-        process.exit(1)
+    } catch (error) {
+        await ownership.release()
+        throw error
     }
-
-    let commandQueue = loadCommandLog(status, commandLog, {
-        meta,
-        data:jsontagBuffers,
-        commandsFile,
-        indexFile,
-        datafile,
-        integrityFile: integrityEnabled ? integrityFile : null,
-        integrityRequired: integrityEnabled
-    })
+    const status = new Map(inspection.commands.map(c => [c.id, c.history.at(-1)]))
+    const commandQueue = []
+    const acceptSerial = serialWriter()
+    let storageFailed = false, closing = false
+    let runner = Promise.resolve()
+    function failStorage(error) {
+        if (storageFailed) return
+        storageFailed = true
+        console.error('Storage outcome uncertain; stopping mutation. Administrator recovery required:', error)
+        // Retain ownership evidence; a process exit must never imply a rollback.
+        setImmediate(() => process.exit(1))
+    }
 
     const queryWorkerInitTask = () => { 
         return {
@@ -119,7 +130,6 @@ async function main(options) {
 
     let queryWorkerPool = new WorkerPool(maxWorkers, queryWorker, queryWorkerInitTask())
     let slowQueryWorkerPool = new WorkerPool(1, queryWorker, slowQueryWorkerInitTask())
-    let commandWorkerInstance
     let commandRunnerActive = false
 
     server.get('/query/', (req,next) => handleGetQuery(req,next))
@@ -135,24 +145,24 @@ async function main(options) {
 
     server.use(express.static(wwwroot))
 
-    try {
-        await fetch(`http://localhost:${port}`, {
-            signal: AbortSignal.timeout(2000)
-        })
-        console.error(`Port ${port} is already occupied, aborting.`)
-        process.exit()
-    } catch {
+    const listener = server.listen(port, () => {
+        console.log('SimplyStore listening on port '+port)
+    })
+    listener.on('error', error => { failStorage(error) })
+    async function shutdown() {
+        if (closing) return
+        closing = true
+        listener.close()
         try {
-            await drainCommandQueue()
-        } catch {
-            // console.log(err) // ignore errors here, already logged to console
-        }
-        server.listen(port, () => {
-            console.log('SimplyStore listening on port '+port)
-            let used = Math.round(process.memoryUsage().rss / 1024 / 1024);
-            console.log(`(${used} MB)`);
-        })
+            await acceptSerial(async () => {})
+            await runner
+            queryWorkerPool.close(); slowQueryWorkerPool.close()
+            if (!storageFailed) await ownership.release()
+            process.exit(storageFailed ? 1 : 0)
+        } catch (error) { failStorage(error) }
     }
+    process.once('SIGTERM', shutdown)
+    process.once('SIGINT', shutdown)
 
     /* ------ */
 
@@ -293,36 +303,21 @@ async function main(options) {
     }
 
     async function handlePostCommand(req, res) {
-        let commandId = await checkCommand(req, res)
-        if (!commandId) {
-            return
-        }
+        if (storageFailed || closing) return sendResponse({code:503, body: JSON.stringify({message:'Store is unavailable'})}, res)
         try {
-            let commandStr = req.body.toString()
-            let request = {
-                method: req.method,
-                url: req.originalUrl,
-                query: req.query
-            }
-
-            commandQueue.push({
-                id:commandId,
-                command:commandStr,
-                request,
-                meta,
-                data:jsontagBuffers,
-                commandsFile,
-                indexFile,
-                datafile,
-                integrityFile: integrityEnabled ? integrityFile : null,
-                integrityRequired: integrityEnabled
+            await acceptSerial(async () => {
+                if (storageFailed) throw new Error('Store is unavailable')
+                if (closing) return sendResponse({code:503,body:JSON.stringify({message:'Store is closing'})},res)
+                const accepted = await checkCommand(req, res)
+                if (!accepted) return
+                if (storageFailed) throw new Error('Store failed during acceptance')
+                commandQueue.push({id: accepted.id, command: accepted.line})
+                sendResponse({code:202, body:JSON.stringify(status.get(accepted.id))}, res)
             })
-            await drainCommandQueue()
-        } catch(err) {
-            let s = {code:err.code||500, status:'failed', message:err.message, details:err.details}
-            status.set(commandId, s)
-            await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:commandId}, s)))
-            console.error('ERROR: SimplyStore cannot run command ', commandId, err)
+            void drainCommandQueue()
+        } catch (error) {
+            if (!res.headersSent) sendResponse({code:500, body:JSON.stringify({message:'Storage outcome uncertain'})}, res)
+            failStorage(error)
         }
     }
 
@@ -342,156 +337,49 @@ async function main(options) {
         }
     }
 
-    async function drainCommandQueue() {
-        if (commandRunnerActive) {
-            return
-        }
+    function drainCommandQueue() {
+        if (commandRunnerActive || storageFailed) return runner
         commandRunnerActive = true
-        try {
-            let result
-            do {
-                result = await runNextCommand()
-            } while(result)
-        } finally {
-            commandRunnerActive = false
-        }
-    }
-
-    async function runNextCommand() {
-        return new Promise((mainResolve, mainReject) => {
-            if (commandWorkerInstance) {
-                mainResolve(false)
-                return
-            }
-            let command = commandQueue.shift()
-            while (command && status.get(command.id)?.status !== pendingCommandStatus) {
-                console.log('skipping non-pending command', command.id)
-                command = commandQueue.shift()
-            }
-            if (command) {
-                console.log('starting command',command.id)
-                let start = (resolve, reject) => {
-                    const worker = new Worker(commandWorker)
-                    commandWorkerInstance = worker
-                    let settled = false
-                    let timeoutId
-                    const finish = async (settle, value) => {
-                        if (settled) {
-                            return
-                        }
-                        settled = true
-                        if (timeoutId) {
-                            clearTimeout(timeoutId)
-                        }
-                        await worker.terminate()
-                        if (commandWorkerInstance === worker) {
-                            commandWorkerInstance = null
-                        }
-                        settle(value)
-                    }
-                    if (commandTimeout) {
-                        timeoutId = setTimeout(() => {
-                            const error = new WorkerTimeoutError('command worker', commandTimeout)
-                            void finish(resolve, {
-                                code: error.code,
-                                status: unsafeCommandStatus,
-                                message: error.message,
-                                details: {
-                                    timeout: error.timeout,
-                                    workerKind: error.workerKind
-                                }
-                            })
-                        }, commandTimeout)
-                    }
-                    worker.on('message', result => {
-                        void finish(resolve, result)
-                    })
-                    worker.on('error', error => {
-                        void finish(reject, error)
-                    })
-                    try {
-                        worker.postMessage(command)
-                    } catch (error) {
-                        void finish(reject, error)
-                    }
-                }
-                const activeStatus = nextActiveCommandStatus(command.id, status.get(command.id))
-                status.set(command.id, activeStatus)
-                void (async () => {
-                    await appendFile(commandStatus, JSONTag.stringify(activeStatus))
+        runner = (async () => {
+            try {
+                while (commandQueue.length && !storageFailed) {
+                    const command = commandQueue.shift()
+                    console.log('starting command', command.id)
+                    const active = nextActiveCommandStatus(command.id, status.get(command.id))
+                    await appendFile(commandStatus, JSONTag.stringify(active))
+                    if (storageFailed) throw new Error('Store failed before execution')
+                    status.set(command.id, active)
                     await faultPoint('after-active-status-before-command-worker')
-                    start(
-                        // resolve()
-                        async (data) => {
-                            let s
-                            if (data?.status === unsafeCommandStatus) {
-                                s = {
-                                    code: data.code || 504,
-                                    status: unsafeCommandStatus,
-                                    message: data.message,
-                                    details: data.details,
-                                    attempt: activeStatus.attempt
-                                }
-                                status.set(command.id, s)
-                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                                mainResolve(s)
-                            } else if (!data || (data.code>=300 && data.code<=499)) {
-                                console.error('ERROR: SimplyStore cannot run command ', command.id, data)
-                                if (!data?.code) {
-                                    s = {code: 500, status: "failed"}
-                                } else {
-                                    s = {code: data.code, status: "failed", message: data.message, details: data.details}
-                                }
-                                status.set(command.id, s)
-                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                                mainReject(s)
-                            } else {
-                                await faultPoint('before-command-done-status')
-                                s = {code: 200, status: "done"}
-                                await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                                await faultPoint('after-command-done-status-before-query-update')
-                                status.set(command.id, s)
-                                if (data.data) { // data has changed, commands may do other things instead of changing data
-                                    jsontagBuffers.push(data.data) // push changeset to jsontagBuffers so that new query workers get all changes from scratch
-                                    Object.assign(meta, data.meta)
-                                    const updateTask = {
-                                        name: 'update',
-                                        req: {
-                                            body: jsontagBuffers[jsontagBuffers.length-1], // only add the last change, update tasks for earlier changes have already been sent
-                                            meta
-                                        }
-                                    }
-                                    queryWorkerPool.update(updateTask)
-                                    slowQueryWorkerPool.update(updateTask)
-                                }
-                                mainResolve(s)
-                            }
-                        },
-                        //reject()
-                        async (error) => {
-                            let s = {status: "failed", code: error.code, message: error.message, details: error.details}
-                            status.set(command.id, s)
-                            await appendFile(commandStatus, JSONTag.stringify(Object.assign({command:command.id}, s)))
-                            console.log('command error', command.id, error)
-                            mainReject(s)
-                        }
-                    )
-                })().catch(mainReject)
-                return
-            } else {
-                console.log('no pending commands')
-                // this code can never be triggered from the post(/command/) route, since it always adds a command to the queue
-                // so you can only get here from commandWorkerInstance.on() route
-                // which means that the commandWorkerInstance has finished running the previous command
-                if (commandWorkerInstance) {
-                    commandWorkerInstance.terminate().then(() => {
-                        mainResolve(false)
-                    }, mainReject)
-                    return
+                    const result = await executeWorker(commandWorker, {...command,
+                        meta, data: jsontagBuffers, commandsFile, indexFile, datafile,
+                        integrityFile: integrityEnabled ? integrityFile : null,
+                        integrityRequired: integrityEnabled}, commandTimeout)
+                    if (storageFailed) throw new Error('Store failed during execution')
+                    if (result?.storageFailure) throw new Error(result.message || 'Worker persistence failure')
+                    if (!result || result.status === 'failed' || result.status === 'unsafe' || result.code >= 300) {
+                        const terminal = {command: command.id, status: result?.status === 'unsafe' ? 'unsafe' : 'failed',
+                            code: result?.code || 500, message: result?.message || 'Command failed', attempt: active.attempt}
+                        await appendFile(commandStatus, JSONTag.stringify(terminal))
+                        status.set(command.id, terminal)
+                        continue
+                    }
+                    for (const file of config.requiredFiles) await syncFile(file)
+                    await faultPoint('before-command-done-status')
+                    const done = {command: command.id, code:200, status:'done'}
+                    await appendFile(commandStatus, JSONTag.stringify(done))
+                    await faultPoint('after-command-done-status-before-query-update')
+                    status.set(command.id, done)
+                    if (result.data) {
+                        jsontagBuffers.push(result.data)
+                        Object.assign(meta, result.meta)
+                        const task = {name:'update', req:{body:result.data, meta}}
+                        queryWorkerPool.update(task); slowQueryWorkerPool.update(task)
+                    }
                 }
-                mainResolve(false)
-            }
-        })
+            } catch (error) { failStorage(error) }
+            finally { commandRunnerActive = false }
+        })()
+        return runner
     }
 
     async function checkCommand(req, res) {
@@ -515,7 +403,7 @@ async function main(options) {
             sendResponse({code: 400, body: JSON.stringify(error)}, res)
             return false
         }
-        if (!command || !command.id) {
+        if (!command || !validCommandId(command.id)) {
             error = {
                 code: 422,
                 message: "Command has no id",
@@ -536,13 +424,13 @@ async function main(options) {
             sendResponse({code:422, body: JSON.stringify(error)}, res)
             return false      
         }
-        await appendFile(commandLog, JSONTag.stringify(command)) //FIXME: this loses request data
+        const line = JSONTag.stringify(command)
+        await appendFile(commandLog, line)
         await faultPoint('after-command-log-before-accepted-status')
         await appendFile(commandStatus, JSONTag.stringify(commandOK))
         status.set(command.id, commandOK) 
         await faultPoint('after-command-accepted-status-before-response')
-        sendResponse({code: 202, body: JSON.stringify(commandOK)}, res)
-        return command.id
+        return {id:command.id, line}
     }
 }
 

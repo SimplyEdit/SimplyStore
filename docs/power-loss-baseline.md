@@ -1,29 +1,36 @@
 # Power-loss failure matrix and baseline
 
-This is the first evidence slice of CYC-20260919-TTZ7C-17, against runtime
-baseline `44ea91717a328ad7b5e049c6c0845b5e3bcc1718`. It does not change production
-persistence or recovery. The cycle's administrative tooling, sync fixes, and
-filesystem acceptance exercise remain outstanding.
+The historical matrix below records the first evidence slice against runtime
+`44ea91717a328ad7b5e049c6c0845b5e3bcc1718`, preserved by
+[EVD-23](../.spiral/evidence/EVD-20260919-TTZ7C-23.md). That baseline had ten
+violated invariant assertions. It is not a description of the hardened runtime.
 
 ## Run and interpret
 
 ```sh
 npm run test:power-loss
 npm run test:power-loss:strict
+npm run test:recovery
 ```
 
-The tests need permission to bind localhost ports and use disposable directories.
-The first command characterizes current behavior: fixture checks and controls
-must pass, while known violated requirements are explicit nested TODO tests.
-The strict command removes those annotations and must currently exit nonzero.
-Neither a green baseline command nor its TODO count means power-loss safety.
-Remove the corresponding TODO when later implementation satisfies an invariant;
-also revise any characterization assumptions that intentionally describe the
-old defect. Do not suppress a new harness/setup failure with TODO.
+The current power-loss suite checks corrected invariants with no TODO allowances;
+both power-loss commands must pass. Tests need localhost ports and use disposable
+storage. Administrative policy cases now live in `test/admin-recovery.mjs`.
+PL15's old request-retention expectation was superseded by the maintainer's
+command-only contract: the replacement proves the request is unavailable and
+logged JSONTag values survive. PL16 now compares both live execution and restart
+with the authoritative command log, fixing the old queue order instead of
+preserving it. Historical observations remain evidence of the original defects.
 
-## Persistence boundaries
+Current coverage includes full-write loops, file/directory barriers and errors,
+missing canonical files, no automatic effect repetition, concurrent acceptance
+and duplicates, and recovery/backup policy. See [the current durability
+contract](../DURABILITY.md), [administrator guide](recovery.md), and [filesystem
+exercise](power-loss-filesystem.md) for the implemented behavior and its bounds.
 
-| Artifact | Current writer / barrier | Required role |
+## Historical persistence boundaries
+
+| Artifact | Baseline writer / barrier | Required role |
 |---|---|---|
 | Base dataset | Converter uses `writeFileSync` | Durable starting state before operating or backing up a store; untested conversion publication remains open |
 | Command log | `appendFile` then `datasync` | Complete inputs before accepted; persist first-created filename |
@@ -37,7 +44,7 @@ File sync and directory sync are distinct barriers. The namespace-loss model
 uses this distinction from the [Linux fsync contract](https://man7.org/linux/man-pages/man2/fsync.2.html).
 It does not assert that every tested filesystem would actually lose an entry.
 
-## Executable matrix
+## Historical baseline matrix
 
 | Test | Fault or question | Observed baseline | Requirement disposition |
 |---|---|---|---|
@@ -93,20 +100,11 @@ hardware lies about flushes, real filesystem mount behavior, or external systems
 The external-effect witness proves repeated invocation only, not exactly-once
 behavior of any real email/payment/network service.
 
-## Still required in this cycle
+## Current evaluation
 
-- Initial base/log publication and integrity-enabled power-loss combinations.
-- Append partial-write/ENOSPC details, other close failures, interrupted rename
-  completion, and sync-error recovery beyond the named cases above.
-- Explicit authoritative ordering, failed/unsafe histories, duplicated IDs,
-  writer ownership, and exclusion of concurrent administrative/normal writes.
-- Administrative inspect/preview/apply, stale-plan rejection, allowed trailing
-  recovery, interrupted recovery, verified promotion, and loss reporting.
-- Complete log inputs across relevant configured integrations and compatibility
-  for legacy records; a FIXME alone is not the input-loss evidence.
-- Consistent backup creation and restore, including cases where rerun is unsafe.
-- Measured latency, a named Linux filesystem/storage configuration, and an actual
-  disposable block-level exercise before claiming filesystem power-loss safety.
-
-Full changed-code rebuild tooling remains follow-up work under the cycle's
-recorded side-effect-suppression contract.
+Implementation and current test/VM results are recorded separately in
+[EVD-27](../.spiral/evidence/EVD-20260919-TTZ7C-27.md). The bounded preload model
+and a real ext4 guest over a volatile block-device model provide complementary
+evidence. Neither is physical hardware certification or an exhaustive campaign.
+Full changed-code rebuild tooling remains follow-up work under the recorded
+side-effect-suppression contract.

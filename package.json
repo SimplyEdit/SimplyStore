@@ -10,7 +10,9 @@
 		"test:durability": "node --test test/durability-crash.mjs",
 		"test:handlers": "node --test test/after-change-handlers.mjs",
 		"test:power-loss": "node --test --test-reporter=tap test/power-loss-baseline.mjs",
-		"test:power-loss:strict": "SIMPLYSTORE_BASELINE_STRICT=1 node --test --test-reporter=tap test/power-loss-baseline.mjs"
+		"test:power-loss:strict": "SIMPLYSTORE_BASELINE_STRICT=1 node --test --test-reporter=tap test/power-loss-baseline.mjs",
+		"test:recovery": "node --test test/storage.mjs test/admin-recovery.mjs",
+		"bench:durability": "node --test test/durability-latency.mjs"
 	},
 	"author": "auke@muze.nl",
 	"license": "MIT",
@@ -37,6 +39,9 @@
 	},
 	"files": [
 		"README.md",
+		"DURABILITY.md",
+		"docs/recovery.md",
+		"docs/power-loss-filesystem.md",
 		"LICENSE",
 		"src/",
 		"www/",

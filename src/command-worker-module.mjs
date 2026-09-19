@@ -2,7 +2,7 @@ import JSONTag from '@muze-nl/jsontag'
 import {getIndex, resultSet, isChanged} from '@muze-nl/od-jsontag/src/symbols.mjs'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import writeFileAtomic from 'write-file-atomic'
+import {publishFile as writeFileAtomic, storageError} from './storage.mjs'
 import { faultPoint } from './faults.mjs'
 import { appendIntegrityRecord } from './integrity.mjs'
 import { finalizeIndex } from './index.mjs'
@@ -89,24 +89,25 @@ export async function initialize(task) {
     })
 }
 
-export default async function runCommand(commandStr, request) {
+export default async function runCommand(commandStr) {
     let response = {
         jsontag: true
     }
+    let publishing = false
     try {
         let task = JSONTag.parse(commandStr, null, metaReadProxy)
         if (!task.id) { throw new Error('missing command id')}
         if (!task.name) { throw new Error('missing command name parameter')}
         if (commands[task.name]) {
             let time = Date.now()
-            commands[task.name](dataspace, task, request, metaProxy)
+            await commands[task.name](dataspace, task, undefined, metaProxy)
             //TODO: if command/task makes no changes, skip updating data.jsontag and writing it, skip response.data
         
             const changes = meta.resultArray.filter(e => e[isChanged])
             //FIXME: new entities should also report isChanged = true
             if (changes.length) {
                 changes.uuid = task.id
-                index.update(dataspace, meta, changes)
+                await index.update(dataspace, meta, changes)
             }
             const uint8sab = serialize(dataspace, {meta, changes: true}) // serialize only changes
             response.data = uint8sab
@@ -118,6 +119,7 @@ export default async function runCommand(commandStr, request) {
             //TODO: write data every x commands or x minutes, in seperate thread?
 
             let newfilename = basefile + '.' + task.id + '.' + extension
+            publishing = true
             await faultPoint('before-command-changeset-write')
             await writeFileAtomic(newfilename, uint8sab)
             // Final bytes include new records and mutations made by the custom index hook.
@@ -139,7 +141,7 @@ export default async function runCommand(commandStr, request) {
         }
     } catch(err) {
         console.error('task error', err)
-        throw err
+        throw publishing ? storageError(err) : err
     }
     return response
 }

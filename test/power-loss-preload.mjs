@@ -14,6 +14,7 @@ if (configFile) {
 		'appendFileSync', 'readFileSync', 'existsSync', 'statSync', 'writeFileSync']
 		.map(key => [key, fs[key].bind(fs)]))
 	const open = fsp.open.bind(fsp)
+	const rename = fsp.rename.bind(fsp)
 	const handles = new Map()
 	let injected = false
 	const scoped = file => typeof file === 'string' &&
@@ -30,6 +31,7 @@ if (configFile) {
 		if (injected || !rule || rule.op !== op || !scoped(file) ||
 			!path.basename(file).startsWith(rule.file) ||
 			(rule.contains && !content.includes(rule.contains))) return false
+		if (rule.after && !raw.readFileSync(config.trace,'utf8').split('\n').filter(Boolean).map(JSON.parse).some(event => event.op === rule.after.op && path.basename(event.file) === rule.after.file)) return false
 		injected = true
 		record('injected', file, {operation: op, action: rule.action})
 		if (rule.action === 'pause') {
@@ -46,21 +48,30 @@ if (configFile) {
 		return false
 	}
 
+	fsp.rename = async function(from, to) {
+		const file = path.resolve(String(to))
+		await fault('rename', file)
+		await rename(from, to)
+		record('rename', file, {from:path.resolve(String(from))})
+	}
 	fsp.open = async function(file, ...args) {
 		const absolute = path.resolve(String(file))
 		const existed = raw.existsSync(absolute)
+		await fault('open', absolute)
 		const handle = await open(file, ...args)
 		if (!scoped(absolute)) return handle
 		record('open', absolute, {existed, flags: args[0]})
 		let content = ''
-		for (const method of ['appendFile', 'datasync', 'sync', 'close']) {
+		for (const method of ['appendFile', 'write', 'datasync', 'sync', 'close']) {
 			const original = handle[method].bind(handle)
 			handle[method] = async (...params) => {
 				if (method === 'appendFile') content = String(params[0])
-				await fault(method, absolute, content)
+				if (method === 'write') content = String(params[0].subarray(params[1], params[1]+params[2]))
+				const short = await fault(method, absolute, content)
+				if (short && method === 'write') params[2] = Math.max(1, Math.floor(params[2]/2))
 				const result = await original(...params)
 				record(method, absolute, method === 'datasync' || method === 'sync'
-					? snapshot(absolute) : {})
+					? snapshot(absolute) : method === 'write' ? {bytesWritten:result.bytesWritten} : {})
 				await fault(method + ':after', absolute, content)
 				return result
 			}
