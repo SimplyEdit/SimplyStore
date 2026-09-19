@@ -131,191 +131,267 @@ export async function inventory(config) {
     )
 }
 
-async function records(file, errors, kind) {
-    let text
-    try {
-        text = await fs.readFile(file, 'utf8')
-    }
-    catch (error) {
-        errors.push(`${kind}: ${error.message}`)
-        return []
-    }
-    if (text && !text.endsWith('\n')) {
-        errors.push(`${kind}: incomplete final record in ${file}`)
-    }
-    const result = []
-    for (const [index, line] of text.split('\n').entries()) {
-        if (!line) {
-            continue
-        }
-        try {
-            const value = JSONTag.parse(line)
-            if (!value || typeof value !== 'object' || Array.isArray(value)) {
-                throw new Error('record is not an object')
-            }
-            result.push({ value, line, lineNumber: index + 1 })
-        }
-        catch (error) {
-            errors.push(`${kind} ${file}:${index + 1}: ${error.message}`)
-        }
-    }
-    return result
-}
-
 // Reads canonical files only; deliberately never imports user handlers/index
 // modules.
 export async function inspectStore(options = {}) {
-    const config = storePaths(options)
-    const errors = [],
-        warnings = []
-    const configuredPaths = [
-        config.datafile,
-        config.commandLog,
-        config.commandStatus,
-        config.integrityFile
-    ]
-    const canonicalPaths = await Promise.all(
-        configuredPaths.map(async file => {
-            const directory = await fs.realpath(path.dirname(file))
-            return path.join(directory, path.basename(file))
-        })
-    )
-    if (new Set(canonicalPaths).size !== canonicalPaths.length) {
-        errors.push('Configured canonical artifact paths overlap')
+    const inspector = new StoreInspector(storePaths(options))
+    return inspector.inspect()
+}
+
+class StoreInspector {
+    constructor(config) {
+        this.config = config
+        this.errors = []
+        this.warnings = []
+        this.files = null
+        this.commands = []
+        this.commandsById = new Map()
+        this.manifest = null
+        this.parser = new Parser()
+        this.buffers = []
+        this.committed = []
+        this.data = undefined
+        this.prefixValid = false
     }
-    const before = await inventory(config)
-    const log = await records(config.commandLog, errors, 'command log')
-    const statuses = await records(
-        config.commandStatus,
-        errors,
-        'command status'
-    )
-    const commands = [],
-        byId = new Map()
-    for (const record of log) {
-        const { id, name } = record.value
-        if (!validCommandId(id) || typeof name !== 'string' || !name) {
-            errors.push(`Invalid command at log line ${record.lineNumber}`)
-            continue
+
+    async inspect() {
+        await this.validateConfiguredPaths()
+        this.files = await inventory(this.config)
+        const log = await this.readRecords(
+            this.config.commandLog,
+            'command log'
+        )
+        const statuses = await this.readRecords(
+            this.config.commandStatus,
+            'command status'
+        )
+        this.readCommands(log)
+        const doneOrder = this.applyStatusHistory(statuses)
+        this.validateCommittedOrder(doneOrder)
+        await this.loadIntegrityManifest()
+        this.prefixValid = this.errors.length === 0
+        await this.reconstructCommittedState()
+        this.validateStoreArtifacts()
+        await this.verifyStableSnapshot()
+        return this.createReport()
+    }
+
+    async validateConfiguredPaths() {
+        const configuredPaths = [
+            this.config.datafile,
+            this.config.commandLog,
+            this.config.commandStatus,
+            this.config.integrityFile
+        ]
+        const canonicalPaths = await Promise.all(
+            configuredPaths.map(async file => {
+                const directory = await fs.realpath(path.dirname(file))
+                return path.join(directory, path.basename(file))
+            })
+        )
+        if (new Set(canonicalPaths).size !== canonicalPaths.length) {
+            this.errors.push('Configured canonical artifact paths overlap')
         }
-        if (byId.has(id)) {
-            if (
-                JSONTag.stringify(byId.get(id).command) !==
-                JSONTag.stringify(record.value)
-            ) {
-                errors.push(`Conflicting command ID ${id}`)
+    }
+
+    async readRecords(file, kind) {
+        let text
+        try {
+            text = await fs.readFile(file, 'utf8')
+        }
+        catch (error) {
+            this.errors.push(`${kind}: ${error.message}`)
+            return []
+        }
+        if (text && !text.endsWith('\n')) {
+            this.errors.push(`${kind}: incomplete final record in ${file}`)
+        }
+        const result = []
+        for (const [index, line] of text.split('\n').entries()) {
+            if (!line) {
+                continue
             }
-            continue
-        }
-        const command = {
-            id,
-            position: commands.length,
-            command: record.value,
-            line: record.line,
-            history: [],
-            accepted: false,
-            status: null,
-            file: getChangesetPath(config.datafile, id)
-        }
-        byId.set(id, command)
-        commands.push(command)
-    }
-    const doneOrder = new Map()
-    for (const { value, lineNumber } of statuses) {
-        const command = byId.get(value.command)
-        if (!command) {
-            errors.push(
-                `Status line ${lineNumber} has no logged command: ${value.command}`
-            )
-            continue
-        }
-        if (
-            !['accepted', 'active', 'done', 'failed', 'unsafe'].includes(
-                value.status
-            )
-        ) {
-            errors.push(`Unknown status for ${command.id}: ${value.status}`)
-            continue
-        }
-        if (value.status === 'accepted') {
-            command.accepted = true
-        }
-        if (value.status !== 'accepted' && !command.accepted) {
-            errors.push(`No acceptance evidence for ${command.id}`)
-        }
-        if (value.status === 'done') {
-            doneOrder.delete(command.id)
-            doneOrder.set(command.id, command.position)
-        }
-        command.history.push(value)
-        command.status = value.status
-    }
-    let lastDonePosition = -1
-    for (const [id, position] of doneOrder) {
-        if (byId.get(id).status !== 'done') {
-            continue
-        }
-        if (position < lastDonePosition) {
-            errors.push(
-                `Committed execution differs from command-log order at ${id}`
-            )
-        }
-        lastDonePosition = position
-    }
-    let manifest
-    try {
-        // Preserve optional existence-based compatibility; required integrity
-        // is explicit.
-        const enabled = config.integrity || before[config.integrityFile] != null
-        if (enabled) {
-            if (before[config.integrityFile] == null) {
-                throw new Error(
-                    `Missing integrity manifest ${config.integrityFile}`
+            try {
+                const value = JSONTag.parse(line)
+                if (
+                    !value ||
+                    typeof value !== 'object' ||
+                    Array.isArray(value)
+                ) {
+                    throw new Error('record is not an object')
+                }
+                result.push({ value, line, lineNumber: index + 1 })
+            }
+            catch (error) {
+                this.errors.push(
+                    `${kind} ${file}:${index + 1}: ${error.message}`
                 )
             }
-            await records(config.integrityFile, errors, 'integrity manifest')
-            manifest = await loadIntegrityManifest(config.integrityFile)
+        }
+        return result
+    }
+
+    readCommands(log) {
+        for (const record of log) {
+            const { id, name } = record.value
+            if (!validCommandId(id) || typeof name !== 'string' || !name) {
+                this.errors.push(
+                    `Invalid command at log line ${record.lineNumber}`
+                )
+                continue
+            }
+            if (this.commandsById.has(id)) {
+                const existing = this.commandsById.get(id).command
+                if (
+                    JSONTag.stringify(existing) !==
+                    JSONTag.stringify(record.value)
+                ) {
+                    this.errors.push(`Conflicting command ID ${id}`)
+                }
+                continue
+            }
+            const command = {
+                id,
+                position: this.commands.length,
+                command: record.value,
+                line: record.line,
+                history: [],
+                accepted: false,
+                status: null,
+                file: getChangesetPath(this.config.datafile, id)
+            }
+            this.commandsById.set(id, command)
+            this.commands.push(command)
         }
     }
-    catch (error) {
-        errors.push(error.message)
+
+    applyStatusHistory(statuses) {
+        const doneOrder = new Map()
+        for (const { value, lineNumber } of statuses) {
+            const command = this.commandsById.get(value.command)
+            if (!command) {
+                this.errors.push(
+                    `Status line ${lineNumber} has no logged command: ` +
+                    value.command
+                )
+                continue
+            }
+            const knownStatus = [
+                'accepted',
+                'active',
+                'done',
+                'failed',
+                'unsafe'
+            ].includes(value.status)
+            if (!knownStatus) {
+                this.errors.push(
+                    `Unknown status for ${command.id}: ${value.status}`
+                )
+                continue
+            }
+            if (value.status === 'accepted') {
+                command.accepted = true
+            }
+            if (value.status !== 'accepted' && !command.accepted) {
+                this.errors.push(`No acceptance evidence for ${command.id}`)
+            }
+            if (value.status === 'done') {
+                doneOrder.delete(command.id)
+                doneOrder.set(command.id, command.position)
+            }
+            command.history.push(value)
+            command.status = value.status
+        }
+        return doneOrder
     }
-    const parser = new Parser()
-    const buffers = [],
-        committed = []
-    let data,
-        prefixValid = errors.length === 0
-    async function validateData(file) {
+
+    validateCommittedOrder(doneOrder) {
+        let lastDonePosition = -1
+        for (const [id, position] of doneOrder) {
+            if (this.commandsById.get(id).status !== 'done') {
+                continue
+            }
+            if (position < lastDonePosition) {
+                this.errors.push(
+                    'Committed execution differs from command-log order ' +
+                    `at ${id}`
+                )
+            }
+            lastDonePosition = position
+        }
+    }
+
+    async loadIntegrityManifest() {
+        try {
+            const integrityFile = this.config.integrityFile
+            const enabled =
+                this.config.integrity || this.files[integrityFile] != null
+            if (!enabled) {
+                return
+            }
+            if (this.files[integrityFile] == null) {
+                throw new Error(`Missing integrity manifest ${integrityFile}`)
+            }
+            await this.readRecords(integrityFile, 'integrity manifest')
+            this.manifest = await loadIntegrityManifest(integrityFile)
+        }
+        catch (error) {
+            this.errors.push(error.message)
+        }
+    }
+
+    async readVerifiedData(file) {
         const bytes = await fs.readFile(file)
         assertOdJsonTagFraming(bytes, file)
-        if (manifest) {
-            verifyIntegrity(manifest, config.integrityFile, file, bytes, {
-                required: true
-            })
+        if (this.manifest) {
+            verifyIntegrity(
+                this.manifest,
+                this.config.integrityFile,
+                file,
+                bytes,
+                { required: true }
+            )
         }
         return bytes
     }
-    try {
-        const bytes = await validateData(config.datafile)
-        if (!bytes.length) {
-            throw new Error('Empty base dataset')
+
+    async reconstructCommittedState() {
+        await this.readBaseDataset()
+        for (const command of this.commands) {
+            await this.inspectCommandDataset(command)
+            this.findLaterDatasets(command)
         }
-        data = parser.parse(bytes)
-        buffers.push(bytes)
     }
-    catch (error) {
-        errors.push(error.message)
-        prefixValid = false
+
+    async readBaseDataset() {
+        try {
+            const bytes = await this.readVerifiedData(this.config.datafile)
+            if (!bytes.length) {
+                throw new Error('Empty base dataset')
+            }
+            this.data = this.parser.parse(bytes)
+            this.buffers.push(bytes)
+        }
+        catch (error) {
+            this.errors.push(error.message)
+            this.prefixValid = false
+        }
     }
-    for (const command of commands) {
-        command.present = before[command.file] != null
-        command.condition = command.present ? 'present' : 'missing'
+
+    async inspectCommandDataset(command) {
+        command.present = this.files[command.file] != null
+        command.condition = 'missing'
+        if (command.present) {
+            command.condition = 'present'
+        }
         if (!command.accepted) {
-            errors.push(`Orphan command without acceptance: ${command.id}`)
+            this.errors.push(
+                `Orphan command without acceptance: ${command.id}`
+            )
         }
         if (command.present) {
             try {
-                await validateData(command.file)
+                await this.readVerifiedData(command.file)
             }
             catch (error) {
                 command.condition = 'corrupt'
@@ -323,82 +399,113 @@ export async function inspectStore(options = {}) {
             }
         }
         if (command.status === 'done') {
-            if (!command.present || command.condition === 'corrupt') {
-                command.problem ||= `Missing changeset for committed command ${command.id}: ${command.file}`
-                prefixValid = false
-            }
-            else if (prefixValid) {
-                try {
-                    const bytes = await validateData(command.file)
-                    data = parser.parse(bytes)
-                    buffers.push(bytes)
-                    committed.push(command.id)
-                }
-                catch (error) {
-                    command.problem = error.message
-                    prefixValid = false
-                }
-            }
+            await this.applyCommittedCommand(command)
         }
         else if (
             command.status === 'accepted' ||
             command.status === 'active'
         ) {
-            prefixValid = false
+            this.prefixValid = false
         }
-        const laterDatasets = from(commands)
+    }
+
+    async applyCommittedCommand(command) {
+        if (!command.present || command.condition === 'corrupt') {
+            if (!command.problem) {
+                command.problem =
+                    `Missing changeset for committed command ${command.id}: ` +
+                    command.file
+            }
+            this.prefixValid = false
+            return
+        }
+        if (!this.prefixValid) {
+            return
+        }
+        try {
+            const bytes = await this.readVerifiedData(command.file)
+            this.data = this.parser.parse(bytes)
+            this.buffers.push(bytes)
+            this.committed.push(command.id)
+        }
+        catch (error) {
+            command.problem = error.message
+            this.prefixValid = false
+        }
+    }
+
+    findLaterDatasets(command) {
+        const laterDatasets = from(this.commands)
             .where({
                 position: position => position > command.position,
                 accepted: true,
-                file: file => before[file] != null
+                file: file => this.files[file] != null
             })
             .select(_.id)
         command.laterDatasets = [...laterDatasets]
     }
-    const extension = path.extname(config.datafile),
-        stem = path.basename(config.datafile, extension) + '.'
-    const known = new Set(commands.map(command => command.file))
-    for (const file of Object.keys(before)) {
-        if (
-            path.dirname(file) === path.dirname(config.datafile) &&
-            path.basename(file).startsWith(stem) &&
-            file.endsWith(extension) &&
-            file !== config.datafile &&
-            file !== config.integrityFile &&
-            !known.has(file)
-        ) {
-            errors.push(`Unexplained changeset: ${file}`)
+
+    validateStoreArtifacts() {
+        const extension = path.extname(this.config.datafile)
+        const stem = path.basename(this.config.datafile, extension) + '.'
+        const known = new Set(this.commands.map(command => command.file))
+        for (const file of Object.keys(this.files)) {
+            if (
+                path.dirname(file) === path.dirname(this.config.datafile) &&
+                path.basename(file).startsWith(stem) &&
+                file.endsWith(extension) &&
+                file !== this.config.datafile &&
+                file !== this.config.integrityFile &&
+                !known.has(file)
+            ) {
+                this.errors.push(`Unexplained changeset: ${file}`)
+            }
+        }
+        for (const file of this.config.requiredFiles) {
+            if (this.files[file] == null) {
+                this.errors.push(`Missing required artifact: ${file}`)
+            }
         }
     }
-    for (const file of config.requiredFiles) {
-        if (before[file] == null) {
-            errors.push(`Missing required artifact: ${file}`)
+
+    async verifyStableSnapshot() {
+        const finalFiles = await inventory(this.config)
+        if (JSON.stringify(this.files) !== JSON.stringify(finalFiles)) {
+            this.errors.push('Store changed during inspection')
         }
     }
-    const after = await inventory(config)
-    if (JSON.stringify(before) !== JSON.stringify(after)) {
-        errors.push('Store changed during inspection')
-    }
-    const commandQuery = from(commands)
-    const pending = commandQuery.where({ status: anyOf('accepted', 'active') })
-    const damaged = commandQuery.where(
-        anyOf({ problem: Boolean }, { present: Boolean, status: not('done') })
-    )
-    const ready =
-        errors.length === 0 && pending.length === 0 && damaged.length === 0
-    warnings.push(
-        'History completeness and original code/hidden inputs require independent administrator evidence; current files alone cannot prove them.'
-    )
-    return {
-        config,
-        files: before,
-        fingerprint: hash(JSON.stringify(before)),
-        errors,
-        warnings,
-        commands,
-        committed,
-        ready,
-        data,
-        buffers
+
+    createReport() {
+        const commandQuery = from(this.commands)
+        const pending = commandQuery.where({
+            status: anyOf('accepted', 'active')
+        })
+        const damaged = commandQuery.where(
+            anyOf(
+                { problem: Boolean },
+                { present: Boolean, status: not('done') }
+            )
+        )
+        const ready =
+            this.errors.length === 0 &&
+            pending.length === 0 &&
+            damaged.length === 0
+        this.warnings.push(
+            'History completeness and original code/hidden inputs require ' +
+            'independent administrator evidence; current files alone cannot ' +
+            'prove them.'
+        )
+        return {
+            config: this.config,
+            files: this.files,
+            fingerprint: hash(JSON.stringify(this.files)),
+            errors: this.errors,
+            warnings: this.warnings,
+            commands: this.commands,
+            committed: this.committed,
+            ready,
+            data: this.data,
+            buffers: this.buffers
+        }
     }
 }

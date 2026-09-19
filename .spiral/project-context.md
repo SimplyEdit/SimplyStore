@@ -18,9 +18,35 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Latest accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-17.md` (`Power-Loss Durability And Administrative Recovery`), committed by the maintainer on 2026-09-19 and opened on `spiral/CYC-20260919-TTZ7C-17-power-loss-recovery` from `master` at `44ea91717a328ad7b5e049c6c0845b5e3bcc1718`. The maintainer accepted the cycle on 2026-09-19 after running tests and the example. The accepted branch was integrated locally into `master` at `fd40b0a23066ee8b37261dea1ba89cc64bbd4cc8`; no new cycle is active. Its source, understanding, and acceptance matrix are `SRC-20260919-TTZ7C-18`, `UND-20260919-TTZ7C-19`, and `REQ-20260919-TTZ7C-20`.
+Latest accepted Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-31.md` (`Readable
+Store Runtime And Dependency Maintenance`), opened on
+`spiral/CYC-20260919-TTZ7C-31-runtime-boundaries` from `master` at
+`e31e07c9bc8d4fc6458da1d213609dbf1aa4a7a2`. It deliberately precedes the
+remaining randomized/soak roadmap work to correct the central runtime boundary
+exposed by the accepted durability cycle. Its source, understanding, request and
+design are `SRC-20260919-TTZ7C-28`, `UND-20260919-TTZ7C-29`,
+`REQ-20260919-TTZ7C-30` and `DES-20260919-TTZ7C-32`. The maintainer accepted the
+cycle on 2026-09-19; integration is pending and no new cycle is active.
 
-Previously accepted and integrated cycle: `.spiral/cycles/CYC-20260917-TTZ7C-4.md` (`Persisted Offset Indexes`), explicitly accepted on 2026-09-18 and merged into `master` at `0444094`. Conversion and command changesets finalize offsets from their serialized bytes through the configured index module, with a default fallback for existing wrappers. The earlier integrity runtime slice was accepted on 2026-08-19; its compliance correction in `DEF-20260916-TTZ7C-1`, verified by `EVD-20260916-TTZ7C-3`, was explicitly accepted on 2026-09-16 and merged at `e59c6f1`.
+Accepted-cycle outcome: `IMP-20260919-TTZ7C-33` moves
+opened-store state and lifecycle into one cohesive `StoreRuntime`, leaving
+Express and process policy in the server shell. It preserves authoritative
+command-log ordering and the accepted durability/recovery behavior. The
+maintainer authorized correcting the ineffective slow-query timeout; normal and
+slow GET and POST tasks now pass the selected configured duration through the
+worker's `timeout` property. `IMP-20260919-TTZ7C-34` aligns supported root and
+example dependencies. Storage failure reporting is now explicitly optional,
+without an empty default callback; failure state and mutation refusal remain
+mandatory. Store inspection, recovery application, backup restoration and
+offline lock release now expose story-level coordinating methods on cohesive
+module-local workflow objects while retaining their public functions and safety
+semantics. `EVD-20260919-TTZ7C-35` records 112 passing regression tests, clean
+focused lint and audit results, and successful package/example verification.
+The maintainer explicitly accepted the completed cycle.
+
+Previously accepted and integrated Spiral cycle: `.spiral/cycles/CYC-20260919-TTZ7C-17.md` (`Power-Loss Durability And Administrative Recovery`), committed by the maintainer on 2026-09-19 and opened on `spiral/CYC-20260919-TTZ7C-17-power-loss-recovery` from `master` at `44ea91717a328ad7b5e049c6c0845b5e3bcc1718`. The maintainer accepted the cycle on 2026-09-19 after running tests and the example. The accepted branch was integrated locally into `master` at `fd40b0a23066ee8b37261dea1ba89cc64bbd4cc8`. Its source, understanding, and acceptance matrix are `SRC-20260919-TTZ7C-18`, `UND-20260919-TTZ7C-19`, and `REQ-20260919-TTZ7C-20`.
+
+Earlier accepted and integrated cycle: `.spiral/cycles/CYC-20260917-TTZ7C-4.md` (`Persisted Offset Indexes`), explicitly accepted on 2026-09-18 and merged into `master` at `0444094`. Conversion and command changesets finalize offsets from their serialized bytes through the configured index module, with a default fallback for existing wrappers. The earlier integrity runtime slice was accepted on 2026-08-19; its compliance correction in `DEF-20260916-TTZ7C-1`, verified by `EVD-20260916-TTZ7C-3`, was explicitly accepted on 2026-09-16 and merged at `e59c6f1`.
 
 Accepted-cycle outcome on 2026-09-19: `IMP-20260919-TTZ7C-26` implements the corrected `DES-20260919-TTZ7C-24/25` following explicit authorization to complete the whole cycle. Existing command/status/integrity and dataset formats remain unchanged, with no migration. Durable complete-write and file/directory barriers, ownership, log-authoritative serial acceptance/execution, command-only workers, strict startup assessment, and source-bound administrator recovery/backup/restore are implemented. `EVD-20260919-TTZ7C-27` records 101 passing regression tests plus 22 expanded administrator tests (three additional cases), direct CLI checks, and a passing four-scenario ext4/QEMU power-cut exercise with device/filesystem negative controls and latency. `DURABILITY.md` and `docs/recovery.md` define the bounded behavior and runnable procedure. Historical baseline gaps remain at `EVD-20260919-TTZ7C-23`; PL15/16 expectations were corrected by the maintainer, not silently weakened. Full rebuild remains a documented separate contract. The cycle is Accepted and integrated into local `master`. Broader filesystem/hardware and randomized testing, undeclared custom dependencies and historical input/effect uncertainty remain explicit limits. Two unchanged legacy index `load` methods have pre-existing undefined-meta lint errors outside this write-path cycle.
 

@@ -1,0 +1,32 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260919-TTZ7C-33
+    a sd:Implementation ;
+    dcterms:identifier "IMP-20260919-TTZ7C-33" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260919-TTZ7C-33.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "src/store-runtime.mjs" ;
+    sd:implementationLocation "src/server.mjs" ;
+    sd:implementationLocation "src/execute-worker.mjs" ;
+    sd:implementationLocation "src/recovery.mjs" ;
+    sd:implementationLocation "src/store-inspection.mjs" ;
+    sd:implementationLocation "src/admin-recovery.mjs" ;
+    sd:implementationLocation "test/store-runtime.mjs" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260919-TTZ7C-32 ;
+        sd:gitCommit "f7ced34e7821e3aa02606c2d1abe6f1bb1c08c5b"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-20260919-TTZ7C-26 ;
+        sd:gitCommit "e31e07c9bc8d4fc6458da1d213609dbf1aa4a7a2"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-20260919-TTZ7C-33 ;
+        sd:gitCommit "f0c1616c828db6c63c84cd63dcf4c4f4324188c1"
+    ] ;
+    sd:implementationChangeKind sd:MixedChange .

@@ -1,0 +1,25 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:IMP-20260919-TTZ7C-34
+    a sd:Implementation ;
+    dcterms:identifier "IMP-20260919-TTZ7C-34" ;
+    sd:repositoryPath ".spiral/implementations/IMP-20260919-TTZ7C-34.md" ;
+    sd:status sd:Active ;
+    sd:implementationLocation "package.json" ;
+    sd:implementationLocation "example/package.json" ;
+    sd:implementationLocation "example/run-command.mjs" ;
+    sd:implementationLocation "example/run-bad-command.mjs" ;
+    sd:implementationLocation "eslint.config.js" ;
+    sd:implements [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260919-TTZ7C-32 ;
+        sd:gitCommit "dd0382ef49a50cada7a3699cb021df0929d02315"
+    ] ;
+    sd:transforms [
+        a sd:ArtifactReference ;
+        sd:artifact project:IMP-20260919-TTZ7C-34 ;
+        sd:gitCommit "fe516f08163642939e3c7478d5eb7b851de273ab"
+    ] ;
+    sd:implementationChangeKind sd:BehaviorPreservingChange .

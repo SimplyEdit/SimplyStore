@@ -210,83 +210,156 @@ async function prepareWorkspace(target, audit, roots) {
 
 export async function applyRecovery(
     plan,
-    { to, auditDir, approveRerun = [], operator, reason } = {}
+    options = {}
 ) {
-    if (plan.kind !== 'simplystore-recovery-plan' || !plan.actionable) {
-        throw new Error(
-            'Plan is not actionable; inspect a quiescent source and resolve blocking evidence'
+    const recovery = new RecoveryApplication(plan, options)
+    return recovery.run()
+}
+
+class RecoveryApplication {
+    constructor(
+        plan,
+        { to, auditDir, approveRerun = [], operator, reason } = {}
+    ) {
+        this.plan = plan
+        this.targetOption = to
+        this.auditOption = auditDir
+        this.approveRerun = approveRerun
+        this.operator = operator
+        this.reason = reason
+        this.freshPlan = null
+        this.sourceOwner = null
+        this.rootOwner = null
+        this.candidateOwner = null
+        this.target = null
+        this.audit = null
+        this.original = null
+        this.config = null
+        this.journal = null
+        this.planHash = null
+        this.meta = null
+        this.buffers = null
+        this.expectedManifest = null
+    }
+
+    async run() {
+        this.validateApproval()
+        this.sourceOwner = await acquireOwnership(
+            mutableDirectories(this.plan.config)
         )
+        try {
+            await this.verifyFreshSource()
+            await this.prepareCandidateWorkspace()
+            await this.recordAuthorization()
+            await this.loadCommittedPrefix()
+            await this.runApprovedCommands()
+            const complete = await this.inspectCompletedCandidate()
+            return await this.publishCompletion(complete)
+        }
+        finally {
+            // Failed candidate locks and audit evidence must remain. The
+            // unchanged source can be released.
+            await this.sourceOwner.release()
+        }
     }
-    if (!operator || !reason) {
-        throw new Error('Operator and assessment reason are required')
+
+    validateApproval() {
+        if (
+            this.plan.kind !== 'simplystore-recovery-plan' ||
+            !this.plan.actionable
+        ) {
+            throw new Error(
+                'Plan is not actionable; inspect a quiescent source and ' +
+                'resolve blocking evidence'
+            )
+        }
+        if (!this.operator || !this.reason) {
+            throw new Error('Operator and assessment reason are required')
+        }
+        if (
+            JSON.stringify(this.approveRerun) !==
+            JSON.stringify(this.plan.rerun)
+        ) {
+            throw new Error(
+                'Explicit approval must match the complete ordered rerun list'
+            )
+        }
     }
-    if (JSON.stringify(approveRerun) !== JSON.stringify(plan.rerun)) {
-        throw new Error(
-            'Explicit approval must match the complete ordered rerun list'
-        )
-    }
-    const sourceOwner = await acquireOwnership(mutableDirectories(plan.config))
-    let candidateOwner
-    try {
-        await assertFresh(plan)
+
+    async verifyFreshSource() {
+        await assertFresh(this.plan)
         // Do not trust editable plan fields to bypass the source predicate.
-        const fresh = await planRecovery(
-            { ...plan.config, ...plan.code },
+        this.freshPlan = await planRecovery(
+            { ...this.plan.config, ...this.plan.code },
             { quiescent: true }
         )
-        if (
-            !fresh.actionable ||
-            JSON.stringify(fresh.rerun) !== JSON.stringify(plan.rerun)
-        ) {
+        const sameRerun =
+            JSON.stringify(this.freshPlan.rerun) ===
+            JSON.stringify(this.plan.rerun)
+        if (!this.freshPlan.actionable || !sameRerun) {
             throw new Error(
                 'Source no longer satisfies ordered recovery predicate'
             )
         }
+    }
+
+    async prepareCandidateWorkspace() {
         const workspace = await prepareWorkspace(
-            to,
-            auditDir,
-            sourceOwner.directories
+            this.targetOption,
+            this.auditOption,
+            this.sourceOwner.directories
         )
-        const { target, audit } = workspace
-        const rootOwner = await acquireOwnership([target], {
+        this.target = workspace.target
+        this.audit = workspace.audit
+        this.rootOwner = await acquireOwnership([this.target], {
             purpose: 'recovery',
-            auditDir: audit
+            auditDir: this.audit
         })
-        // A root lock protects partially copied candidates before layout is
-        // complete.
-        const original = await copyStore(
-            plan.config,
-            plan.files,
-            path.join(audit, 'original')
+        this.original = await copyStore(
+            this.plan.config,
+            this.plan.files,
+            path.join(this.audit, 'original')
         )
-        const config = await copyStore(plan.config, plan.files, target)
-        candidateOwner = await acquireOwnership(
-            mutableDirectories(config).filter(dir => dir !== target),
-            { ancestorToken: rootOwner.token }
+        this.config = await copyStore(
+            this.plan.config,
+            this.plan.files,
+            this.target
         )
-        const planHash = hash(JSON.stringify(plan))
+        this.candidateOwner = await acquireOwnership(
+            mutableDirectories(this.config).filter(
+                directory => directory !== this.target
+            ),
+            { ancestorToken: this.rootOwner.token }
+        )
+    }
+
+    async recordAuthorization() {
+        this.planHash = hash(JSON.stringify(this.plan))
         await publishFile(
-            path.join(audit, 'plan.json'),
-            JSON.stringify(plan, null, 2)
+            path.join(this.audit, 'plan.json'),
+            JSON.stringify(this.plan, null, 2)
         )
         await publishFile(
-            path.join(audit, 'original.json'),
-            JSON.stringify(original, null, 2)
+            path.join(this.audit, 'original.json'),
+            JSON.stringify(this.original, null, 2)
         )
-        const journal = path.join(audit, 'attempts.jsonl')
+        this.journal = path.join(this.audit, 'attempts.jsonl')
         await appendRecord(
-            journal,
+            this.journal,
             JSON.stringify({
                 event: 'authorized',
-                planHash,
-                operator,
-                reason,
-                rerun: plan.rerun,
-                config,
-                attestation: plan.attestation
+                planHash: this.planHash,
+                operator: this.operator,
+                reason: this.reason,
+                rerun: this.plan.rerun,
+                config: this.config,
+                attestation: this.plan.attestation
             })
         )
-        const inspection = await inspectStore(config)
+    }
+
+    async loadCommittedPrefix() {
+        const inspection = await inspectStore(this.config)
         if (inspection.errors.length) {
             throw new Error(inspection.errors.join('; '))
         }
@@ -295,151 +368,182 @@ export async function applyRecovery(
         for (const bytes of inspection.buffers) {
             data = parser.parse(bytes)
         }
-        // Serialize committed prefix, rebuilding parser indexes without custom
-        // hooks.
-        let meta = {
+        // Rebuild parser indexes without invoking custom hooks.
+        this.meta = {
             index: { id: new Map() },
-            data: path.dirname(config.datafile),
+            data: path.dirname(this.config.datafile),
             parts: inspection.committed.length
         }
-        const buffers = [serialize(data, { meta })]
-        if (config.schemaFile) {
-            meta.schema = JSONTag.parse(
-                await fs.readFile(config.schemaFile, 'utf8')
+        this.buffers = [serialize(data, { meta: this.meta })]
+        if (this.config.schemaFile) {
+            this.meta.schema = JSONTag.parse(
+                await fs.readFile(this.config.schemaFile, 'utf8')
             )
         }
-        let expectedManifest = null
-        if (plan.files[plan.config.integrityFile] != null) {
-            expectedManifest = await loadIntegrityManifest(
-                plan.config.integrityFile
+        const integrityFile = this.plan.config.integrityFile
+        if (this.plan.files[integrityFile] != null) {
+            this.expectedManifest = await loadIntegrityManifest(integrityFile)
+        }
+    }
+
+    async runApprovedCommands() {
+        for (const id of this.plan.rerun) {
+            await this.runApprovedCommand(id)
+        }
+    }
+
+    async runApprovedCommand(id) {
+        await assertFresh(this.plan)
+        const command = this.freshPlan.commands.find(item => item.id === id)
+        const active = nextActiveCommandStatus(id, command.history.at(-1))
+        await this.recordAttempt(id, active)
+        await appendRecord(
+            this.config.commandStatus,
+            JSONTag.stringify(active)
+        )
+        const result = await this.executeCommand(id, command)
+        await this.assertSuccessfulResult(id, result)
+        await this.commitCommandResult(id, command, active, result)
+    }
+
+    async recordAttempt(id, active) {
+        await appendRecord(
+            this.journal,
+            JSON.stringify({
+                event: 'attempt',
+                id,
+                attempt: active.attempt,
+                planHash: this.planHash
+            })
+        )
+    }
+
+    executeCommand(id, command) {
+        return executeWorker(
+            this.plan.code.commandWorker,
+            {
+                id,
+                command: command.line,
+                meta: this.meta,
+                data: this.buffers,
+                commandsFile: this.plan.code.commandsFile,
+                indexFile: this.plan.code.indexFile,
+                datafile: this.config.datafile,
+                // Retained digests are checked before replacement manifest and
+                // done records are allowed.
+                integrityFile: null,
+                integrityRequired: false
+            },
+            30000
+        )
+    }
+
+    async assertSuccessfulResult(id, result) {
+        const stopped =
+            !result ||
+            result.storageFailure ||
+            result.status === 'failed' ||
+            result.status === 'unsafe' ||
+            result.code >= 300
+        if (!stopped) {
+            return
+        }
+        let resultSummary = result
+        if (result) {
+            resultSummary = {
+                status: result.status,
+                message: result.message
+            }
+        }
+        await appendRecord(
+            this.journal,
+            JSON.stringify({ event: 'stopped', id, result: resultSummary })
+        )
+        throw new Error(
+            `Recovery attempt ${id} uncertain or failed; inspect before ` +
+            'approving another attempt'
+        )
+    }
+
+    async commitCommandResult(id, command, active, result) {
+        for (const file of this.config.requiredFiles) {
+            await syncFile(file)
+        }
+        if (this.expectedManifest && command.status === 'done') {
+            verifyIntegrity(
+                this.expectedManifest,
+                this.plan.config.integrityFile,
+                command.file,
+                result.data,
+                { required: true }
             )
         }
-        for (const id of plan.rerun) {
-            await assertFresh(plan)
-            const command = fresh.commands.find(c => c.id === id)
-            const active = nextActiveCommandStatus(id, command.history.at(-1))
-            await appendRecord(
-                journal,
-                JSON.stringify({
-                    event: 'attempt',
-                    id,
-                    attempt: active.attempt,
-                    planHash
-                })
-            )
-            await appendRecord(config.commandStatus, JSONTag.stringify(active))
-            const result = await executeWorker(
-                plan.code.commandWorker,
-                {
-                    id,
-                    command: command.line,
-                    meta,
-                    data: buffers,
-                    commandsFile: plan.code.commandsFile,
-                    indexFile: plan.code.indexFile,
-                    datafile: config.datafile,
-                    // Verify a retained digest before allowing replacement
-                    // manifest/done records.
-                    integrityFile: null,
-                    integrityRequired: false
-                },
-                30000
-            )
-            if (
-                !result ||
-                result.storageFailure ||
-                result.status === 'failed' ||
-                result.status === 'unsafe' ||
-                result.code >= 300
-            ) {
-                await appendRecord(
-                    journal,
-                    JSON.stringify({
-                        event: 'stopped',
-                        id,
-                        result: result && {
-                            status: result.status,
-                            message: result.message
-                        }
-                    })
-                )
-                throw new Error(
-                    `Recovery attempt ${id} uncertain or failed; inspect before approving another attempt`
-                )
-            }
-            for (const file of config.requiredFiles) {
-                await syncFile(file)
-            }
-            if (expectedManifest && command.status === 'done') {
-                verifyIntegrity(
-                    expectedManifest,
-                    plan.config.integrityFile,
-                    command.file,
-                    result.data,
-                    { required: true }
-                )
-            }
-            if (config.integrity || expectedManifest) {
-                const { appendIntegrityRecord } = await import(
-                    './integrity.mjs'
-                )
-                const targetFile = path.join(
-                    path.dirname(config.datafile),
-                    path.basename(command.file)
-                )
-                await appendIntegrityRecord(
-                    config.integrityFile,
-                    targetFile,
-                    result.data
-                )
-            }
-            await appendRecord(
-                config.commandStatus,
-                JSONTag.stringify({ command: id, code: 200, status: 'done' })
-            )
-            buffers.push(result.data)
-            Object.assign(meta, result.meta)
-            await appendRecord(
-                journal,
-                JSON.stringify({ event: 'done', id, attempt: active.attempt })
-            )
+        if (this.config.integrity || this.expectedManifest) {
+            await this.appendResultIntegrity(command, result.data)
         }
-        const complete = await inspectStore(config)
-        if (!complete.ready) {
-            const problems = from(complete.commands).where({ problem: Boolean })
-            const diagnostic = {
-                errors: complete.errors,
-                commands: [...problems]
-            }
-            const details = JSON.stringify(diagnostic)
-            throw new Error(`Recovered candidate is not ready: ${details}`)
+        await appendRecord(
+            this.config.commandStatus,
+            JSONTag.stringify({ command: id, code: 200, status: 'done' })
+        )
+        this.buffers.push(result.data)
+        Object.assign(this.meta, result.meta)
+        await appendRecord(
+            this.journal,
+            JSON.stringify({ event: 'done', id, attempt: active.attempt })
+        )
+    }
+
+    async appendResultIntegrity(command, data) {
+        const { appendIntegrityRecord } = await import('./integrity.mjs')
+        const targetFile = path.join(
+            path.dirname(this.config.datafile),
+            path.basename(command.file)
+        )
+        await appendIntegrityRecord(
+            this.config.integrityFile,
+            targetFile,
+            data
+        )
+    }
+
+    async inspectCompletedCandidate() {
+        const complete = await inspectStore(this.config)
+        if (complete.ready) {
+            return complete
         }
+        const problems = from(complete.commands).where({ problem: Boolean })
+        const diagnostic = {
+            errors: complete.errors,
+            commands: [...problems]
+        }
+        throw new Error(
+            'Recovered candidate is not ready: ' +
+            JSON.stringify(diagnostic)
+        )
+    }
+
+    async publishCompletion(complete) {
         const report = {
             kind: 'simplystore-recovery-complete',
-            planHash,
-            config,
-            code: plan.code,
-            codeHashes: plan.codeHashes,
+            planHash: this.planHash,
+            config: this.config,
+            code: this.plan.code,
+            codeHashes: this.plan.codeHashes,
             files: complete.files,
             fingerprint: complete.fingerprint,
             committed: complete.committed,
-            operator,
-            reason,
+            operator: this.operator,
+            reason: this.reason,
             warnings: complete.warnings
         }
         await publishFile(
-            path.join(audit, 'complete.json'),
+            path.join(this.audit, 'complete.json'),
             JSON.stringify(report, null, 2)
         )
-        await candidateOwner.release()
-        candidateOwner = null
-        await rootOwner.release()
+        await this.candidateOwner.release()
+        this.candidateOwner = null
+        await this.rootOwner.release()
         return report
-    }
-    finally {
-        // On failure retain candidate locks and its audit. The unchanged source
-        // can be released.
-        await sourceOwner.release()
     }
 }
 
@@ -528,24 +632,111 @@ function backupCoverage(retained, restored) {
 
 export async function restoreBackup(
     backupDirectory,
-    { to, auditDir, source, sourceQuiescent = false } = {}
+    options = {}
 ) {
-    const backup = await fs.realpath(backupDirectory)
-    const manifest = JSON.parse(
-        await fs.readFile(path.join(backup, 'complete.json'), 'utf8')
-    )
-    if (manifest.kind !== 'simplystore-backup-complete') {
-        throw new Error('Backup is incomplete or unrecognized')
-    }
-    const oldRoot = manifest.root
-    if (
-        typeof oldRoot !== 'string' ||
-        !path.isAbsolute(oldRoot) ||
-        manifest.fingerprint !== hash(JSON.stringify(manifest.files))
+    const restoration = new BackupRestoration(backupDirectory, options)
+    return restoration.run()
+}
+
+class BackupRestoration {
+    constructor(
+        backupDirectory,
+        { to, auditDir, source, sourceQuiescent = false } = {}
     ) {
-        throw new Error('Invalid backup inventory')
+        this.backupDirectory = backupDirectory
+        this.targetOption = to
+        this.auditOption = auditDir
+        this.source = source
+        this.sourceQuiescent = sourceQuiescent
+        this.backup = null
+        this.manifest = null
+        this.owner = null
+        this.rootOwner = null
+        this.candidateOwner = null
+        this.target = null
+        this.audit = null
+        this.config = null
+        this.candidateInspection = null
+        this.missingFromBackup = null
+        this.sameBase = null
     }
-    const rebase = file => {
+
+    async run() {
+        await this.loadManifest()
+        this.validateSourceComparison()
+        this.owner = await acquireOwnership(this.ownedDirectories())
+        try {
+            await this.validateBackupContents()
+            await this.prepareRestoredCandidate()
+            await this.compareRetainedSource()
+            return await this.publishCompletion()
+        }
+        finally {
+            await this.owner.release()
+        }
+    }
+
+    async loadManifest() {
+        this.backup = await fs.realpath(this.backupDirectory)
+        this.manifest = JSON.parse(
+            await fs.readFile(
+                path.join(this.backup, 'complete.json'),
+                'utf8'
+            )
+        )
+        if (this.manifest.kind !== 'simplystore-backup-complete') {
+            throw new Error('Backup is incomplete or unrecognized')
+        }
+        this.rebaseManifest()
+    }
+
+    rebaseManifest() {
+        const oldRoot = this.manifest.root
+        if (
+            typeof oldRoot !== 'string' ||
+            !path.isAbsolute(oldRoot) ||
+            this.manifest.fingerprint !==
+                hash(JSON.stringify(this.manifest.files))
+        ) {
+            throw new Error('Invalid backup inventory')
+        }
+        const rebase = file => this.rebasePath(file, oldRoot)
+        this.manifest.files = Object.fromEntries(
+            Object.entries(this.manifest.files).map(([file, digest]) => [
+                rebase(file),
+                digest
+            ])
+        )
+        this.manifest.fingerprint = hash(
+            JSON.stringify(this.manifest.files)
+        )
+        const configKeys = [
+            'datafile',
+            'commandLog',
+            'commandStatus',
+            'integrityFile',
+            'schemaFile'
+        ]
+        for (const key of configKeys) {
+            if (this.manifest.config[key]) {
+                this.manifest.config[key] = rebase(
+                    this.manifest.config[key]
+                )
+            }
+        }
+        this.manifest.config.requiredFiles =
+            this.manifest.config.requiredFiles.map(rebase)
+        const outsideBackup = mutableDirectories(this.manifest.config).some(
+            directory =>
+                directory !== this.backup &&
+                !directory.startsWith(this.backup + path.sep)
+        )
+        if (outsideBackup) {
+            throw new Error('Backup configuration points outside backup')
+        }
+    }
+
+    rebasePath(file, oldRoot) {
         if (
             typeof file !== 'string' ||
             file !== path.resolve(file) ||
@@ -553,100 +744,105 @@ export async function restoreBackup(
         ) {
             throw new Error('Backup manifest points outside backup')
         }
-        return path.join(backup, path.relative(oldRoot, file))
+        return path.join(this.backup, path.relative(oldRoot, file))
     }
-    manifest.files = Object.fromEntries(
-        Object.entries(manifest.files).map(([file, digest]) => [
-            rebase(file),
-            digest
-        ])
-    )
-    manifest.fingerprint = hash(JSON.stringify(manifest.files))
-    for (const key of [
-        'datafile',
-        'commandLog',
-        'commandStatus',
-        'integrityFile',
-        'schemaFile'
-    ]) {
-        if (manifest.config[key]) {
-            manifest.config[key] = rebase(manifest.config[key])
+
+    validateSourceComparison() {
+        if (this.source && !this.sourceQuiescent) {
+            throw new Error(
+                'Source comparison requires a stopped/quiescent source'
+            )
         }
     }
-    manifest.config.requiredFiles = manifest.config.requiredFiles.map(rebase)
-    if (
-        mutableDirectories(manifest.config).some(
-            dir => dir !== backup && !dir.startsWith(backup + path.sep)
+
+    ownedDirectories() {
+        const directories = mutableDirectories(this.manifest.config)
+        if (this.source) {
+            const sourceConfig = storePaths(this.source)
+            directories.push(...mutableDirectories(sourceConfig))
+        }
+        return directories
+    }
+
+    async validateBackupContents() {
+        const report = await inspectStore(this.manifest.config)
+        if (
+            !report.ready ||
+            report.fingerprint !== this.manifest.fingerprint
+        ) {
+            throw new Error(
+                'Backup contents differ from completed manifest'
+            )
+        }
+    }
+
+    async prepareRestoredCandidate() {
+        const workspace = await prepareWorkspace(
+            this.targetOption,
+            this.auditOption,
+            [this.backup, ...this.owner.directories]
         )
-    ) {
-        throw new Error('Backup configuration points outside backup')
-    }
-    if (source && !sourceQuiescent) {
-        throw new Error('Source comparison requires a stopped/quiescent source')
-    }
-    const directories = mutableDirectories(manifest.config)
-    if (source) {
-        const sourceConfig = storePaths(source)
-        directories.push(...mutableDirectories(sourceConfig))
-    }
-    const owner = await acquireOwnership(directories)
-    try {
-        const report = await inspectStore(manifest.config)
-        if (!report.ready || report.fingerprint !== manifest.fingerprint) {
-            throw new Error('Backup contents differ from completed manifest')
-        }
-        const { target, audit } = await prepareWorkspace(to, auditDir, [
-            backup,
-            ...owner.directories
-        ])
-        const rootOwner = await acquireOwnership([target], {
+        this.target = workspace.target
+        this.audit = workspace.audit
+        this.rootOwner = await acquireOwnership([this.target], {
             purpose: 'restore',
-            auditDir: audit
+            auditDir: this.audit
         })
-        const config = await copyStore(manifest.config, manifest.files, target)
-        const candidate = await acquireOwnership(
-            mutableDirectories(config).filter(dir => dir !== target),
-            { ancestorToken: rootOwner.token }
+        this.config = await copyStore(
+            this.manifest.config,
+            this.manifest.files,
+            this.target
         )
-        const check = await inspectStore(config)
-        if (!check.ready) {
+        this.candidateOwner = await acquireOwnership(
+            mutableDirectories(this.config).filter(
+                directory => directory !== this.target
+            ),
+            { ancestorToken: this.rootOwner.token }
+        )
+        this.candidateInspection = await inspectStore(this.config)
+        if (!this.candidateInspection.ready) {
             throw new Error('Restored candidate failed validation')
         }
-        let missingFromBackup = null,
-            sameBase = null
-        if (source) {
-            const retained = await inspectStore(source)
-            const coverage = backupCoverage(retained, check)
-            sameBase = coverage.sameBase
-            missingFromBackup = coverage.missingFromBackup
+    }
+
+    async compareRetainedSource() {
+        if (!this.source) {
+            return
         }
+        const retained = await inspectStore(this.source)
+        const coverage = backupCoverage(
+            retained,
+            this.candidateInspection
+        )
+        this.sameBase = coverage.sameBase
+        this.missingFromBackup = coverage.missingFromBackup
+    }
+
+    async publishCompletion() {
         let coverage = 'Loss relative to current source is unknown'
-        if (source) {
+        if (this.source) {
             coverage =
                 'Compared with supplied retained history; ' +
                 'completeness still requires external evidence'
         }
         const complete = {
             kind: 'simplystore-restore-complete',
-            config,
-            files: check.files,
-            fingerprint: check.fingerprint,
-            committed: check.committed,
-            missingFromBackup,
-            sameBase,
-            warnings: check.warnings,
+            config: this.config,
+            files: this.candidateInspection.files,
+            fingerprint: this.candidateInspection.fingerprint,
+            committed: this.candidateInspection.committed,
+            missingFromBackup: this.missingFromBackup,
+            sameBase: this.sameBase,
+            warnings: this.candidateInspection.warnings,
             coverage
         }
         await publishFile(
-            path.join(audit, 'complete.json'),
+            path.join(this.audit, 'complete.json'),
             JSON.stringify(complete, null, 2)
         )
-        await candidate.release()
-        await rootOwner.release()
+        await this.candidateOwner.release()
+        await this.rootOwner.release()
         return complete
-    }
-    finally {
-        await owner.release()
     }
 }
 
@@ -654,22 +850,61 @@ export async function restoreBackup(
 // it.
 export async function releaseOfflineLocks(
     options,
-    { operator, reason, confirmedStopped = false } = {}
+    assessment = {}
 ) {
-    if (!confirmedStopped || !operator || !reason) {
-        throw new Error(
-            'Offline release requires confirmed stopped writer, operator, and reason'
-        )
+    const release = new OfflineLockRelease(options, assessment)
+    return release.preview()
+}
+
+class OfflineLockRelease {
+    constructor(
+        options,
+        { operator, reason, confirmedStopped = false } = {}
+    ) {
+        this.options = options
+        this.operator = operator
+        this.reason = reason
+        this.confirmedStopped = confirmedStopped
+        this.config = null
+        this.report = null
+        this.removed = []
     }
-    const config = storePaths(options),
-        report = await inspectStore(config)
-    const removed = []
-    const lockDirectories = new Set(
-        await Promise.all(
-            mutableDirectories(config).map(dir => fs.realpath(dir))
+
+    async preview() {
+        this.validateAssessment()
+        this.config = storePaths(this.options)
+        this.report = await inspectStore(this.config)
+        const directories = await this.findLockDirectories()
+        for (const directory of directories) {
+            await this.inspectLock(directory)
+        }
+        return this.createPreview()
+    }
+
+    validateAssessment() {
+        if (!this.confirmedStopped || !this.operator || !this.reason) {
+            throw new Error(
+                'Offline release requires confirmed stopped writer, ' +
+                'operator, and reason'
+            )
+        }
+    }
+
+    async findLockDirectories() {
+        const lockDirectories = new Set(
+            await Promise.all(
+                mutableDirectories(this.config).map(directory =>
+                    fs.realpath(directory)
+                )
+            )
         )
-    )
-    for (const directory of [...lockDirectories]) {
+        for (const directory of [...lockDirectories]) {
+            await this.findAncestorLocks(directory, lockDirectories)
+        }
+        return [...lockDirectories].sort().reverse()
+    }
+
+    async findAncestorLocks(directory, lockDirectories) {
         for (
             let parent = path.dirname(directory);
             path.dirname(parent) !== parent;
@@ -686,92 +921,118 @@ export async function releaseOfflineLocks(
             }
         }
     }
-    for (const directory of [...lockDirectories].sort().reverse()) {
+
+    async inspectLock(directory) {
         const lock = path.join(directory, '.simplystore-lock')
-        let entries
+        const entries = await this.readLockEntries(lock)
+        if (entries === null) {
+            return
+        }
+        const unknownContents = entries.some(
+            entry => entry !== 'owner.json' && !entry.endsWith('.tmp')
+        )
+        if (unknownContents) {
+            throw new Error(`Unknown lock contents: ${lock}`)
+        }
+        const ownerFiles = await this.readOwnerFiles(lock, entries)
+        await this.validateRecoveryLock(ownerFiles)
+        this.removed.push({ lock, ownerFiles })
+    }
+
+    async readLockEntries(lock) {
         try {
-            entries = await fs.readdir(lock)
+            return await fs.readdir(lock)
         }
         catch (error) {
             if (error.code === 'ENOENT') {
-                continue
+                return null
             }
             throw error
         }
-        if (
-            entries.some(
-                entry => entry !== 'owner.json' && !entry.endsWith('.tmp')
-            )
-        ) {
-            throw new Error(`Unknown lock contents: ${lock}`)
-        }
-        const saved = []
+    }
+
+    async readOwnerFiles(lock, entries) {
+        const ownerFiles = []
         for (const entry of entries) {
-            saved.push({
+            const bytes = await fs.readFile(path.join(lock, entry))
+            ownerFiles.push({
                 name: entry,
-                bytes: (await fs.readFile(path.join(lock, entry))).toString(
-                    'base64'
-                )
+                bytes: bytes.toString('base64')
             })
         }
-        const ownerRecord = saved.find(item => item.name === 'owner.json')
+        return ownerFiles
+    }
+
+    async validateRecoveryLock(ownerFiles) {
+        const ownerRecord = ownerFiles.find(
+            item => item.name === 'owner.json'
+        )
         let owner = null
         if (ownerRecord) {
             const ownerBytes = Buffer.from(ownerRecord.bytes, 'base64')
             owner = JSON.parse(ownerBytes.toString())
         }
-        if (owner?.purpose === 'recovery' && report.ready) {
-            let completed
-            try {
-                completed = JSON.parse(
-                    await fs.readFile(
-                        path.join(owner.auditDir, 'complete.json'),
-                        'utf8'
-                    )
-                )
-            }
-            catch {
-                /* Missing report is not completion evidence. */
-            }
-            if (completed?.fingerprint !== report.fingerprint) {
-                throw new Error(
-                    'Completed-looking recovery candidate requires finish with its retained audit before unlocking'
-                )
-            }
+        if (owner?.purpose !== 'recovery' || !this.report.ready) {
+            return
         }
-        removed.push({ lock, ownerFiles: saved })
+        let completed
+        try {
+            completed = JSON.parse(
+                await fs.readFile(
+                    path.join(owner.auditDir, 'complete.json'),
+                    'utf8'
+                )
+            )
+        }
+        catch {
+            /* Missing report is not completion evidence. */
+        }
+        if (completed?.fingerprint !== this.report.fingerprint) {
+            throw new Error(
+                'Completed-looking recovery candidate requires finish with ' +
+                'its retained audit before unlocking'
+            )
+        }
     }
-    // Return preview only; the CLI persists its external audit before calling
-    // finish.
-    const commands = report.commands.map(command => {
-        return {
-            id: command.id,
-            status: command.status,
-            problem: command.problem
+
+    createPreview() {
+        const commands = this.report.commands.map(command => {
+            return {
+                id: command.id,
+                status: command.status,
+                problem: command.problem
+            }
+        })
+        const inspection = {
+            ready: this.report.ready,
+            errors: this.report.errors,
+            commands
         }
-    })
-    const inspection = { ready: report.ready, errors: report.errors, commands }
-    return {
-        inspection,
-        operator,
-        reason,
-        removed,
-        async finish() {
-            for (const { lock, ownerFiles } of removed) {
-                for (const entry of ownerFiles) {
-                    if (
-                        (
-                            await fs.readFile(path.join(lock, entry.name))
-                        ).toString('base64') !== entry.bytes
-                    ) {
-                        throw new Error('Lock changed after preview')
-                    }
-                }
-                for (const entry of ownerFiles) {
-                    await fs.unlink(path.join(lock, entry.name))
-                }
-                await fs.rmdir(lock)
-                await syncDirectory(path.dirname(lock))
+        return {
+            inspection,
+            operator: this.operator,
+            reason: this.reason,
+            removed: this.removed,
+            finish: () => this.finish()
+        }
+    }
+
+    async finish() {
+        for (const { lock, ownerFiles } of this.removed) {
+            await this.verifyLockUnchanged(lock, ownerFiles)
+            for (const entry of ownerFiles) {
+                await fs.unlink(path.join(lock, entry.name))
+            }
+            await fs.rmdir(lock)
+            await syncDirectory(path.dirname(lock))
+        }
+    }
+
+    async verifyLockUnchanged(lock, ownerFiles) {
+        for (const entry of ownerFiles) {
+            const current = await fs.readFile(path.join(lock, entry.name))
+            if (current.toString('base64') !== entry.bytes) {
+                throw new Error('Lock changed after preview')
             }
         }
     }

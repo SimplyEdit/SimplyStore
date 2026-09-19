@@ -6,10 +6,14 @@
         "start": "node server.mjs"
     },
     "dependencies": {
-        "@muze-nl/jsontag": "^0.9.8",
+        "@muze-nl/jsontag": "^0.10.4",
         "@muze-nl/jsontag-types": "^0.1.1",
         "@muze-nl/simplystore": "file:../",
-        "eslint": "^8.56.0",
-        "uuid": "^9.0.1"
+        "uuid": "^14.0.2"
+    },
+    "overrides": {
+        "@muze-nl/jsontag-types": {
+            "uuid": "^14.0.2"
+        }
     }
 }

@@ -1,10 +1,24 @@
 import { Worker } from 'node:worker_threads'
 
-export function executeWorker(filename, task, timeout = 30000) {
+export class WorkerTimeoutError extends Error {
+    constructor(workerKind, timeout) {
+        super(`${workerKind} timed out after ${timeout}ms`)
+        this.name = 'WorkerTimeoutError'
+        this.code = 504
+        this.timeout = timeout
+        this.workerKind = workerKind
+    }
+}
+
+export function runWorker(
+    filename,
+    task,
+    { timeout = 30000, workerKind = 'worker' } = {}
+) {
     return new Promise((resolve, reject) => {
         const worker = new Worker(filename)
-        let settled = false,
-            timer
+        let settled = false
+        let timer
         const finish = async (settle, result) => {
             if (settled) {
                 return
@@ -31,18 +45,15 @@ export function executeWorker(filename, task, timeout = 30000) {
                 void finish(
                     reject,
                     new Error(
-                        `Command worker exited without a result (${code})`
+                        `${workerKind} exited without a result (${code})`
                     )
                 )
             }
         })
         if (timeout) {
             timer = setTimeout(() => {
-                void finish(resolve, {
-                    status: 'unsafe',
-                    code: 504,
-                    message: `command worker timed out after ${timeout}ms`
-                })
+                const error = new WorkerTimeoutError(workerKind, timeout)
+                void finish(reject, error)
             }, timeout)
         }
         try {
@@ -52,4 +63,23 @@ export function executeWorker(filename, task, timeout = 30000) {
             void finish(reject, error)
         }
     })
+}
+
+export async function executeWorker(filename, task, timeout = 30000) {
+    try {
+        return await runWorker(filename, task, {
+            timeout,
+            workerKind: 'command worker'
+        })
+    }
+    catch (error) {
+        if (!(error instanceof WorkerTimeoutError)) {
+            throw error
+        }
+        return {
+            status: 'unsafe',
+            code: error.code,
+            message: error.message
+        }
+    }
 }

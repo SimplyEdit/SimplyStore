@@ -5,6 +5,7 @@ export const committedCommandStatus = 'done'
 export const pendingCommandStatus = 'accepted'
 export const activeCommandStatus = 'active'
 export const unsafeCommandStatus = 'unsafe'
+export const failedCommandStatus = 'failed'
 export const defaultMaxCommandCrashAttempts = 2
 
 export class RecoveryIntegrityError extends Error {
