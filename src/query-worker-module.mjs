@@ -92,6 +92,7 @@ const tasks = {
             return {
                 code: 500,
                 storageFailure: true,
+                jsontag: task.req.jsontag,
                 body: task.req.jsontag
                     ? JSONTag.stringify(error)
                     : JSON.stringify(error)

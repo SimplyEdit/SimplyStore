@@ -340,6 +340,11 @@ test('lazy query read failures stop mutation, while query-thrown flags do not', 
     ))
     assert.equal(result.code, 500)
     assert.equal(runtime.storageFailed, true)
+    const tagged = await runtime.runQuery({
+        ...request('42'), jsontag: true
+    })
+    assert.equal(tagged.jsontag, true)
+    assert.equal(JSONTag.parse(tagged.body).code, 500)
     const accepted = await runtime.acceptCommand(
         '{"id":"after-failure","name":"addPerson","value":{"name":"bad"}}'
     )
