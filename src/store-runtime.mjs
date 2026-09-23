@@ -75,6 +75,8 @@ function createRuntimeConfiguration(options) {
     return {
         store,
         schemaFile: options.schemaFile || null,
+        validateIndexes: Boolean(options.validateIndexes),
+        rebuildIndexes: Boolean(options.rebuildIndexes),
         maxWorkers: options.maxWorkers || 8,
         queryWorker:
             options.queryWorker || rootDirectory + '/src/query-worker.mjs',
@@ -225,6 +227,8 @@ export class StoreRuntime {
                 dataFile: config.store.datafile,
                 indexFile: config.indexFile,
                 schemaFile: config.schemaFile,
+                validateIndexes: config.validateIndexes,
+                rebuildIndexes: config.rebuildIndexes,
                 commands,
                 integrityFile: config.store.integrity
                     ? config.store.integrityFile

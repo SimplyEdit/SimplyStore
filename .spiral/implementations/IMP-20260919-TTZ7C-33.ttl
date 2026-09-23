@@ -29,8 +29,9 @@ project:IMP-20260919-TTZ7C-33
     sd:implementationLocation "src/query-worker-module.mjs" ;
     sd:implementationLocation "src/workerPool.mjs" ;
     sd:implementationLocation "test/file-data.mjs" ;
+    sd:implementationLocation "test/index-ids.mjs" ;
     sd:implementationLocation "scripts/benchmark-file-data.mjs" ;
-    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "df973f7b6912f0a73b4b5980e1ede04a3b983d56" ] ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "c4f5d3e5e3f99e573952f7d536508e07b1f5ce82" ] ;
     sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:DEF-20260923-TTZ7C-50 ; sd:gitCommit "4bb10c2013fd2a7cb989b02586b992b936121362" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "df973f7b6912f0a73b4b5980e1ede04a3b983d56" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "c4f5d3e5e3f99e573952f7d536508e07b1f5ce82" ] ;
     sd:implementationChangeKind sd:SemanticChange .

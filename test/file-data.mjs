@@ -36,9 +36,8 @@ function open(t, sources, meta, immutable = true) {
 
 test('file loading resolves unread IDs and sends metadata without dataset bytes', async t => {
     const { file, dir } = fixture(t)
-    // Legacy missing/stale derived indexes must not override canonical bytes.
+    // Missing IDs reconstruct; stale offsets must not redirect reads.
     fs.writeFileSync(path.join(dir, 'index.offset.json'), '{"0":[9,999999]}')
-    fs.writeFileSync(path.join(dir, 'index.id.json'), '{"last":999}')
     const loaded = await loadFileData({ dataFile: file, commands: [] })
     assert.equal(loaded.data, undefined)
     assert.equal(loaded.meta.index.id.get('last'), 2)
@@ -287,7 +286,7 @@ test('premature EOF cannot turn an existing data file into an empty source', t =
     assert.throws(() => hashFile(file), /Unexpected EOF/)
 })
 
-test('ID precedence follows record order when a patch fills an earlier hole', async t => {
+test('duplicate IDs are rejected when a patch fills an earlier hole', async t => {
     const { file, dir } = fixture(t)
     const record = text => `(${Buffer.byteLength(text)})${text}`
     fs.writeFileSync(file,
@@ -297,8 +296,8 @@ test('ID precedence follows record order when a patch fills an earlier hole', as
     fs.writeFileSync(path.join(dir, 'data.fill.jsontag'),
         '+2\n' + record('<object id="duplicate">{"name":"lower"}')
     )
-    const loaded = await loadFileData({dataFile: file, commands: ['fill']})
-    assert.equal(loaded.meta.index.id.get('duplicate'), 5)
+    await assert.rejects(loadFileData({dataFile: file, commands: ['fill']}),
+        /Duplicate ID: duplicate/)
 })
 
 test('a lazy read failure during a command is a storage failure', async t => {
@@ -364,7 +363,7 @@ function writeIndexes(dir, offsets, ids, command = '') {
         JSON.stringify(ids))
 }
 
-test('startup consumes valid sidecars without decoding unread record bodies', async t => {
+test('startup consumes valid sidecars without parsing record tags or bodies', async t => {
     const { file, dir, source } = fixture(t)
     writeIndexes(dir, source.offsets, {first: 1, last: 2})
     const before = fs.readdirSync(dir).map(name => [
@@ -386,6 +385,9 @@ test('startup consumes valid sidecars without decoding unread record bodies', as
     })
     t.mock.method(FileDataset.prototype, 'rebuildIds', () => {
         throw new Error('full-record ID reconstruction is forbidden')
+    })
+    t.mock.method(JSONTag.Parser.prototype, 'tag', () => {
+        throw new Error('record tag parsing is forbidden')
     })
     const loaded = await loadFileData({dataFile: file, commands: []})
     assert.equal(loaded.sources[0].offsets, loadedOffsets[0])
@@ -417,16 +419,35 @@ test('startup loads only committed command sidecars in authoritative order', asy
     assert.equal(dataset.parser.getLineProxy(2).name, 'committed')
 })
 
-for (const invalid of ['{', 'null', '[]', '{}',
-    '{"last":1}', '{"first":1,"last":2,"extra":2}']) {
-    test(`invalid/incomplete ID sidecars fall back: ${invalid}`, async t => {
+for (const invalid of ['{', 'null', '[]', '{"last":999}',
+    '{"first":1,"last":2,"extra":2}']) {
+    test(`malformed ID indexes fail; explicit rebuild recovers: ${invalid}`, async t => {
         const { file, dir, source } = fixture(t)
         writeIndexes(dir, source.offsets, {})
         fs.writeFileSync(path.join(dir, 'index.id.json'), invalid)
-        const loaded = await loadFileData({dataFile: file, commands: []})
+        await assert.rejects(loadFileData({dataFile: file, commands: []}))
+        const loaded = await loadFileData({
+            dataFile: file, commands: [], rebuildIndexes: true
+        })
         assert.deepEqual([...loaded.meta.index.id], [['first', 1], ['last', 2]])
+        assert.equal(fs.readFileSync(path.join(dir, 'index.id.json'), 'utf8'),
+            invalid)
     })
 }
+
+test('normal loading trusts index contents; explicit validation detects mismatch', async t => {
+    const { file, dir, source } = fixture(t)
+    for (const stored of [{}, {last: 1}]) {
+        writeIndexes(dir, source.offsets, stored)
+        const options = {dataFile: file, commands: []}
+        const loaded = await loadFileData(options)
+        assert.deepEqual(loaded.meta.index.id, new Map(Object.entries(stored)))
+        await assert.rejects(loadFileData({...options, validateIndexes: true}),
+            /ID index does not match data/)
+        const rebuilt = await loadFileData({...options, rebuildIndexes: true})
+        assert.deepEqual([...rebuilt.meta.index.id], [['first', 1], ['last', 2]])
+    }
+})
 
 test('offset sidecars cannot omit, redirect or add records', async t => {
     const { file, dir, source } = fixture(t)
@@ -451,20 +472,20 @@ test('offset sidecars cannot omit, redirect or add records', async t => {
     assert.deepEqual(loaded.sources[0].offsets, source.offsets)
 })
 
-test('ID overlays remove old IDs and restore lower duplicates after renames', async t => {
+test('ID overlays remove old IDs after renames and attribute removal', async t => {
     const { file, dir } = fixture(t)
     const record = text => `(${Buffer.byteLength(text)})${text}\n`
     fs.writeFileSync(file, record('{"items":[~1,~2,~3]}') +
-        record('<object id="duplicate">{"name":"lower"}') +
-        record('<object id="duplicate">{"name":"higher"}') +
+        record('<object id="kept">{"name":"lower"}') +
+        record('<object id="old">{"name":"higher"}') +
         record('<object id="removed">{}'))
-    writeIndexes(dir, scanDataFile(file).offsets, {duplicate: 2, removed: 3})
+    writeIndexes(dir, scanDataFile(file).offsets, {kept: 1, old: 2, removed: 3})
     const patch = path.join(dir, 'data.rename.jsontag')
     fs.writeFileSync(patch, '+2\n' + record('<object id="renamed">{}') +
         record('{}'))
     writeIndexes(dir, scanDataFile(patch).offsets, {renamed: 2}, 'rename')
     const loaded = await loadFileData({dataFile: file, commands: ['rename']})
-    assert.deepEqual([...loaded.meta.index.id], [['duplicate', 1], ['renamed', 2]])
+    assert.deepEqual([...loaded.meta.index.id], [['kept', 1], ['renamed', 2]])
     const dataset = open(t, loaded.sources, loaded.meta)
     assert.equal(dataset.parser.getLineProxy(1).name, 'lower')
 })
@@ -482,19 +503,23 @@ test('ID header validation handles escaped delimiters and buffer boundaries', as
     t.mock.method(fs, 'readSync', (fd, buffer, offset, length, position) => {
         return read(fd, buffer, offset, Math.min(31, length), position)
     })
-    const loaded = await loadFileData({dataFile: file, commands: []})
+    const loaded = await loadFileData({
+        dataFile: file, commands: [], validateIndexes: true
+    })
     assert.deepEqual(loaded.meta.index.id, new Map(Object.entries(expected)))
     const dataset = open(t, loaded.sources, loaded.meta)
     assert.deepEqual(dataset.rebuildIds(), loaded.meta.index.id)
 })
 
-test('unterminated or invalid tags cannot be hidden by valid-looking indexes', async t => {
+test('explicit validation rejects invalid tags despite valid-looking indexes', async t => {
     const { file, dir } = fixture(t)
     for (const payload of ['<object id="bad> {}', '<object id=bad>{}',
         '<object id="bad\\"id">{}']) {
         fs.writeFileSync(file, `(${Buffer.byteLength(payload)})${payload}`)
         writeIndexes(dir, scanDataFile(file).offsets, {bad: 0})
-        await assert.rejects(loadFileData({dataFile: file, commands: []}),
+        await assert.rejects(loadFileData({
+            dataFile: file, commands: [], validateIndexes: true
+        }),
             /Invalid OD-JSONTag data/)
     }
 })

@@ -9,6 +9,7 @@ import { publishFile as writeFileAtomic, storageError } from './storage.mjs'
 import { faultPoint } from './faults.mjs'
 import { appendIntegrityRecord, digestBuffer } from './integrity.mjs'
 import { finalizeIndex } from './index.mjs'
+import { markIdChanges, prepareIdIndex } from './index.id.mjs'
 
 let commands = {}
 let index = {}
@@ -16,6 +17,7 @@ let dataset
 let parser
 let dataspace
 let datafile, basefile, extension, integrityFile
+let committedIds = new Map()
 let meta = {}
 let metaProxy = {
     index: {}
@@ -73,6 +75,7 @@ const metaReadProxy = {
 export async function initialize(task) {
     close()
     try {
+        committedIds = new Map(task.meta.index.id)
         dataset = new FileDataset(task.meta, false)
         parser = dataset.parser
         dataspace = dataset.open(task.sources)
@@ -123,6 +126,7 @@ export default async function runCommand(commandStr) {
             // TODO: if command/task makes no changes, skip updating
             // data.jsontag and writing it.
 
+            markIdChanges(meta, committedIds)
             const changes = meta.resultArray.filter(e => e[isChanged])
             //FIXME: new entities should also report isChanged = true
             if (changes.length) {
@@ -132,15 +136,13 @@ export default async function runCommand(commandStr) {
             if (parser.readFailure) {
                 throw parser.readFailure
             }
+            markIdChanges(meta, committedIds)
             // Serialize only changes.
             const serialized = Buffer.concat([
                 ...serializeChunks(dataspace, { meta, changes: true })
             ])
-            response.meta = {
-                index: {
-                    id: meta.index.id
-                }
-            }
+            const prepared = prepareIdIndex(serialized, committedIds)
+            const expectedDigest = digestBuffer(serialized)
             // TODO: write data every x commands or x minutes,
             // in a separate thread?
 
@@ -150,17 +152,18 @@ export default async function runCommand(commandStr) {
             await writeFileAtomic(newfilename, serialized)
             // Final bytes include new records and mutations made by the custom
             // index hook.
-            await finalizeIndex(index, serialized, meta, task.id)
+            await finalizeIndex(index, serialized, meta, task.id, prepared)
+            response.source = scanDataFile(newfilename)
+            if (response.source.digest !== expectedDigest) {
+                throw new Error('Changeset changed during finalization')
+            }
+            response.meta = { index: { id: prepared.ids } }
             if (integrityFile) {
                 await appendIntegrityRecord(
                     integrityFile,
                     newfilename,
                     serialized
                 )
-            }
-            response.source = scanDataFile(newfilename)
-            if (response.source.digest !== digestBuffer(serialized)) {
-                throw new Error('Changeset changed during finalization')
             }
             await faultPoint('after-command-changeset-write')
             meta.parts++
@@ -193,5 +196,6 @@ export function close() {
         parser = undefined
         dataspace = undefined
         meta = {}
+        committedIds = new Map()
     }
 }

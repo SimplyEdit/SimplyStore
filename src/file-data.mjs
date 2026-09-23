@@ -2,7 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
-import idIndex from './index.id.mjs'
+import idIndex, {
+    addUniqueId, readIdEntries, mergeIdIndex
+} from './index.id.mjs'
 import offsetIndex from './index.offset.mjs'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
@@ -286,9 +288,7 @@ export class FileDataset {
         for (const number of [...records].sort((a, b) => a - b)) {
             const value = this.parser.getLineProxy(number)
             const id = JSONTag.getAttribute(value, 'id')
-            if (id) {
-                ids.set(id, number)
-            }
+            addUniqueId(ids, id, number)
         }
         this.parser.meta.index = { ...this.parser.meta.index, id: ids }
         return ids
@@ -319,9 +319,7 @@ function idsFromRecords(records) {
     const ids = new Map()
     for (const number of [...records.keys()].sort((a, b) => a - b)) {
         const id = records.get(number)
-        if (id) {
-            ids.set(id, number)
-        }
+        addUniqueId(ids, id, number)
     }
     return ids
 }
@@ -337,11 +335,25 @@ export async function loadFileData(files) {
         data: path.dirname(path.resolve(files.dataFile)),
         parts: files.commands.length
     }
-    const recordIds = new Map()
-    const persistedIds = new Map()
-    let completeIds = true
+    let ids = new Map()
+    let unresolvedReferences = false
     const sources = paths.map((file, part) => {
         const command = part === 0 ? null : files.commands[part - 1]
+        let storedIds
+        if (!files.rebuildIndexes) {
+            try {
+                storedIds = idIndex.load(meta, command)
+            }
+            catch (error) {
+                if (error.code !== 'ENOENT') {
+                    throw error
+                }
+            }
+        }
+        let recordIds = null
+        if (storedIds === undefined || files.validateIndexes) {
+            recordIds = new Map()
+        }
         const source = scanDataFile(file, recordIds)
         if (manifest) {
             verifyDigest(manifest, files.integrityFile, file, source.digest, {
@@ -352,15 +364,20 @@ export async function loadFileData(files) {
         if (isDeepStrictEqual(offsets, source.offsets)) {
             source.offsets = offsets
         }
-        const ids = optionalIndex(idIndex, meta, command)
-        if (ids && typeof ids === 'object' && !Array.isArray(ids)) {
-            for (const [id, number] of Object.entries(ids)) {
-                persistedIds.set(id, number)
-            }
+        const records = new Set(Object.keys(source.offsets).map(Number))
+        let entries
+        if (storedIds === undefined) {
+            entries = idsFromRecords(recordIds)
+            unresolvedReferences ||= [...recordIds.values()].includes(null)
         }
         else {
-            completeIds = false
+            entries = readIdEntries(storedIds, records)
+            if (files.validateIndexes &&
+                !isDeepStrictEqual(entries, idsFromRecords(recordIds))) {
+                throw new Error(`ID index does not match data: ${file}`)
+            }
         }
+        mergeIdIndex(ids, records, entries)
         return source
     })
     if (!sources[0].size) {
@@ -369,12 +386,8 @@ export async function loadFileData(files) {
     const dataset = new FileDataset()
     try {
         dataset.open(sources)
-        let ids = idsFromRecords(recordIds)
-        if ([...recordIds.values()].includes(null)) {
+        if (unresolvedReferences) {
             ids = dataset.rebuildIds()
-        }
-        if (completeIds && isDeepStrictEqual(persistedIds, ids)) {
-            ids = persistedIds
         }
         meta.index = { id: ids }
         if (files.schemaFile) {

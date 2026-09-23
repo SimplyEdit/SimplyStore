@@ -4,12 +4,15 @@ import JSONTag from '@muze-nl/jsontag'
 import serialize, { stringify } from '@muze-nl/od-jsontag/src/serialize.mjs'
 import Parser from '@muze-nl/od-jsontag'
 import { finalizeIndex } from '../src/index.mjs'
+import { markIdChanges, prepareIdIndex } from '../src/index.id.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
 import { publishFile, syncFile } from '../src/storage.mjs'
 import { acquireOwnership } from '../src/store-ownership.mjs'
+import { hashFile } from '../src/file-data.mjs'
 import {
 	appendIntegrityRecord,
+	digestBuffer,
 	getDefaultIntegrityFile
 } from '../src/integrity.mjs'
 
@@ -97,15 +100,22 @@ async function main() {
 		meta.index.id.set(JSONTag.getAttribute(ob, 'id'), ob)
 	}
 
+	const originalIds = prepareIdIndex(strData).ids
 	await index.create(odData, meta)
+	markIdChanges(meta, originalIds)
 	console.log('Indexes created')
 
 	strData = stringify(serialize(odData))
 
+	const prepared = prepareIdIndex(strData)
+	const expectedDigest = digestBuffer(Buffer.from(strData))
 	await publishFile(outputFile, strData)
 	// Custom indexes may change record sizes or add records after initial
 	// parsing.
-	await finalizeIndex(index, strData, meta)
+	await finalizeIndex(index, strData, meta, null, prepared)
+	if (hashFile(outputFile) !== expectedDigest) {
+		throw new Error('Dataset changed during finalization')
+	}
 	if (integrity) {
 		await appendIntegrityRecord(
 			getDefaultIntegrityFile(outputFile),

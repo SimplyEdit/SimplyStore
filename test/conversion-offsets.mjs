@@ -236,3 +236,47 @@ test('conversion initializes existing-format logs and optional base integrity wi
 	await assert.rejects(convert(files), /existing store is not overwritten/)
 	assert.deepEqual(await fs.readFile(files.output), before)
 })
+
+
+test('conversion ID indexes include final hook renames and additions', async t => {
+    const files = await fixture(t)
+    const hook = path.join(files.dir, 'index.mjs')
+    await fs.writeFile(hook, `import base from ${JSON.stringify(baseIndex)}
+        import JSONTag from ${JSON.stringify(import.meta.resolve('@muze-nl/jsontag'))}
+        export default {
+            create(data, meta) {
+                base.create(data, meta)
+                JSONTag.setAttribute(data.items[0], 'id', 'renamed')
+                data.items.push(JSONTag.parse('<object id="added">{}'))
+            }
+        }`)
+    await convert(files, hook)
+    const ids = JSON.parse(await fs.readFile(
+        path.join(files.dir, 'index.id.json'), 'utf8'))
+    assert.deepEqual(ids, {renamed: 1, '/second': 2, added: 3})
+})
+
+test('conversion rejects duplicate IDs before publishing canonical data', async t => {
+    const files = await fixture(t)
+    await fs.writeFile(files.input,
+        '{"items":[<object id="duplicate">{},<object id="duplicate">{}]}')
+    await assert.rejects(convert(files), /Duplicate ID: duplicate/)
+    await assert.rejects(fs.access(files.output), /ENOENT/)
+    await assert.rejects(fs.access(path.join(files.dir, 'index.id.json')), /ENOENT/)
+})
+
+
+test('conversion rejects canonical mutation during custom finalization', async t => {
+    const files = await fixture(t)
+    const hook = path.join(files.dir, 'index.mjs')
+    await fs.writeFile(hook, `import fs from 'node:fs/promises'
+        export default {
+            create() {},
+            async finalize(bytes, meta) {
+                await fs.appendFile(meta.data + '/data.jsontag', '\\n')
+            }
+        }`)
+    await assert.rejects(convert(files, hook), /Dataset changed during finalization/)
+    await assert.rejects(fs.access(path.join(files.dir, 'command-log.jsontag')),
+        /ENOENT/)
+})
