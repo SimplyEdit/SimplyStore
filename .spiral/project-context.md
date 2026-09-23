@@ -22,7 +22,11 @@ Active cycle: CYC-20260923-TTZ7C-51, required integrity and existing-store
 initialization, on spiral/CYC-20260923-TTZ7C-51-required-integrity. This continues
 the reliability roadmap from the accepted file-backed tip while integration is
 pending. The maintainer explicitly confirmed mandatory hashes, initialization
-and latency measurement. No integration or example-data rewrite is authorized.
+and latency measurement. Implementation and evaluation are complete: 193 tests
+pass, lint is clean, the copied example retains its command after initialization,
+and local ext4 median completion increased roughly 2 ms. EVD-55 retains evidence.
+Normal startup now requires hashes; existing stores use explicit init-integrity.
+Human review is pending. No integration or example-data rewrite is authorized.
 
 Latest accepted cycle: CYC-20260923-TTZ7C-44,
 File-backed dataset runtime, accepted on 2026-09-23, awaiting integration on
