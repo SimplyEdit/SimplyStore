@@ -8,5 +8,5 @@ project:REQ-20260923-TTZ7C-46
     sd:repositoryPath ".spiral/requests/REQ-20260923-TTZ7C-46.md" ;
     sd:status sd:Active ;
     sd:derivedFrom [ a sd:ArtifactReference ; sd:artifact project:UND-20260923-TTZ7C-48 ; sd:gitCommit "c276b42cbe89a3c7204dd26f1c66522e59553b90" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "91be30fdf8351afe1003e8fa8dcb7b67302341c2" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-46 ; sd:gitCommit "91be30fdf8351afe1003e8fa8dcb7b67302341c2" ] .
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "e98a14d1e8a9f4d698989d39b88e887da762d292" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-46 ; sd:gitCommit "e98a14d1e8a9f4d698989d39b88e887da762d292" ] .
