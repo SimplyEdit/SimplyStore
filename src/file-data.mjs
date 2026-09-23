@@ -10,7 +10,8 @@ import { loadStoredIndex } from './index-files.mjs'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import { RecoveryIntegrityError, assertChangesetExists } from './recovery.mjs'
-import { loadIntegrityManifest, verifyDigest } from './integrity.mjs'
+import { getDefaultIntegrityFile, loadIntegrityManifest, verifyDigest }
+    from './integrity.mjs'
 import { storageError } from './storage.mjs'
 
 function identity(stat) {
@@ -395,9 +396,19 @@ function idsFromRecords(records) {
 }
 
 export async function loadFileData(files) {
-    const manifest = files.integrityFile
-        ? await loadIntegrityManifest(files.integrityFile)
-        : null
+    const integrityFile = files.integrityFile ||
+        getDefaultIntegrityFile(files.dataFile)
+    const manifest = await loadIntegrityManifest(integrityFile)
+    return readFileData({...files, integrityFile}, manifest)
+}
+
+// Initialization validates current bytes before any trusted baseline exists.
+export function validateUnsealedData(files) {
+    return readFileData({...files,
+        validateIndexes: true, rebuildIndexes: false}, null)
+}
+
+async function readFileData(files, manifest) {
     const paths = [files.dataFile, ...files.commands.map(id => {
         return assertChangesetExists(files.dataFile, id)
     })]
@@ -409,7 +420,7 @@ export async function loadFileData(files) {
     let unresolvedReferences = false
     const sources = paths.map((file, part) => {
         const command = part === 0 ? null : files.commands[part - 1]
-        const options = { ...files, manifest }
+        const options = { ...files, manifest, integrityRequired: true }
         const storedIds = loadStoredIndex(idIndex, meta, command, options)
         let recordIds = null
         if (storedIds === undefined || files.validateIndexes) {

@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
@@ -55,20 +54,12 @@ function createRuntimeConfiguration(options) {
     const datafile = options.datafile || './data.od-jsontag'
     const integrityFile =
         options.integrityFile || getDefaultIntegrityFile(datafile)
-    const integrity = Boolean(
-        options.integrity ||
-        options.integrityFile ||
-        fs.existsSync(integrityFile)
-    )
     const storeOptions = {
         ...options,
         datafile,
         commandLog: options.commandLog || './command-log.jsontag',
         commandStatus: options.commandStatus || './command-status.jsontag',
-        integrity
-    }
-    if (integrity) {
-        storeOptions.integrityFile = integrityFile
+        integrityFile
     }
     const store = storePaths(storeOptions)
 
@@ -230,10 +221,7 @@ export class StoreRuntime {
                 validateIndexes: config.validateIndexes,
                 rebuildIndexes: config.rebuildIndexes,
                 commands,
-                integrityFile: config.store.integrity
-                    ? config.store.integrityFile
-                    : null,
-                integrityRequired: config.store.integrity
+                integrityFile: config.store.integrityFile
             },
             {
                 timeout: config.loadTimeout,
@@ -501,10 +489,7 @@ export class StoreRuntime {
                 commandsFile: config.commandsFile,
                 indexFile: config.indexFile,
                 datafile: config.store.datafile,
-                integrityFile: config.store.integrity
-                    ? config.store.integrityFile
-                    : null,
-                integrityRequired: config.store.integrity
+                integrityFile: config.store.integrityFile
             },
             config.commandTimeout
         )

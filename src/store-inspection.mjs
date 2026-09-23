@@ -17,13 +17,6 @@ export const validCommandId = id =>
     typeof id === 'string' && id.length > 0 && !/[/\\\0]/.test(id)
 export function storePaths(options = {}) {
     const datafile = path.resolve(options.datafile || './data.od-jsontag')
-    let integrity
-    if (options.integrity === undefined) {
-        integrity = Boolean(options.integrityFile)
-    }
-    else {
-        integrity = Boolean(options.integrity)
-    }
     const config = {
         datafile,
         commandLog: path.resolve(options.commandLog || './command-log.jsontag'),
@@ -33,7 +26,7 @@ export function storePaths(options = {}) {
         integrityFile: path.resolve(
             options.integrityFile || getDefaultIntegrityFile(datafile)
         ),
-        integrity,
+        integrity: true,
         validateIndexes: Boolean(options.validateIndexes),
         rebuildIndexes: Boolean(options.rebuildIndexes),
         requiredFiles: (options.requiredFiles || []).map(file =>
@@ -141,8 +134,16 @@ export async function inspectStore(options = {}) {
     return inspector.inspect()
 }
 
+// Only the explicit initialization workflow may inspect an unsealed store.
+export async function inspectUnsealedStore(options = {}) {
+    const config = storePaths({...options,
+        validateIndexes: true, rebuildIndexes: false})
+    return new StoreInspector(config, true).inspect()
+}
+
 class StoreInspector {
-    constructor(config) {
+    constructor(config, unsealed = false) {
+        this.unsealed = unsealed
         this.config = config
         this.errors = []
         this.warnings = []
@@ -161,7 +162,9 @@ class StoreInspector {
             await this.validateConfiguredPaths()
             this.files = await inventory(this.config)
             await this.loadCommandHistory()
-            await this.loadIntegrityManifest()
+            if (!this.unsealed) {
+                await this.loadIntegrityManifest()
+            }
             await this.reconstructCommittedState()
             this.validateStoreArtifacts()
             await this.verifyStableSnapshot()
@@ -334,13 +337,9 @@ class StoreInspector {
     async loadIntegrityManifest() {
         try {
             const integrityFile = this.config.integrityFile
-            const enabled =
-                this.config.integrity || this.files[integrityFile] != null
-            if (!enabled) {
-                return
-            }
             if (this.files[integrityFile] == null) {
-                throw new Error(`Missing integrity manifest ${integrityFile}`)
+                throw new Error(`Missing integrity manifest ${integrityFile}; ` +
+                    'use recover.mjs init-integrity for a stopped existing store')
             }
             await this.readRecords(integrityFile, 'integrity manifest')
             this.manifest = await loadIntegrityManifest(integrityFile)

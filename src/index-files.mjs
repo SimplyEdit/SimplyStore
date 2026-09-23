@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { appendIntegrityRecord, verifyIntegrity } from './integrity.mjs'
+import { appendIntegrityDigests, digestBuffer, verifyIntegrity }
+    from './integrity.mjs'
 
 export function indexPath(meta, kind, command = null) {
     const suffix = command === null ? '' : `.${command}`
@@ -33,9 +34,8 @@ export function loadStoredIndex(index, meta, command, options = {}) {
 }
 
 // Finalizers have completed all writes before these bytes are fingerprinted.
-export async function appendIndexIntegrity(
-    integrityFile, meta, command = null
-) {
+export function indexDigests(meta, command = null) {
+    const digests = []
     for (const kind of ['offset', 'id']) {
         const file = indexPath(meta, kind, command)
         let bytes
@@ -48,6 +48,21 @@ export async function appendIndexIntegrity(
             }
             throw error
         }
-        await appendIntegrityRecord(integrityFile, file, bytes)
+        digests.push([file, digestBuffer(bytes)])
     }
+    return digests
+}
+
+export async function appendIndexIntegrity(
+    integrityFile, meta, command = null
+) {
+    await appendIntegrityDigests(integrityFile, indexDigests(meta, command))
+}
+
+export async function appendArtifactIntegrity(
+    integrityFile, file, digest, meta, command = null
+) {
+    await appendIntegrityDigests(integrityFile, [
+        [file, digest], ...indexDigests(meta, command)
+    ])
 }

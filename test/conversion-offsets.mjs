@@ -200,11 +200,11 @@ test('conversion propagates rejection from custom finalization', async t => {
 	)
 })
 
-test('conversion initializes existing-format logs and optional base integrity without overwriting a store', async t => {
+test('conversion always initializes logs and integrity without overwriting a store', async t => {
 	const files = await fixture(t)
 	await run(
 		process.execPath,
-		[converter, files.input, files.output, '--integrity'],
+		[converter, files.input, files.output],
 		{ timeout: 10000 }
 	)
 	const { loadIntegrityManifest, verifyIntegrity } = await import(

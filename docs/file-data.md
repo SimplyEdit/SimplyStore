@@ -15,8 +15,7 @@ changesets only. Existing index hooks continue writing these files.
 Normal loading trusts committed offset and ID indexes. It checks their JSON
 structure, ordered nonoverlapping offset ranges, file bounds and
 record numbers, then combines them in committed order without reconstructing
-framing or scanning record
-tags. A changeset first removes mappings for every record it replaces, then
+framing or scanning record tags. A changeset first removes mappings for every record it replaces, then
 applies its new IDs. This handles renames, ID removal and ID swaps. Duplicate
 IDs on distinct records are errors; updating the same record may retain its ID.
 
@@ -36,13 +35,16 @@ Both options are also accepted by `loadFileData()`. Loading never rewrites data
 or sidecars. Normal loading assumes committed indexes are correct, including
 completeness; use explicit validation after external changes. There is no legacy
 index compatibility path. Record bodies remain lazy except for opening the root
-and the unusual reconstruction fallback for reference-only records. Configured
+and the unusual reconstruction fallback for reference-only records. Required
 integrity checks cover canonical data and present standard index files using the
-existing SHA-256 manifest. Index hashes cover the exact bytes parsed. With
-integrity enabled, every present standard index requires a manifest entry;
+existing SHA-256 manifest. Index hashes cover the exact bytes parsed.
+Every present standard index requires a manifest entry;
 missing indexes can reconstruct from verified data. Explicit rebuild ignores
 sidecar hashes as well as contents, while still checking canonical data hashes.
 Hash mismatches fail opening; normal loading never repairs them automatically.
+The manifest location remains configurable with `integrityFile`; integrity has
+no opt-out. Existing stores without a manifest require the explicit
+[initialization operation](recovery.md#initialize-integrity-for-an-existing-store).
 
 Each query worker opens its own read-only descriptors and registers the ordered
 base/changeset sources with its parser. ID lookups use the complete record
@@ -71,9 +73,10 @@ on materialized records before and after the update hook, without reading
 untouched objects. The core finalization boundary awaits custom finalization,
 then durably writes the ID sidecar and returns the updated ID map. Conversion
 uses the same preparation/finalization rules. Empty commands write an empty ID
-sidecar. A failed ID write prevents success. With integrity enabled, conversion,
+sidecar. A failed ID write prevents success. Conversion,
 commands and administrative replay append hashes of final standard index files
-after finalization and before success or durable `done`. Custom finalizers may
+after finalization and before success or durable `done`. The data digest is
+reused and all entries share one durable append. Custom finalizers may
 omit offsets; absent files are not fingerprinted. Hashing detects later file
 changes; it does not independently prove a custom index was generated correctly.
 
@@ -139,7 +142,7 @@ complete indexes, neither inspection nor loading reconstructs offsets or IDs.
 Missing-index fallback and explicit maintenance read headers instead of fully
 decoding record bodies. Offset catalogs and ID maps still scale with the data.
 
-A generated 328,877,813-byte / 20,000-record store with persisted indexes opened
+The accepted file-backed baseline used a generated 328,877,813-byte / 20,000-record store with persisted indexes opened
 and answered an ID lookup with a 48 MB JavaScript heap limit. One local run
 measured approximately 1.07 seconds open and 99 ms query (including worker
 readiness), with 9.0 MB parent heap and 24.5 MB query-worker heap. Retained byte
@@ -147,6 +150,14 @@ buffers were approximately 25 KiB and 58 KiB respectively. These are warm local
 measurements, not a cold-storage, physical-RAM or total-process-memory bound.
 Direct index loading removes framing and ID reconstruction. Existing snapshot
 hashing still reads the files; this run does not establish a startup speedup.
+
+Mandatory-integrity command latency was compared with the accepted optional
+implementation (`4680c76`, integrity disabled), using three alternating runs of
+30 commands per mode on local ext4, Node 24.7.0. Per-run median completion times
+were 54.6–55.9 ms before and 56.3–57.1 ms with required integrity (roughly 2 ms
+extra). Completion includes a fresh worker and HTTP polling; p95 varied from
+63.1–65.9 ms before and 62.9–73.2 ms after. These are local observations, not a
+storage-independent overhead guarantee. Queries perform no additional hash check.
 
 Reproduce the disposable-fixture probe with:
 

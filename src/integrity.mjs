@@ -31,7 +31,11 @@ export async function loadIntegrityManifest(integrityFile) {
 	}
  catch (error) {
 		if (error.code === 'ENOENT') {
-			return entries
+			throw new RecoveryIntegrityError(
+				`Missing integrity manifest ${integrityFile}; ` +
+				'use recover.mjs init-integrity for a stopped existing store',
+				{ file: integrityFile, recordKind: 'integrity manifest' }
+			)
 		}
 		throw error
 	}
@@ -112,12 +116,27 @@ export async function appendIntegrityRecord(integrityFile, file, buffer) {
 	return appendIntegrityDigest(integrityFile, file, digestBuffer(buffer))
 }
 
+export function integrityRecords(integrityFile, digests) {
+    return digests.map(([file, digest]) => ({
+        file: integrityFileKey(integrityFile, file),
+        algorithm: integrityAlgorithm,
+        digest
+    }))
+}
+
+export function serializeIntegrityRecords(integrityFile, digests) {
+    return integrityRecords(integrityFile, digests)
+        .map(record => JSONTag.stringify(record)).join('\n')
+}
+
+export async function appendIntegrityDigests(integrityFile, digests) {
+    if (digests.length) {
+        await appendFile(integrityFile,
+            serializeIntegrityRecords(integrityFile, digests))
+    }
+}
+
 export async function appendIntegrityDigest(integrityFile, file, digest) {
-	const record = {
-		file: integrityFileKey(integrityFile, file),
-		algorithm: integrityAlgorithm,
-		digest
-	}
-	await appendFile(integrityFile, JSONTag.stringify(record))
-	return record
+    await appendIntegrityDigests(integrityFile, [[file, digest]])
+    return integrityRecords(integrityFile, [[file, digest]])[0]
 }

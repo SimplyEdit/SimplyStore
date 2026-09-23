@@ -4,6 +4,9 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { fileURLToPath } from 'node:url'
 import StoreRuntime from '../src/store-runtime.mjs'
+import { hashFile } from '../src/file-data.mjs'
+import { appendArtifactIntegrity } from '../src/index-files.mjs'
+import { getDefaultIntegrityFile } from '../src/integrity.mjs'
 
 const args = Object.fromEntries(process.argv.slice(2).map(argument => {
     return argument.replace(/^--/, '').split('=')
@@ -61,6 +64,8 @@ try {
     const commandStatus = path.join(dir, 'command-status.jsontag')
     fs.writeFileSync(commandLog, '')
     fs.writeFileSync(commandStatus, '')
+    await appendArtifactIntegrity(getDefaultIntegrityFile(datafile),
+        datafile, hashFile(datafile), {data: dir})
     const started = performance.now()
     runtime = await StoreRuntime.open({
         datafile, commandLog, commandStatus, maxWorkers: 1,

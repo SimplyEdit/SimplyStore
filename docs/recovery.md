@@ -1,7 +1,8 @@
 # Administrator recovery
 
 SimplyStore preserves the existing OD-JSONTag data, command-log, status-log and
-optional integrity formats. The command log defines command order. Commands must
+integrity manifest formats. Integrity verification is mandatory. The command log
+defines command order. Commands must
 contain every invocation input beyond the dataset; HTTP request context is no
 longer supplied to command workers. The fourth handler argument still provides
 metadata/index access; the former third request argument is `undefined`.
@@ -25,8 +26,10 @@ Tools accept a declarative JSON file, not executable server configuration:
 }
 ```
 
-Omit `integrityFile` if integrity is unused. Set it explicitly when integrity is
-required: existence-based detection cannot detect a lost manifest. Relative paths
+Omit `integrityFile` to use the default next to the data file, such as
+`data.integrity.jsontag`. Setting it changes the location, not whether hashes
+are required. The former `integrity: false` option cannot disable checks.
+Relative paths
 resolve against the command's working directory, as server paths do. `requiredFiles`
 can list additional required files; these are checked at startup and synced before
 done. Keep custom artifact paths inside the declared directories or list them
@@ -35,15 +38,37 @@ explicitly. Custom hooks must finish all required work before resolving.
 For a new store, create an empty destination directory and run:
 
 ```sh
-node scripts/convert.mjs input.jsontag /srv/new-store/data.jsontag --integrity
+node scripts/convert.mjs input.jsontag /srv/new-store/data.jsontag
 ```
 
 The converter creates empty command/status logs alongside the base, finishes
-indexes and optional integrity, and releases ownership after durable completion.
+indexes and the required integrity manifest, and releases ownership after
+durable completion.
 It refuses to overwrite an existing base/log/manifest. Opening an existing store
 never creates missing logs. A bare historical base is not proof of an empty
 history: preserve it and its surrounding evidence before deciding on initialization.
-There is no migration or format-conversion step for an existing complete store.
+An existing store with a complete manifest needs no migration. Stores without
+a manifest need the explicit initialization below.
+
+## Initialize integrity for an existing store
+
+Stop the server and run:
+
+```sh
+node scripts/recover.mjs init-integrity --store store.json
+```
+
+This takes the normal ownership locks, validates the committed history, framing,
+record contents, IDs and available indexes, and creates the missing manifest
+atomically. It preserves data, indexes and logs and does not run command handlers
+or replay commands. Pending/uncertain history, malformed data or stale indexes
+must be resolved first. Existing manifests are never replaced, including when
+verification fails. Normal startup never initializes or repairs hashes.
+
+Initialization establishes a baseline for the current validated bytes; it cannot
+prove that those bytes match their historical contents. Afterwards, changes are
+checked against the recorded hashes. An uncertain publication failure retains
+ownership for administrator inspection, as with other durable operations.
 
 ## Inspect before executing anything
 

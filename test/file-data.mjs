@@ -10,6 +10,8 @@ import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import { FileDataset, FileParser, scanDataFile, hashFile, loadFileData } from '../src/file-data.mjs'
 import { appendIndexIntegrity } from '../src/index-files.mjs'
 import { inspectStore } from '../src/store-inspection.mjs'
+import { getDefaultIntegrityFile, serializeIntegrityRecords }
+    from '../src/integrity.mjs'
 import { appendIntegrityRecord } from '../src/integrity.mjs'
 import index from '../src/index.mjs'
 import offsetIndex from '../src/index.offset.mjs'
@@ -20,12 +22,21 @@ import StoreRuntime from '../src/store-runtime.mjs'
 import { makeServerFixture } from './durability-helpers.mjs'
 import runCommand, { initialize, close } from '../src/command-worker-module.mjs'
 
+
+function sealFixture(file, indexes = []) {
+    const digests = [file, ...indexes].map(file => [file, hashFile(file)])
+    const base = path.join(path.dirname(file), 'data.jsontag')
+    fs.appendFileSync(getDefaultIntegrityFile(base),
+        serializeIntegrityRecords(getDefaultIntegrityFile(base), digests) + '\n')
+}
+
 function fixture(t, text = '{"items":[<object id="first">{"name":"first"},<object id="last">{"name":"last"}]}') {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'simplystore-files-'))
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
     const file = path.join(dir, 'data.jsontag')
     fs.writeFileSync(file, serialize(JSONTag.parse(text)))
     const source = scanDataFile(file)
+    sealFixture(file)
     return { dir, file, source }
 }
 
@@ -297,6 +308,8 @@ test('duplicate IDs are rejected when a patch fills an earlier hole', async t =>
     fs.writeFileSync(path.join(dir, 'data.fill.jsontag'),
         '+2\n' + record('<object id="duplicate">{"name":"lower"}')
     )
+    sealFixture(file)
+    sealFixture(path.join(dir, 'data.fill.jsontag'))
     await assert.rejects(loadFileData({dataFile: file, commands: ['fill']}),
         /Duplicate ID: duplicate/)
 })
@@ -362,6 +375,12 @@ function writeIndexes(dir, offsets, ids, command = '') {
         JSON.stringify(offsets))
     fs.writeFileSync(path.join(dir, `index.id${suffix}.json`),
         JSON.stringify(ids))
+    const file = path.join(dir, command ? `data.${command}.jsontag` :
+        'data.jsontag')
+    if (fs.existsSync(file)) {
+        sealFixture(file, ['offset', 'id'].map(kind =>
+            path.join(dir, `index.${kind}${suffix}.json`)))
+    }
 }
 
 test('startup consumes valid sidecars without parsing record tags or bodies', async t => {
@@ -497,6 +516,7 @@ for (const missingIds of [false, true]) {
         assert.equal(bytes[source.offsets[0][1]], 10)
         bytes[source.offsets[0][1]] = 120
         fs.writeFileSync(file, bytes)
+        sealFixture(file)
         assert.throws(() => scanDataFile(file), /expected record length/)
         const loaded = await loadFileData({dataFile: file, commands: []})
         assert.deepEqual(loaded.sources[0].offsets, source.offsets)

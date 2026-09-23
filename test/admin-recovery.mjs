@@ -6,6 +6,10 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import JSONTag from '@muze-nl/jsontag'
+import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
+import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import { appendIntegrityRecord, getDefaultIntegrityFile }
+    from '../src/integrity.mjs'
 import { makeServerFixture } from './durability-helpers.mjs'
 import {
     planRecovery,
@@ -44,6 +48,22 @@ async function setup(t, entries) {
     }
     const statusLines = statuses.map(status => JSONTag.stringify(status))
     await fs.writeFile(store.commandStatus, statusLines.join('\n') + '\n')
+    // A lost committed output still has its original digest in the manifest.
+    const previous = [await fs.readFile(store.datafile)]
+    for (const [id, status] of entries) {
+        if (status === 'done') {
+            const parser = new Parser(undefined, false)
+            let data
+            for (const bytes of previous) {
+                data = parser.parse(bytes)
+            }
+            data.persons.push({name: id})
+            const bytes = serialize(data, {meta: parser.meta, changes: true})
+            await appendIntegrityRecord(getDefaultIntegrityFile(store.datafile),
+                path.join(store.dir, `data.${id}.jsontag`), bytes)
+            previous.push(bytes)
+        }
+    }
     return { store, outputs }
 }
 async function runRecovery(store, outputs, plan) {
@@ -441,6 +461,7 @@ test('multi-directory integrity paths and file permissions survive backup and re
     store.commandStatus = path.join(logdir, 'status.jsontag')
     await fs.writeFile(store.commandLog, '')
     await fs.writeFile(store.commandStatus, '')
+    await fs.unlink(getDefaultIntegrityFile(store.datafile))
     store.integrityFile = path.join(logdir, 'integrity.jsontag')
     const { appendIntegrityRecord } = await import('../src/integrity.mjs')
     await appendIntegrityRecord(

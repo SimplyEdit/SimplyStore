@@ -1,7 +1,9 @@
 # Durability contract
 
-SimplyStore retains its existing base, changeset, command/status and optional
-integrity formats. There is no data migration. The command log is authoritative:
+SimplyStore retains its existing base, changeset, command/status and
+integrity formats. Integrity manifests are required; existing stores without
+one use the explicit initialization workflow, without rewriting canonical data.
+The command log is authoritative:
 acceptance serialization keeps execution in log order, including concurrent
 requests and duplicate IDs. A command supplies all inputs beyond its preceding
 dataset; handlers receive `undefined` as the third argument and metadata as the
@@ -25,8 +27,10 @@ Startup validates existing canonical files before executing user modules or
 changing command status. Complete consistent stores reopen normally. Missing
 logs, malformed records, missing/corrupt committed data, or pending/uncertain
 commands stop startup for administrator assessment. Upgrading cannot prove that
-older writers preserved the whole history. Explicit integrity configuration is
-needed to detect a lost manifest; existence-based detection alone cannot do so.
+older writers preserved the whole history. A missing manifest or required entry now stops startup even without explicit
+integrity configuration. Creation, commands and recovery persist hashes of
+canonical data and present standard indexes before success. Each artifact set
+uses one durable manifest append; normal startup never creates a new baseline.
 
 The [administrator guide](docs/recovery.md) provides read-only inspection,
 source-bound preview, explicitly approved suffix recovery on a copy, interrupted

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import { appendIntegrityRecord, getDefaultIntegrityFile }
+    from '../src/integrity.mjs'
 import { getChangesetPath } from '../src/recovery.mjs'
 
 export const rootDir = path.dirname(
@@ -67,6 +69,8 @@ SimplyStore.run(options)
 `
 	)
 
+	await appendIntegrityRecord(getDefaultIntegrityFile(datafile),
+		datafile, await fs.readFile(datafile))
 	return {
 		dir,
 		datafile,

@@ -1,0 +1,5 @@
+{
+    "datafile": "./data.jsontag",
+    "commandLog": "./command-log.jsontag",
+    "commandStatus": "./command-status.jsontag"
+}

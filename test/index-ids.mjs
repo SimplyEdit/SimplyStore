@@ -7,6 +7,8 @@ import { FileParser, loadFileData } from '../src/file-data.mjs'
 import { getIndex } from '@muze-nl/od-jsontag/src/symbols.mjs'
 import idIndex, { prepareIdIndex } from '../src/index.id.mjs'
 import offsetIndex from '../src/index.offset.mjs'
+import { appendIndexIntegrity } from '../src/index-files.mjs'
+import { getDefaultIntegrityFile } from '../src/integrity.mjs'
 import runCommand, { initialize, close } from '../src/command-worker-module.mjs'
 import StoreRuntime from '../src/store-runtime.mjs'
 import { makeServerFixture } from './durability-helpers.mjs'
@@ -42,6 +44,8 @@ async function fixture(t, options = {}) {
     const bytes = fs.readFileSync(files.datafile)
     idIndex.write({data: files.dir}, prepareIdIndex(bytes).entries)
     await offsetIndex.writeSerialized(bytes, {data: files.dir})
+    await appendIndexIntegrity(getDefaultIntegrityFile(files.datafile),
+        {data: files.dir})
     return files
 }
 
@@ -194,7 +198,7 @@ test('runtime exposes explicit index validation and reconstruction', async t => 
     const files = await fixture(t)
     fs.writeFileSync(path.join(files.dir, 'index.id.json'), '{}')
     await assert.rejects(StoreRuntime.open({...files, maxWorkers: 1,
-        validateIndexes: true}), /ID index does not match data/)
+        validateIndexes: true}), /Integrity mismatch/)
     fs.writeFileSync(path.join(files.dir, 'index.offset.json'), '{')
     const runtime = await StoreRuntime.open({...files, maxWorkers: 1,
         rebuildIndexes: true})

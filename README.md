@@ -66,13 +66,18 @@ You should be able to go http://localhost:3000/query/ and see something like thi
 
 ## Durability and recovery
 
-See the [durability contract](DURABILITY.md) and [administrator recovery guide](docs/recovery.md). Command-log order governs execution. Acceptance and completion await file and directory barriers. Uncertain or pending work found at startup requires administrator assessment; missing data does not prove that external effects did not happen. Existing store formats are retained without migration.
+See the [durability contract](DURABILITY.md) and [administrator recovery guide](docs/recovery.md). Command-log order governs execution. Acceptance and completion await file and directory barriers. Uncertain or pending work found at startup requires administrator assessment; missing data does not prove that external effects did not happen. Canonical data formats remain unchanged.
 
 ## File-backed data
 
 See the [file-backed data guide](docs/file-data.md) for worker/file lifetimes,
 index rebuilding, memory limits, and the internal worker-message changes.
 Existing stores retain their current formats and need no conversion.
+
+Integrity hashes are mandatory for data and present standard index files.
+New-store conversion creates the manifest automatically. Existing stores without
+one need the stopped-store [initialization command](docs/recovery.md#initialize-integrity-for-an-existing-store)
+before opening; startup never invents a replacement baseline.
 
 ## Custom Index Modules
 

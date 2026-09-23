@@ -49,6 +49,7 @@ async function makeFixture(t) {
 		'export default { create() {}, update() {}, load() { return {} } }\n'
 	)
 
+	await writeIntegrityEntry(getDefaultIntegrityFile(dataFile), dataFile)
 	return { dir, dataFile, indexFile }
 }
 
@@ -78,6 +79,8 @@ async function writeChangeset(dataFile, commandId, change) {
 			changes: true
 		})
 	)
+	await writeIntegrityEntry(getDefaultIntegrityFile(dataFile),
+		`${basefile}.${commandId}.${extension}`)
 }
 
 function loadDataset({
@@ -506,8 +509,9 @@ test('integrity manifest detects same-length altered committed changeset payload
 	)
 })
 
-test('integrity enabled requires manifest entry for base data', async t => {
+test('integrity requires manifest entry for base data', async t => {
 	const fixture = await makeFixture(t)
+	await fs.writeFile(getDefaultIntegrityFile(fixture.dataFile), '')
 
 	await assert.rejects(
 		loadDataset({

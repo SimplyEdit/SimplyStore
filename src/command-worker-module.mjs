@@ -7,8 +7,8 @@ import { FileDataset, loadDataSource } from './file-data.mjs'
 import { serializeChunks } from '@muze-nl/od-jsontag/src/serialize.mjs'
 import { publishFile as writeFileAtomic, storageError } from './storage.mjs'
 import { faultPoint } from './faults.mjs'
-import { appendIndexIntegrity } from './index-files.mjs'
-import { appendIntegrityRecord, digestBuffer } from './integrity.mjs'
+import { appendArtifactIntegrity } from './index-files.mjs'
+import { getDefaultIntegrityFile, digestBuffer } from './integrity.mjs'
 import { finalizeIndex } from './index.mjs'
 import { markIdChanges, prepareIdIndex } from './index.id.mjs'
 
@@ -86,7 +86,8 @@ export async function initialize(task) {
             metaProxy.schema = meta.schema
         }
         datafile = task.datafile
-        integrityFile = task.integrityFile
+        integrityFile = task.deferIntegrityPublication ? null :
+            task.integrityFile || getDefaultIntegrityFile(datafile)
         extension = datafile.split('.').pop()
         // Include the dot before the extension.
         basefile = datafile.substring(
@@ -161,12 +162,8 @@ export default async function runCommand(commandStr) {
             }
             response.meta = { index: { id: prepared.ids } }
             if (integrityFile) {
-                await appendIntegrityRecord(
-                    integrityFile,
-                    newfilename,
-                    serialized
-                )
-                await appendIndexIntegrity(integrityFile, meta, task.id)
+                await appendArtifactIntegrity(integrityFile, newfilename,
+                    expectedDigest, meta, task.id)
             }
             await faultPoint('after-command-changeset-write')
             meta.parts++

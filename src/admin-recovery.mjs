@@ -22,8 +22,8 @@ import {
 } from './storage.mjs'
 import { executeWorker } from './execute-worker.mjs'
 import { nextActiveCommandStatus } from './recovery.mjs'
-import { appendIndexIntegrity } from './index-files.mjs'
-import { loadIntegrityManifest, verifyDigest, appendIntegrityDigest } from './integrity.mjs'
+import { appendArtifactIntegrity } from './index-files.mjs'
+import { loadIntegrityManifest, verifyDigest } from './integrity.mjs'
 
 const defaultWorker = fileURLToPath(
     new URL('./command-worker.mjs', import.meta.url)
@@ -366,7 +366,8 @@ class RecoveryApplication {
         const loaded = await loadFileData({
             dataFile: this.config.datafile,
             commands: inspection.committed,
-            schemaFile: this.config.schemaFile
+            schemaFile: this.config.schemaFile,
+            integrityFile: this.config.integrityFile
         })
         this.meta = loaded.meta
         this.sources = loaded.sources
@@ -427,8 +428,7 @@ class RecoveryApplication {
                 datafile: this.config.datafile,
                 // Retained digests are checked before replacement manifest and
                 // done records are allowed.
-                integrityFile: null,
-                integrityRequired: false
+                deferIntegrityPublication: true
             },
             30000
         )
@@ -475,12 +475,8 @@ class RecoveryApplication {
                 { required: true }
             )
         }
-        if (this.config.integrity || this.expectedManifest) {
-            await this.appendResultIntegrity(command, source.digest)
-            await appendIndexIntegrity(
-                this.config.integrityFile, this.meta, id
-            )
-        }
+        await appendArtifactIntegrity(this.config.integrityFile,
+            source.file, source.digest, this.meta, id)
         await appendRecord(
             this.config.commandStatus,
             JSONTag.stringify({ command: id, code: 200, status: 'done' })
@@ -490,18 +486,6 @@ class RecoveryApplication {
         await appendRecord(
             this.journal,
             JSON.stringify({ event: 'done', id, attempt: active.attempt })
-        )
-    }
-
-    async appendResultIntegrity(command, digest) {
-        const targetFile = path.join(
-            path.dirname(this.config.datafile),
-            path.basename(command.file)
-        )
-        await appendIntegrityDigest(
-            this.config.integrityFile,
-            targetFile,
-            digest
         )
     }
 
