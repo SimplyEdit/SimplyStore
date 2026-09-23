@@ -223,3 +223,23 @@ test('ID-only edits do not parse untouched records during command preparation', 
     assert.equal(result.meta.index.id.get('renamed'), 1)
     assert.equal(parsed.has(2), false)
 })
+
+for (const changeFile of [false, true]) {
+    test(`finalizers must preserve serialization (change file: ${changeFile})`, async t => {
+        const files = await fixture(t, {
+            indexSource: `import fs from 'node:fs/promises'
+                export default {
+                    update() {},
+                    async finalize(bytes, meta, uuid) {
+                        bytes[bytes.indexOf('edited')] = 120
+                        if (${changeFile}) {
+                            await fs.writeFile(meta.data + '/data.' + uuid +
+                                '.jsontag', bytes)
+                        }
+                    }
+                }`
+        })
+        await assert.rejects(command(files, [], {id: 'tamper', name: 'edit'}),
+            /Changeset changed during finalization/)
+    })
+}

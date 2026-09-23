@@ -154,7 +154,8 @@ export default async function runCommand(commandStr) {
             // index hook.
             await finalizeIndex(index, serialized, meta, task.id, prepared)
             response.source = scanDataFile(newfilename)
-            if (response.source.digest !== expectedDigest) {
+            if (response.source.digest !== expectedDigest ||
+                digestBuffer(serialized) !== expectedDigest) {
                 throw new Error('Changeset changed during finalization')
             }
             response.meta = { index: { id: prepared.ids } }
