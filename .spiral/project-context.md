@@ -18,7 +18,8 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Active cycle: CYC-20260923-TTZ7C-44, File-backed dataset runtime, on
+Active cycle: none. Latest accepted cycle: CYC-20260923-TTZ7C-44,
+File-backed dataset runtime, accepted on 2026-09-23, awaiting integration on
 spiral/CYC-20260923-TTZ7C-44-file-backed. The maintainer authorized replacing
 shared-memory data after reviewing od-jsontag hardening. This continues the
 file-only roadmap direction, prioritized ahead of rebuild. SRC-45, UND-48,
@@ -32,10 +33,12 @@ cover canonical data and present standard index files. Duplicate IDs are
 errors; no legacy index compatibility is required. The maintainer verified the
 example folder and explicitly confirmed these corrections.
 EVD-20260923-TTZ7C-49 records 178 passing tests, clean lint and large-file probes.
-Human acceptance remains pending. Client-visible version metadata and audit
-trails follow this migration; no such feature is implemented by this cycle.
+The maintainer confirmed the tests, successful example command application and
+persistence after restart. Acceptance is retained in the cycle record.
+Integration remains pending; no next cycle is selected. Client-visible version
+metadata and audit trails follow this migration; neither is implemented here.
 
-Latest accepted cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
+Latest integrated cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
 Context. Accepted on 2026-09-23 and integrated through PR #24 at dbb0703.
 
 Previously accepted and integrated cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
