@@ -63,14 +63,14 @@ export default {
 			JSON.stringify(index)
 		)
 	},
-	load(uuid = null) {
+	load(meta, uuid = null) {
 		let filename
 		if (!uuid) {
 			filename = 'index.offset.json'
 		}
 		else {
-			filename = 'index.offset.' + filename + '.json'
+			filename = 'index.offset.' + uuid + '.json'
 		}
-		return JSON.parse(fs.readFileSync(meta.data + filename))
+		return JSON.parse(fs.readFileSync(meta.data + '/' + filename))
 	}
 }

@@ -15,8 +15,8 @@ const defaultIndex = {
 	},
 	load(meta, uuid=null) {
 		return {
-			id: idIndex.load(uuid),
-		    offset: offsetIndex.load(uuid)
+			id: idIndex.load(meta, uuid),
+		    offset: offsetIndex.load(meta, uuid)
 		}
 	}
 }

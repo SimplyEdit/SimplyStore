@@ -45,3 +45,13 @@ Custom hooks must await their work; declare additional required artifacts with
 their own conformance checks. Unsupported directory-sync operations fail rather
 than silently weakening the guarantee. Broader filesystems, random/soak testing,
 and deployment-specific power-loss testing remain future validation work.
+
+## File-backed readers
+
+The runtime retains ordered file sources instead of shared dataset bytes. Each
+worker owns read handles; committed sources remain immutable while the store is
+open. Source publication still follows the durable `done` record. Inspection
+hashes/scans data with a fixed-size byte buffer, and shutdown waits for readers
+to terminate before releasing ownership. See [file-backed data](docs/file-data.md)
+for the source contract and memory boundaries. The existing filesystem durability
+envelope and recovery restrictions remain in force.

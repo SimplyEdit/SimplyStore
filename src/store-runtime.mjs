@@ -165,7 +165,7 @@ export class StoreRuntime {
     constructor(configuration, mechanisms) {
         this.configuration = configuration
         this.mechanisms = mechanisms
-        this.data = []
+        this.sources = []
         this.meta = {}
         this.status = new Map()
         this.commandQueue = []
@@ -239,7 +239,7 @@ export class StoreRuntime {
     }
 
     initializeLoadedState(inspection, loaded) {
-        this.data = [loaded.data]
+        this.sources = loaded.sources
         this.meta = loaded.meta
         this.status = new Map(
             inspection.commands.map(command => {
@@ -261,13 +261,16 @@ export class StoreRuntime {
             config.queryWorker,
             this.queryWorkerInitialTask(config.slowTimeout)
         )
+        for (const pool of [this.queryWorkerPool, this.slowQueryWorkerPool]) {
+            pool.on?.('error', error => this.failStorage(error))
+        }
     }
 
     queryWorkerInitialTask(timeout) {
         return {
             name: 'init',
             req: {
-                body: this.data,
+                sources: this.sources,
                 meta: this.meta,
                 access: this.configuration.access
             },
@@ -486,7 +489,7 @@ export class StoreRuntime {
             {
                 ...command,
                 meta: this.meta,
-                data: this.data,
+                sources: this.sources,
                 commandsFile: config.commandsFile,
                 indexFile: config.indexFile,
                 datafile: config.store.datafile,
@@ -559,14 +562,14 @@ export class StoreRuntime {
     }
 
     publishCommandResult(result) {
-        if (!result.data) {
+        if (!result.source) {
             return
         }
-        this.data.push(result.data)
+        this.sources.push(result.source)
         Object.assign(this.meta, result.meta)
         const task = {
             name: 'update',
-            req: { body: result.data, meta: this.meta }
+            req: { source: result.source, meta: this.meta }
         }
         this.queryWorkerPool.update(task)
         this.slowQueryWorkerPool.update(task)
@@ -593,8 +596,8 @@ export class StoreRuntime {
     async closeResources() {
         await this.serializeAcceptance()
         await this.runner
-        this.queryWorkerPool.close()
-        this.slowQueryWorkerPool.close()
+        await this.queryWorkerPool.close()
+        await this.slowQueryWorkerPool.close()
         if (!this.storageFailed && this.ownership) {
             await this.ownership.release()
             this.ownership = null

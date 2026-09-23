@@ -1,27 +1,25 @@
 import JSONTag from '@muze-nl/jsontag'
 import {
     getIndex,
-    resultSet,
     isChanged
 } from '@muze-nl/od-jsontag/src/symbols.mjs'
-import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
-import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import { FileDataset, scanDataFile } from './file-data.mjs'
+import { serializeChunks } from '@muze-nl/od-jsontag/src/serialize.mjs'
 import { publishFile as writeFileAtomic, storageError } from './storage.mjs'
 import { faultPoint } from './faults.mjs'
-import { appendIntegrityRecord } from './integrity.mjs'
+import { appendIntegrityRecord, digestBuffer } from './integrity.mjs'
 import { finalizeIndex } from './index.mjs'
 
 let commands = {}
 let index = {}
-let resultArr = []
+let dataset
+let parser
 let dataspace
 let datafile, basefile, extension, integrityFile
 let meta = {}
 let metaProxy = {
     index: {}
 }
-const parser = new Parser()
-parser.immutable = false
 
 export const metaIdProxy = {
     forEach: callback => {
@@ -29,7 +27,7 @@ export const metaIdProxy = {
             callback(
                 {
                     deref: () => {
-                        return resultArr[ref]
+                        return parser.getLineProxy(ref)
                     }
                 },
                 id
@@ -47,7 +45,7 @@ export const metaIdProxy = {
         }
         else {
             let line = parser.meta.index.id.get(id)
-            resultArr[line] = ref
+            parser.meta.resultArray[line] = ref
         }
     },
     get: id => {
@@ -55,7 +53,7 @@ export const metaIdProxy = {
         if (index || index === 0) {
             return {
                 deref: () => {
-                    return resultArr[index]
+                    return parser.getLineProxy(index)
                 }
             }
         }
@@ -73,29 +71,34 @@ const metaReadProxy = {
 }
 
 export async function initialize(task) {
-    if (task.meta) {
-        parser.meta = task.meta
+    close()
+    try {
+        dataset = new FileDataset(task.meta, false)
+        parser = dataset.parser
+        dataspace = dataset.open(task.sources)
+        meta = parser.meta
+        metaProxy.index.id = metaIdProxy
+        if (meta.schema) {
+            metaProxy.schema = meta.schema
+        }
+        datafile = task.datafile
+        integrityFile = task.integrityFile
+        extension = datafile.split('.').pop()
+        // Include the dot before the extension.
+        basefile = datafile.substring(
+            0, datafile.length - (extension.length + 1)
+        )
+        commands = await import(task.commandsFile).then(mod => {
+            return mod.default
+        })
+        index = await import(task.indexFile).then(mod => {
+            return mod.default
+        })
     }
-    for (let jsontag of task.data) {
-        dataspace = parser.parse(jsontag)
+    catch (error) {
+        close()
+        throw error
     }
-    resultArr = dataspace[resultSet]
-    meta = task.meta
-    metaProxy.index.id = metaIdProxy
-    if (meta.schema) {
-        metaProxy.schema = meta.schema
-    }
-    datafile = task.datafile
-    integrityFile = task.integrityFile
-    extension = datafile.split('.').pop()
-    // Include the dot before the extension.
-    basefile = datafile.substring(0, datafile.length - (extension.length + 1))
-    commands = await import(task.commandsFile).then(mod => {
-        return mod.default
-    })
-    index = await import(task.indexFile).then(mod => {
-        return mod.default
-    })
 }
 
 export default async function runCommand(commandStr) {
@@ -115,7 +118,7 @@ export default async function runCommand(commandStr) {
             let time = Date.now()
             await commands[task.name](dataspace, task, undefined, metaProxy)
             // TODO: if command/task makes no changes, skip updating
-            // data.jsontag and writing it; skip response.data.
+            // data.jsontag and writing it.
 
             const changes = meta.resultArray.filter(e => e[isChanged])
             //FIXME: new entities should also report isChanged = true
@@ -124,8 +127,9 @@ export default async function runCommand(commandStr) {
                 await index.update(dataspace, meta, changes)
             }
             // Serialize only changes.
-            const uint8sab = serialize(dataspace, { meta, changes: true })
-            response.data = uint8sab
+            const serialized = Buffer.concat([
+                ...serializeChunks(dataspace, { meta, changes: true })
+            ])
             response.meta = {
                 index: {
                     id: meta.index.id
@@ -137,16 +141,20 @@ export default async function runCommand(commandStr) {
             let newfilename = basefile + '.' + task.id + '.' + extension
             publishing = true
             await faultPoint('before-command-changeset-write')
-            await writeFileAtomic(newfilename, uint8sab)
+            await writeFileAtomic(newfilename, serialized)
             // Final bytes include new records and mutations made by the custom
             // index hook.
-            await finalizeIndex(index, uint8sab, meta, task.id)
+            await finalizeIndex(index, serialized, meta, task.id)
             if (integrityFile) {
                 await appendIntegrityRecord(
                     integrityFile,
                     newfilename,
-                    uint8sab
+                    serialized
                 )
+            }
+            response.source = scanDataFile(newfilename)
+            if (response.source.digest !== digestBuffer(serialized)) {
+                throw new Error('Changeset changed during finalization')
             }
             await faultPoint('after-command-changeset-write')
             meta.parts++
@@ -167,4 +175,14 @@ export default async function runCommand(commandStr) {
         throw publishing ? storageError(err) : err
     }
     return response
+}
+
+export function close() {
+    if (dataset) {
+        dataset.close()
+        dataset = undefined
+        parser = undefined
+        dataspace = undefined
+        meta = {}
+    }
 }

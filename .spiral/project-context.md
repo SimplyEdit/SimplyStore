@@ -18,12 +18,18 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
+Active cycle: CYC-20260923-TTZ7C-44, File-backed dataset runtime, on
+spiral/CYC-20260923-TTZ7C-44-file-backed. The maintainer authorized replacing
+shared-memory data after reviewing od-jsontag hardening. This continues the
+file-only roadmap direction, prioritized ahead of rebuild. SRC-45, UND-48,
+REQ-46 and DES-47 (20260923-TTZ7C namespace) retain the commitment. Implementation
+uses ordered file sources, bounded clean-record caches, worker-owned handles,
+streamed framing/hash scans and file-backed administrative replay. Evaluation
+and human acceptance remain pending. Client-visible version metadata and audit
+trails follow this migration; no such feature is implemented by this cycle.
+
 Latest accepted cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
-Context, on spiral/CYC-20260919-TTZ7C-42-roadmap. The maintainer accepted the
-evaluated branch tip 10a39df3e946944a168614fd59514f2aeb4aec05 on 2026-09-23.
-The documentation cycle is closed; integration into master remains a separate
-decision. No next product task is selected; Spiral risk analysis selects it
-using ROADMAP.md and current evidence.
+Context. Accepted on 2026-09-23 and integrated through PR #24 at dbb0703.
 
 Previously accepted and integrated cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
 Workflows, on spiral/CYC-20260919-TTZ7C-36-runtime-contracts. The maintainer

@@ -33,6 +33,7 @@ project:IMP-20260919-TTZ7C-26 a sd:Implementation ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-003 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260917-TTZ7C-14 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260819-09ZEF-7 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260919-TTZ7C-18 ; sd:gitCommit "9b4a340facd57f22edbead07a195700b0237c9ad" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "9b4a340facd57f22edbead07a195700b0237c9ad" ] ;
-    sd:implementationChangeKind sd:SemanticChange .
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "9b8acd229291fa75423c45a9019245edc0c19ea9" ] ;
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "9b8acd229291fa75423c45a9019245edc0c19ea9" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "d4136eaf7b0014726a1c90a0d0b8488ece2d6b27" ] ;
+    sd:implementationChangeKind sd:MixedChange .

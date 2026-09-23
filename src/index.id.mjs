@@ -38,14 +38,14 @@ export default {
 			JSON.stringify(index)
 		)
 	},
-	load(uuid = null) {
+	load(meta, uuid = null) {
 		let filename
 		if (!uuid) {
 			filename = 'index.id.json'
 		}
 		else {
-			filename = 'index.id.' + filename + '.json'
+			filename = 'index.id.' + uuid + '.json'
 		}
-		return JSON.parse(fs.readFileSync(meta.data + filename))
+		return JSON.parse(fs.readFileSync(meta.data + '/' + filename))
 	}
 }

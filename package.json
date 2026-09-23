@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"start": "node src/run.mjs",
-		"test": "node --test test/store-runtime.mjs test/durability-startup.mjs test/conversion-offsets.mjs test/command-offsets.mjs",
+		"test": "node --test test/file-data.mjs test/store-runtime.mjs test/durability-startup.mjs test/conversion-offsets.mjs test/command-offsets.mjs",
 		"test:acid": "node --test test/acid-baseline.mjs",
 		"test:durability": "node --test test/durability-crash.mjs",
 		"test:handlers": "node --test test/after-change-handlers.mjs",
@@ -25,7 +25,7 @@
 	"dependencies": {
 		"@muze-nl/jaqt": "^0.10.6",
 		"@muze-nl/jsontag": "^0.10.4",
-		"@muze-nl/od-jsontag": "^0.4.6",
+		"@muze-nl/od-jsontag": "git+https://github.com/muze-nl/od-jsontag.git#24f47eb616c3a24391487197496804ed1c56837b",
 		"express": "^5.2.1",
 		"vm2": "^3.12.2"
 	},
@@ -38,6 +38,7 @@
 		"README.md",
 		"DURABILITY.md",
 		"docs/recovery.md",
+		"docs/file-data.md",
 		"docs/power-loss-filesystem.md",
 		"LICENSE",
 		"src/",

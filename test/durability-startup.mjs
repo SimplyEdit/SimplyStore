@@ -8,6 +8,7 @@ import { Worker } from 'node:worker_threads'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
+import { FileDataset } from '../src/file-data.mjs'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import {
 	appendIntegrityRecord,
@@ -26,9 +27,10 @@ import {
 const rootDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const loadWorker = path.join(rootDir, 'src/load-worker.mjs')
 
-function parseOd(buffer) {
-	const parser = new Parser()
-	return parser.parse(buffer)
+function parseOd(sources, t) {
+	const dataset = new FileDataset()
+	t.after(() => dataset.close())
+	return dataset.open(sources)
 }
 
 async function makeFixture(t) {
@@ -126,7 +128,7 @@ test('accepted command changeset is not treated as committed state on startup', 
 		...fixture,
 		commands: getCommittedCommandIds(status)
 	})
-	const data = parseOd(result.data)
+	const data = parseOd(result.sources, t)
 
 	assert.equal(
 		data.persons.length,
@@ -235,7 +237,7 @@ test('malformed uncommitted changeset is ignored during committed startup recons
 		...fixture,
 		commands: getCommittedCommandIds(status)
 	})
-	const data = parseOd(result.data)
+	const data = parseOd(result.sources, t)
 
 	assert.equal(data.persons.length, 0)
 })
@@ -264,7 +266,7 @@ test('durable status file selects only done command changesets for startup', asy
 		...fixture,
 		commands: getCommittedCommandIds(status)
 	})
-	const data = parseOd(result.data)
+	const data = parseOd(result.sources, t)
 
 	assert.deepEqual(
 		data.persons.map(person => person.name),

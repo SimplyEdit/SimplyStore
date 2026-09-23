@@ -1,3 +1,4 @@
+import { FileDataset } from '../src/file-data.mjs'
 import { Buffer } from 'node:buffer'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -77,7 +78,7 @@ test('administrator recovers trailing missing/waiting commands in log order on a
         'Inspection does not expose JAQT proxies'
     )
     assert.deepEqual(
-        actual.data.persons.map(p => p.name),
+        personNames(actual),
         ['A', 'B']
     )
     assert.deepEqual(await fs.readFile(store.commandStatus), before)
@@ -164,7 +165,7 @@ test('backup and restore validate saved bytes without executing commands', async
         sourceQuiescent: true
     })
     assert.deepEqual(
-        (await inspectStore(restored.config)).data.persons.map(p => p.name),
+        personNames(await inspectStore(restored.config)),
         ['A']
     )
     assert.deepEqual(restored.missingFromBackup, [])
@@ -390,7 +391,7 @@ test('approved recovery resumes from completed candidate prefix without repeatin
     await fs.mkdir(retry)
     const result = await runRecovery(partial, retry, plan)
     assert.deepEqual(
-        (await inspectStore(result.config)).data.persons.map(p => p.name),
+        personNames(await inspectStore(result.config)),
         ['A', 'B']
     )
     assert.equal(await fs.readFile(witness, 'utf8'), 'A\nB\n')
@@ -547,7 +548,7 @@ test('verified A prefix permits only missing B, waiting C and missing D in log o
     await fs.mkdir(next)
     const result = await runRecovery(source, next, plan)
     assert.deepEqual(
-        (await inspectStore(result.config)).data.persons.map(p => p.name),
+        personNames(await inspectStore(result.config)),
         ['A', 'B', 'C', 'D']
     )
     assert.deepEqual(
@@ -708,3 +709,13 @@ test('backup coverage distinguishes changed history and data from missing source
         )
     }
 })
+
+function personNames(inspection) {
+    const dataset = new FileDataset()
+    try {
+        return dataset.open(inspection.sources).persons.map(p => p.name)
+    }
+    finally {
+        dataset.close()
+    }
+}

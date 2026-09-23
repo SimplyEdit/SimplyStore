@@ -2,13 +2,13 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import JSONTag from '@muze-nl/jsontag'
 import { from, _, anyOf, not } from '@muze-nl/jaqt'
-import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
+import { FileDataset, hashFile, scanDataFile } from './file-data.mjs'
 import { createHash } from 'node:crypto'
-import { assertOdJsonTagFraming, getChangesetPath } from './recovery.mjs'
+import { getChangesetPath } from './recovery.mjs'
 import {
     getDefaultIntegrityFile,
     loadIntegrityManifest,
-    verifyIntegrity
+    verifyDigest
 } from './integrity.mjs'
 
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex')
@@ -101,7 +101,7 @@ export async function inventory(config) {
                 throw new Error(`Symlink in store artifact: ${file}`)
             }
             if (entry.isFile()) {
-                files[file] = hash(await fs.readFile(file))
+                files[file] = hashFile(file)
             }
         }
     }
@@ -116,7 +116,7 @@ export async function inventory(config) {
     for (const file of required) {
         if (!(file in files)) {
             try {
-                files[file] = hash(await fs.readFile(file))
+                files[file] = hashFile(file)
             }
             catch (error) {
                 if (error.code !== 'ENOENT') {
@@ -147,22 +147,26 @@ class StoreInspector {
         this.commands = []
         this.commandsById = new Map()
         this.manifest = null
-        this.parser = new Parser()
-        this.buffers = []
+        this.dataset = new FileDataset()
+        this.verified = new Map()
         this.committed = []
-        this.data = undefined
         this.prefixValid = false
     }
 
     async inspect() {
-        await this.validateConfiguredPaths()
-        this.files = await inventory(this.config)
-        await this.loadCommandHistory()
-        await this.loadIntegrityManifest()
-        await this.reconstructCommittedState()
-        this.validateStoreArtifacts()
-        await this.verifyStableSnapshot()
-        return this.createReport()
+        try {
+            await this.validateConfiguredPaths()
+            this.files = await inventory(this.config)
+            await this.loadCommandHistory()
+            await this.loadIntegrityManifest()
+            await this.reconstructCommittedState()
+            this.validateStoreArtifacts()
+            await this.verifyStableSnapshot()
+            return this.createReport()
+        }
+        finally {
+            this.dataset.close()
+        }
     }
 
     async loadCommandHistory() {
@@ -344,18 +348,18 @@ class StoreInspector {
     }
 
     async readVerifiedData(file) {
-        const bytes = await fs.readFile(file)
-        assertOdJsonTagFraming(bytes, file)
+        const source = scanDataFile(file)
         if (this.manifest) {
-            verifyIntegrity(
+            verifyDigest(
                 this.manifest,
                 this.config.integrityFile,
                 file,
-                bytes,
+                source.digest,
                 { required: true }
             )
         }
-        return bytes
+        this.verified.set(file, source)
+        return source
     }
 
     async reconstructCommittedState() {
@@ -369,12 +373,11 @@ class StoreInspector {
 
     async readBaseDataset() {
         try {
-            const bytes = await this.readVerifiedData(this.config.datafile)
-            if (!bytes.length) {
+            const source = await this.readVerifiedData(this.config.datafile)
+            if (!source.size) {
                 throw new Error('Empty base dataset')
             }
-            this.data = this.parser.parse(bytes)
-            this.buffers.push(bytes)
+            this.dataset.append(source)
         }
         catch (error) {
             this.errors.push(error.message)
@@ -427,9 +430,8 @@ class StoreInspector {
             return
         }
         try {
-            const bytes = await this.readVerifiedData(command.file)
-            this.data = this.parser.parse(bytes)
-            this.buffers.push(bytes)
+            const source = this.verified.get(command.file)
+            this.dataset.append(source)
             this.committed.push(command.id)
         }
         catch (error) {
@@ -508,8 +510,7 @@ class StoreInspector {
             commands: this.commands,
             committed: this.committed,
             ready,
-            data: this.data,
-            buffers: this.buffers
+            sources: [...this.dataset.sources]
         }
     }
 }
