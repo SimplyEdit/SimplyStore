@@ -10,6 +10,7 @@ import path from 'node:path'
 import { publishFile, syncFile } from '../src/storage.mjs'
 import { acquireOwnership } from '../src/store-ownership.mjs'
 import { hashFile } from '../src/file-data.mjs'
+import { appendIndexIntegrity } from '../src/index-files.mjs'
 import {
 	appendIntegrityRecord,
 	digestBuffer,
@@ -122,6 +123,7 @@ async function main() {
 			outputFile,
 			Buffer.from(strData)
 		)
+		await appendIndexIntegrity(getDefaultIntegrityFile(outputFile), meta)
 	}
 	for (const file of logs) {
 		await publishFile(file, '')

@@ -12,22 +12,24 @@ Startup inspects command-log order and the committed prefix, as before. It loads
 `index.offset.<command-id>.json` and `index.id.<command-id>.json` for committed
 changesets only. Existing index hooks continue writing these files.
 
-Normal loading trusts committed ID indexes. It checks their JSON structure and
-record numbers, then combines them in committed order without scanning record
+Normal loading trusts committed offset and ID indexes. It checks their JSON
+structure, ordered nonoverlapping offset ranges, file bounds and
+record numbers, then combines them in committed order without reconstructing
+framing or scanning record
 tags. A changeset first removes mappings for every record it replaces, then
 applies its new IDs. This handles renames, ID removal and ID swaps. Duplicate
 IDs on distinct records are errors; updating the same record may retain its ID.
 
-A 64 KiB byte buffer still scans canonical framing and SHA-256 digests. Persisted
-offsets must match every framed record range. If an ID index is missing, the
-loader reads that source's leading JSONTag headers to reconstruct it. Present
-malformed ID indexes fail loading rather than silently being replaced.
+A 64 KiB byte buffer hashes canonical bytes without interpreting their framing.
+Missing offset indexes are reconstructed by scanning framing. If only an ID index
+is missing, the loader reads leading JSONTag headers at the stored offsets.
+Present malformed indexes fail loading rather than silently being replaced.
 
 Store options support deliberate maintenance:
 
-- `validateIndexes: true` also compares persisted IDs with record headers and
-  fails on mismatches or duplicate IDs.
-- `rebuildIndexes: true` ignores persisted ID indexes and reconstructs them in
+- `validateIndexes: true` compares offsets with canonical framing and IDs with
+  record headers, failing on mismatches or duplicate IDs.
+- `rebuildIndexes: true` ignores both persisted indexes and reconstructs them in
   memory. This takes precedence over validation.
 
 Both options are also accepted by `loadFileData()`. Loading never rewrites data
@@ -35,7 +37,12 @@ or sidecars. Normal loading assumes committed indexes are correct, including
 completeness; use explicit validation after external changes. There is no legacy
 index compatibility path. Record bodies remain lazy except for opening the root
 and the unusual reconstruction fallback for reference-only records. Configured
-integrity checks continue covering all canonical data bytes.
+integrity checks cover canonical data and present standard index files using the
+existing SHA-256 manifest. Index hashes cover the exact bytes parsed. With
+integrity enabled, every present standard index requires a manifest entry;
+missing indexes can reconstruct from verified data. Explicit rebuild ignores
+sidecar hashes as well as contents, while still checking canonical data hashes.
+Hash mismatches fail opening; normal loading never repairs them automatically.
 
 Each query worker opens its own read-only descriptors and registers the ordered
 base/changeset sources with its parser. ID lookups use the complete record
@@ -44,7 +51,7 @@ record bodies by default; evicted bodies are read again when needed.
 
 Canonical source files must remain immutable while the store is open. Opening a
 source checks its device, inode, size and modification/change timestamps against
-the scanned identity. Store ownership and immutable publication are still the
+the hashed identity. Store ownership and immutable publication are still the
 operational boundary; this is not protection against another process editing an
 already-open file in place. Use the existing stopped-store recovery workflow for
 administrative changes.
@@ -64,7 +71,11 @@ on materialized records before and after the update hook, without reading
 untouched objects. The core finalization boundary awaits custom finalization,
 then durably writes the ID sidecar and returns the updated ID map. Conversion
 uses the same preparation/finalization rules. Empty commands write an empty ID
-sidecar. A failed ID write prevents success.
+sidecar. A failed ID write prevents success. With integrity enabled, conversion,
+commands and administrative replay append hashes of final standard index files
+after finalization and before success or durable `done`. Custom finalizers may
+omit offsets; absent files are not fingerprinted. Hashing detects later file
+changes; it does not independently prove a custom index was generated correctly.
 
 The worker returns the new file's descriptor and metadata. The runtime publishes
 that source to query workers only after the required files and `done` status
@@ -102,8 +113,8 @@ Custom worker implementations need to adopt these messages:
 
 A source contains `file`, `offsets`, `identity`, `size` and `digest`; it contains
 neither bytes nor an open descriptor. It is an internal trusted worker contract.
-Use `scanDataFile()` to construct one and `FileDataset` to own the parser and
-handles. Custom hook signatures are unchanged. Custom finalizers can still
+Use `loadDataSource()` to load persisted offsets (or `scanDataFile()` to
+explicitly reconstruct them) and `FileDataset` to own the parser and handles. Custom hook signatures are unchanged. Custom finalizers can still
 replace offset finalization; core ID publication always runs after them.
 Default index loaders accept `load(meta, uuid)`.
 
@@ -123,19 +134,19 @@ memory. Command/status logs and schemas are still read into memory. Backup/copy
 utilities still temporarily buffer individual files when copying them; this
 cycle changes dataset retrieval and replay, not their copy algorithm.
 
-Startup still reads all canonical bytes for framing and integrity validation.
-With complete ID indexes, it does not reconstruct IDs or compare record tags.
+Startup still reads canonical bytes for hashing and snapshot checks. With
+complete indexes, neither inspection nor loading reconstructs offsets or IDs.
 Missing-index fallback and explicit maintenance read headers instead of fully
 decoding record bodies. Offset catalogs and ID maps still scale with the data.
 
 A generated 328,877,813-byte / 20,000-record store with persisted indexes opened
 and answered an ID lookup with a 48 MB JavaScript heap limit. One local run
-measured approximately 1.09 seconds open and 97 ms query (including worker
+measured approximately 1.07 seconds open and 99 ms query (including worker
 readiness), with 9.0 MB parent heap and 24.5 MB query-worker heap. Retained byte
 buffers were approximately 25 KiB and 58 KiB respectively. These are warm local
 measurements, not a cold-storage, physical-RAM or total-process-memory bound.
-Direct index loading removes redundant ID reconstruction; it does not remove
-the existing framing/hash scans elsewhere in startup.
+Direct index loading removes framing and ID reconstruction. Existing snapshot
+hashing still reads the files; this run does not establish a startup speedup.
 
 Reproduce the disposable-fixture probe with:
 

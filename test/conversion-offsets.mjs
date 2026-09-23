@@ -211,6 +211,11 @@ test('conversion initializes existing-format logs and optional base integrity wi
 		'../src/integrity.mjs'
 	)
 	const integrity = path.join(files.dir, 'data.integrity.jsontag')
+	for (const name of ['index.offset.json', 'index.id.json']) {
+		const file = path.join(files.dir, name)
+		assert.equal(verifyIntegrity(await loadIntegrityManifest(integrity),
+			integrity, file, await fs.readFile(file), {required: true}), true)
+	}
 	assert.equal(
 		verifyIntegrity(
 			await loadIntegrityManifest(integrity),

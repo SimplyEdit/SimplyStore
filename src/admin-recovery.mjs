@@ -4,7 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import { from, _, anyOf, not } from '@muze-nl/jaqt'
-import { loadFileData, scanDataFile } from './file-data.mjs'
+import { loadFileData, loadDataSource } from './file-data.mjs'
 import {
     inspectStore,
     inventory,
@@ -22,6 +22,7 @@ import {
 } from './storage.mjs'
 import { executeWorker } from './execute-worker.mjs'
 import { nextActiveCommandStatus } from './recovery.mjs'
+import { appendIndexIntegrity } from './index-files.mjs'
 import { loadIntegrityManifest, verifyDigest, appendIntegrityDigest } from './integrity.mjs'
 
 const defaultWorker = fileURLToPath(
@@ -464,7 +465,7 @@ class RecoveryApplication {
         for (const file of this.config.requiredFiles) {
             await syncFile(file)
         }
-        const source = scanDataFile(result.source.file)
+        const source = loadDataSource(result.source.file, this.meta, id)
         if (this.expectedManifest && command.status === 'done') {
             verifyDigest(
                 this.expectedManifest,
@@ -476,6 +477,9 @@ class RecoveryApplication {
         }
         if (this.config.integrity || this.expectedManifest) {
             await this.appendResultIntegrity(command, source.digest)
+            await appendIndexIntegrity(
+                this.config.integrityFile, this.meta, id
+            )
         }
         await appendRecord(
             this.config.commandStatus,

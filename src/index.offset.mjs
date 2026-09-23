@@ -1,5 +1,5 @@
 import { publishFileSync } from './storage.mjs'
-import fs from 'fs'
+import { indexPath, readIndexFile } from './index-files.mjs'
 import path from 'node:path'
 import { Buffer } from 'node:buffer'
 import { publishFile as writeFileAtomic } from './storage.mjs'
@@ -63,14 +63,7 @@ export default {
 			JSON.stringify(index)
 		)
 	},
-	load(meta, uuid = null) {
-		let filename
-		if (!uuid) {
-			filename = 'index.offset.json'
-		}
-		else {
-			filename = 'index.offset.' + uuid + '.json'
-		}
-		return JSON.parse(fs.readFileSync(meta.data + '/' + filename))
+	load(meta, uuid = null, options = {}) {
+		return readIndexFile(indexPath(meta, 'offset', uuid), options)
 	}
 }

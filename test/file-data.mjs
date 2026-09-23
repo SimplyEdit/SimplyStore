@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
 import { FileDataset, FileParser, scanDataFile, hashFile, loadFileData } from '../src/file-data.mjs'
+import { appendIndexIntegrity } from '../src/index-files.mjs'
+import { inspectStore } from '../src/store-inspection.mjs'
 import { appendIntegrityRecord } from '../src/integrity.mjs'
 import index from '../src/index.mjs'
 import offsetIndex from '../src/index.offset.mjs'
@@ -35,9 +37,8 @@ function open(t, sources, meta, immutable = true) {
 }
 
 test('file loading resolves unread IDs and sends metadata without dataset bytes', async t => {
-    const { file, dir } = fixture(t)
-    // Missing IDs reconstruct; stale offsets must not redirect reads.
-    fs.writeFileSync(path.join(dir, 'index.offset.json'), '{"0":[9,999999]}')
+    const { file } = fixture(t)
+    // Missing indexes reconstruct without retaining dataset bytes.
     const loaded = await loadFileData({ dataFile: file, commands: [] })
     assert.equal(loaded.data, undefined)
     assert.equal(loaded.meta.index.id.get('last'), 2)
@@ -449,27 +450,105 @@ test('normal loading trusts index contents; explicit validation detects mismatch
     }
 })
 
-test('offset sidecars cannot omit, redirect or add records', async t => {
+test('malformed offset indexes fail; explicit rebuild leaves disk unchanged', async t => {
     const { file, dir, source } = fixture(t)
-    const invalid = [null, [], {}, {'0': source.offsets[0]},
-        {...source.offsets, '1': source.offsets[2]},
-        {...source.offsets, '9': source.offsets[2]}]
+    const invalid = ['{', 'null', '[]', '{"-1":[3,8]}',
+        '{"01":[3,8]}', '{"4294967295":[3,8]}',
+        '{"0":[3,999999]}', '{"0":[3,3]}', '{"0":[3.5,8]}',
+        '{"0":["3",8]}', '{"0":[3,8,9]}',
+        JSON.stringify({...source.offsets, '1': source.offsets[2]})]
     for (const offsets of invalid) {
-        writeIndexes(dir, offsets, {first: 1, last: 2})
+        writeIndexes(dir, source.offsets, {first: 1, last: 2})
+        fs.writeFileSync(path.join(dir, 'index.offset.json'), offsets)
+        await assert.rejects(loadFileData({dataFile: file, commands: []}))
+        const loaded = await loadFileData({
+            dataFile: file, commands: [], rebuildIndexes: true
+        })
+        assert.deepEqual(loaded.sources[0].offsets, source.offsets)
+        assert.equal(fs.readFileSync(path.join(dir, 'index.offset.json'),
+            'utf8'), offsets)
+    }
+})
+
+test('offset contents are trusted unless validation is requested', async t => {
+    const { file, dir, source } = fixture(t)
+    // Opening only needs the root; completeness is a producer promise.
+    const offsets = {'0': source.offsets[0]}
+    writeIndexes(dir, offsets, {})
+    const options = {dataFile: file, commands: []}
+    const loaded = await loadFileData(options)
+    assert.deepEqual(loaded.sources[0].offsets, offsets)
+    await assert.rejects(loadFileData({...options, validateIndexes: true}),
+        /Offset index does not match data/)
+    const rebuilt = await loadFileData({...options, rebuildIndexes: true})
+    assert.deepEqual(rebuilt.sources[0].offsets, source.offsets)
+})
+
+for (const missingIds of [false, true]) {
+    test(`loader and inspection bypass framing reconstruction (missing IDs: ${missingIds})`, async t => {
+        const { file, dir, source } = fixture(t)
+        writeIndexes(dir, source.offsets, {first: 1, last: 2})
+        if (missingIds) {
+            fs.unlinkSync(path.join(dir, 'index.id.json'))
+        }
+        // Corrupt only an inter-record separator, outside every payload/prefix.
+        // A framing reconstruction must fail; indexed record reads still work.
+        const bytes = fs.readFileSync(file)
+        assert.equal(bytes[source.offsets[0][1]], 10)
+        bytes[source.offsets[0][1]] = 120
+        fs.writeFileSync(file, bytes)
+        assert.throws(() => scanDataFile(file), /expected record length/)
         const loaded = await loadFileData({dataFile: file, commands: []})
         assert.deepEqual(loaded.sources[0].offsets, source.offsets)
-        const dataset = new FileDataset(loaded.meta)
-        try {
-            dataset.open(loaded.sources)
-            assert.equal(dataset.root.items[0].name, 'first')
-        }
-        finally {
-            dataset.close()
-        }
-    }
-    fs.writeFileSync(path.join(dir, 'index.offset.json'), '{')
-    const loaded = await loadFileData({dataFile: file, commands: []})
-    assert.deepEqual(loaded.sources[0].offsets, source.offsets)
+        const dataset = open(t, loaded.sources, loaded.meta)
+        assert.equal(dataset.parser.getLineProxy(2).name, 'last')
+        const config = {datafile: file,
+            commandLog: path.join(dir, 'commands.jsontag'),
+            commandStatus: path.join(dir, 'status.jsontag')}
+        fs.writeFileSync(config.commandLog, '')
+        fs.writeFileSync(config.commandStatus, '')
+        assert.equal((await inspectStore(config)).ready, true)
+        assert.equal((await inspectStore({...config,
+            validateIndexes: true})).ready, false)
+    })
+}
+
+for (const kind of ['offset', 'id']) {
+    test(`hash checks detect valid-JSON ${kind} index changes before use`, async t => {
+        const { file, dir, source } = fixture(t)
+        writeIndexes(dir, source.offsets, {first: 1, last: 2})
+        const integrityFile = path.join(dir, 'integrity.jsontag')
+        await appendIntegrityRecord(integrityFile, file, fs.readFileSync(file))
+        await appendIndexIntegrity(integrityFile, {data: dir})
+        const options = {dataFile: file, commands: [], integrityFile,
+            integrityRequired: true}
+        await loadFileData(options)
+        const indexFile = path.join(dir, `index.${kind}.json`)
+        fs.writeFileSync(indexFile, '{}')
+        await assert.rejects(loadFileData(options), /Integrity mismatch/)
+        const config = {datafile: file, integrityFile,
+            commandLog: path.join(dir, 'commands.jsontag'),
+            commandStatus: path.join(dir, 'status.jsontag')}
+        fs.writeFileSync(config.commandLog, '')
+        fs.writeFileSync(config.commandStatus, '')
+        const inspected = await inspectStore(config)
+        assert.equal(inspected.ready, false)
+        assert.ok(inspected.errors.some(error => /Integrity mismatch/.test(error)))
+        // Explicit rebuild ignores sidecars, but still verifies canonical data.
+        const rebuilt = await loadFileData({...options, rebuildIndexes: true})
+        assert.deepEqual(rebuilt.sources[0].offsets, source.offsets)
+        fs.unlinkSync(indexFile)
+        await loadFileData(options)
+    })
+}
+
+test('integrity mode requires hashes for present indexes', async t => {
+    const { file, dir, source } = fixture(t)
+    writeIndexes(dir, source.offsets, {first: 1, last: 2})
+    const integrityFile = path.join(dir, 'integrity.jsontag')
+    await appendIntegrityRecord(integrityFile, file, fs.readFileSync(file))
+    await assert.rejects(loadFileData({dataFile: file, commands: [],
+        integrityFile, integrityRequired: true}), /Missing integrity manifest entry/)
 })
 
 test('ID overlays remove old IDs after renames and attribute removal', async t => {

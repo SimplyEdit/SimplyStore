@@ -3,10 +3,11 @@ import {
     getIndex,
     isChanged
 } from '@muze-nl/od-jsontag/src/symbols.mjs'
-import { FileDataset, scanDataFile } from './file-data.mjs'
+import { FileDataset, loadDataSource } from './file-data.mjs'
 import { serializeChunks } from '@muze-nl/od-jsontag/src/serialize.mjs'
 import { publishFile as writeFileAtomic, storageError } from './storage.mjs'
 import { faultPoint } from './faults.mjs'
+import { appendIndexIntegrity } from './index-files.mjs'
 import { appendIntegrityRecord, digestBuffer } from './integrity.mjs'
 import { finalizeIndex } from './index.mjs'
 import { markIdChanges, prepareIdIndex } from './index.id.mjs'
@@ -153,7 +154,7 @@ export default async function runCommand(commandStr) {
             // Final bytes include new records and mutations made by the custom
             // index hook.
             await finalizeIndex(index, serialized, meta, task.id, prepared)
-            response.source = scanDataFile(newfilename)
+            response.source = loadDataSource(newfilename, meta, task.id)
             if (response.source.digest !== expectedDigest ||
                 digestBuffer(serialized) !== expectedDigest) {
                 throw new Error('Changeset changed during finalization')
@@ -165,6 +166,7 @@ export default async function runCommand(commandStr) {
                     newfilename,
                     serialized
                 )
+                await appendIndexIntegrity(integrityFile, meta, task.id)
             }
             await faultPoint('after-command-changeset-write')
             meta.parts++

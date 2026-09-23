@@ -1,4 +1,4 @@
-import fs from 'node:fs'
+import { readIndexFile } from './index-files.mjs'
 import path from 'node:path'
 import JSONTag from '@muze-nl/jsontag'
 import { getIndex, isChanged } from '@muze-nl/od-jsontag/src/symbols.mjs'
@@ -106,7 +106,7 @@ export default {
         publishFileSync(filename(meta, uuid),
             JSON.stringify(Object.fromEntries(entries)))
     },
-    load(meta, uuid = null) {
-        return JSON.parse(fs.readFileSync(filename(meta, uuid), 'utf8'))
+    load(meta, uuid = null, options = {}) {
+        return readIndexFile(filename(meta, uuid), options)
     }
 }

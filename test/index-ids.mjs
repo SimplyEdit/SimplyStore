@@ -195,6 +195,7 @@ test('runtime exposes explicit index validation and reconstruction', async t => 
     fs.writeFileSync(path.join(files.dir, 'index.id.json'), '{}')
     await assert.rejects(StoreRuntime.open({...files, maxWorkers: 1,
         validateIndexes: true}), /ID index does not match data/)
+    fs.writeFileSync(path.join(files.dir, 'index.offset.json'), '{')
     const runtime = await StoreRuntime.open({...files, maxWorkers: 1,
         rebuildIndexes: true})
     try {
@@ -243,3 +244,39 @@ for (const changeFile of [false, true]) {
             /Changeset changed during finalization/)
     })
 }
+
+test('integrity-enabled commands publish data and index hashes before reopening', async t => {
+    let runtime
+    t.after(async () => {
+        await runtime?.close()
+    })
+    const files = await fixture(t)
+    const { appendIntegrityRecord, loadIntegrityManifest, verifyIntegrity } =
+        await import('../src/integrity.mjs')
+    const { appendIndexIntegrity } = await import('../src/index-files.mjs')
+    files.integrityFile = path.join(files.dir, 'data.integrity.jsontag')
+    await appendIntegrityRecord(files.integrityFile, files.datafile,
+        fs.readFileSync(files.datafile))
+    await appendIndexIntegrity(files.integrityFile, {data: files.dir})
+    runtime = await StoreRuntime.open({...files, maxWorkers: 1})
+    for (const task of [{id: 'rename', name: 'rename', value: 'renamed'},
+        {id: 'noop', name: 'noop'}]) {
+        await runtime.acceptCommand(JSON.stringify(task))
+        await runtime.runQueuedCommands()
+        assert.equal(runtime.getCommandStatus(task.id).value.status, 'done')
+        const manifest = await loadIntegrityManifest(files.integrityFile)
+        for (const name of [`data.${task.id}.jsontag`,
+            `index.id.${task.id}.json`, `index.offset.${task.id}.json`]) {
+            const file = path.join(files.dir, name)
+            assert.equal(verifyIntegrity(manifest, files.integrityFile, file,
+                fs.readFileSync(file), {required: true}), true)
+        }
+    }
+    await runtime.close()
+    runtime = await StoreRuntime.open({...files, maxWorkers: 1})
+    assert.equal(runtime.meta.index.id.get('renamed'), 1)
+    await runtime.close()
+    fs.writeFileSync(path.join(files.dir, 'index.offset.rename.json'), '{}')
+    await assert.rejects(StoreRuntime.open({...files, maxWorkers: 1}),
+        /Integrity mismatch/)
+})

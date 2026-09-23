@@ -6,6 +6,7 @@ import idIndex, {
     addUniqueId, readIdEntries, mergeIdIndex
 } from './index.id.mjs'
 import offsetIndex from './index.offset.mjs'
+import { loadStoredIndex } from './index-files.mjs'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import { RecoveryIntegrityError, assertChangesetExists } from './recovery.mjs'
@@ -141,6 +142,10 @@ class FileScan {
 }
 
 export function hashFile(file) {
+    return hashSource(file).digest
+}
+
+function hashSource(file) {
     const fd = fs.openSync(file, 'r')
     try {
         const source = { file, identity: identity(fs.fstatSync(fd)) }
@@ -152,7 +157,7 @@ export function hashFile(file) {
         if (scan.offset !== source.identity.size) {
             throw new Error(`Unexpected EOF while hashing: ${file}`)
         }
-        return scan.digest.digest('hex')
+        return { ...source, size: scan.offset, digest: scan.digest.digest('hex') }
     }
     finally {
         fs.closeSync(fd)
@@ -303,16 +308,81 @@ export class FileDataset {
     }
 }
 
-function optionalIndex(index, meta, command) {
-    try {
-        return index.load(meta, command)
+function validateOffsets(offsets, source) {
+    const fail = () => {
+        throw new Error(`Invalid offset index: ${source.file}`)
     }
-    catch (error) {
-        if (error instanceof SyntaxError || error.code) {
-            return undefined
+    if (!offsets || typeof offsets !== 'object' || Array.isArray(offsets)) {
+        fail()
+    }
+    let previousEnd = 0
+    for (const [key, range] of Object.entries(offsets)) {
+        const number = Number(key)
+        if (!Number.isSafeInteger(number) || number < 0 ||
+            number >= 0xfffffffe || String(number) !== key ||
+            !Array.isArray(range) || range.length !== 2) {
+            fail()
         }
-        throw error
+        const [start, end] = range
+        if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) ||
+            start < previousEnd || start < 3 || end <= start ||
+            end > source.size) {
+            fail()
+        }
+        previousEnd = end
     }
+}
+
+function readRecordIds(source, recordIds) {
+    const fd = fs.openSync(source.file, 'r')
+    try {
+        assertIdentity(fd, source)
+        const scan = new FileScan(fd, source.file)
+        for (const [number, [start, end]] of Object.entries(source.offsets)) {
+            // Reuse buffered bytes when adjacent headers share a read.
+            const bufferStart = scan.offset - scan.cursor
+            if (start >= bufferStart && start < bufferStart + scan.available) {
+                scan.cursor = start - bufferStart
+            }
+            else {
+                scan.cursor = 0
+                scan.available = 0
+            }
+            scan.offset = start
+            recordIds.set(Number(number), scan.recordId(end))
+        }
+        assertIdentity(fd, source)
+    }
+    finally {
+        fs.closeSync(fd)
+    }
+}
+
+export function loadDataSource(filename, meta, command = null, options = {},
+    recordIds = null) {
+    const file = path.resolve(filename)
+    const offsets = loadStoredIndex(offsetIndex, meta, command, options)
+    let source
+    if (offsets === undefined || options.validateIndexes) {
+        source = scanDataFile(file, recordIds)
+        if (offsets !== undefined &&
+            !isDeepStrictEqual(offsets, source.offsets)) {
+            throw new Error(`Offset index does not match data: ${file}`)
+        }
+    }
+    else {
+        source = hashSource(file)
+        validateOffsets(offsets, source)
+        source.offsets = offsets
+    }
+    if (options.manifest) {
+        verifyDigest(options.manifest, options.integrityFile, file,
+            source.digest, { required: options.integrityRequired })
+    }
+    if (recordIds && offsets !== undefined && !options.validateIndexes) {
+        readRecordIds(source, recordIds)
+    }
+    return source
 }
 
 function idsFromRecords(records) {
@@ -339,31 +409,13 @@ export async function loadFileData(files) {
     let unresolvedReferences = false
     const sources = paths.map((file, part) => {
         const command = part === 0 ? null : files.commands[part - 1]
-        let storedIds
-        if (!files.rebuildIndexes) {
-            try {
-                storedIds = idIndex.load(meta, command)
-            }
-            catch (error) {
-                if (error.code !== 'ENOENT') {
-                    throw error
-                }
-            }
-        }
+        const options = { ...files, manifest }
+        const storedIds = loadStoredIndex(idIndex, meta, command, options)
         let recordIds = null
         if (storedIds === undefined || files.validateIndexes) {
             recordIds = new Map()
         }
-        const source = scanDataFile(file, recordIds)
-        if (manifest) {
-            verifyDigest(manifest, files.integrityFile, file, source.digest, {
-                required: files.integrityRequired
-            })
-        }
-        const offsets = optionalIndex(offsetIndex, meta, command)
-        if (isDeepStrictEqual(offsets, source.offsets)) {
-            source.offsets = offsets
-        }
+        const source = loadDataSource(file, meta, command, options, recordIds)
         const records = new Set(Object.keys(source.offsets).map(Number))
         let entries
         if (storedIds === undefined) {

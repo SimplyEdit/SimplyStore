@@ -719,3 +719,34 @@ function personNames(inspection) {
         dataset.close()
     }
 }
+
+test('recovery fingerprints final sidecars and verifies the copied prefix', async t => {
+    const { store, outputs } = await setup(t, [['A', 'accepted']])
+    const { appendIntegrityRecord, loadIntegrityManifest, verifyIntegrity } =
+        await import('../src/integrity.mjs')
+    const { appendIndexIntegrity } = await import('../src/index-files.mjs')
+    const { default: offsetIndex } = await import('../src/index.offset.mjs')
+    const { default: idIndex, prepareIdIndex } =
+        await import('../src/index.id.mjs')
+    const bytes = await fs.readFile(store.datafile)
+    const meta = {data: store.dir}
+    await offsetIndex.writeSerialized(bytes, meta)
+    idIndex.write(meta, prepareIdIndex(bytes).entries)
+    store.integrityFile = path.join(store.dir, 'data.integrity.jsontag')
+    await appendIntegrityRecord(store.integrityFile, store.datafile, bytes)
+    await appendIndexIntegrity(store.integrityFile, meta)
+    const plan = await planRecovery(store, {quiescent: true})
+    assert.equal(plan.actionable, true)
+    const result = await runRecovery(store, outputs, plan)
+    const report = await inspectStore(result.config)
+    assert.equal(report.ready, true)
+    const manifest = await loadIntegrityManifest(result.config.integrityFile)
+    for (const suffix of ['', '.A']) {
+        for (const kind of ['id', 'offset']) {
+            const file = path.join(path.dirname(result.config.datafile),
+                `index.${kind}${suffix}.json`)
+            assert.equal(verifyIntegrity(manifest, result.config.integrityFile,
+                file, await fs.readFile(file), {required: true}), true)
+        }
+    }
+})

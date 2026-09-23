@@ -2,13 +2,14 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import JSONTag from '@muze-nl/jsontag'
 import { from, _, anyOf, not } from '@muze-nl/jaqt'
-import { FileDataset, hashFile, scanDataFile } from './file-data.mjs'
+import { FileDataset, hashFile, loadDataSource } from './file-data.mjs'
+import idIndex from './index.id.mjs'
+import { loadStoredIndex } from './index-files.mjs'
 import { createHash } from 'node:crypto'
 import { getChangesetPath } from './recovery.mjs'
 import {
     getDefaultIntegrityFile,
-    loadIntegrityManifest,
-    verifyDigest
+    loadIntegrityManifest
 } from './integrity.mjs'
 
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex')
@@ -33,6 +34,8 @@ export function storePaths(options = {}) {
             options.integrityFile || getDefaultIntegrityFile(datafile)
         ),
         integrity,
+        validateIndexes: Boolean(options.validateIndexes),
+        rebuildIndexes: Boolean(options.rebuildIndexes),
         requiredFiles: (options.requiredFiles || []).map(file =>
             path.resolve(file)
         )
@@ -347,17 +350,14 @@ class StoreInspector {
         }
     }
 
-    async readVerifiedData(file) {
-        const source = scanDataFile(file)
-        if (this.manifest) {
-            verifyDigest(
-                this.manifest,
-                this.config.integrityFile,
-                file,
-                source.digest,
-                { required: true }
-            )
+    async readVerifiedData(file, command = null) {
+        const meta = { data: path.dirname(this.config.datafile) }
+        const options = {
+            ...this.config, manifest: this.manifest, integrityRequired: true
         }
+        // Verify present ID sidecars too; normal inspection never parses tags.
+        loadStoredIndex(idIndex, meta, command, options)
+        const source = loadDataSource(file, meta, command, options)
         this.verified.set(file, source)
         return source
     }
@@ -398,7 +398,7 @@ class StoreInspector {
         }
         if (command.present) {
             try {
-                await this.readVerifiedData(command.file)
+                await this.readVerifiedData(command.file, command.id)
             }
             catch (error) {
                 command.condition = 'corrupt'
