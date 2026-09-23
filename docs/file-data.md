@@ -7,13 +7,23 @@ command APIs and the existing OD-JSONTag/log formats are unchanged.
 
 ## Opening and reading a store
 
-Startup inspects command-log order and the committed prefix, as before. A
-64 KiB byte buffer scans each canonical data file's framing and SHA-256 digest.
-That scan derives exact record offsets, including sparse changesets and UTF-8
-payloads. Stored offset/ID sidecars remain produced by the index hooks, but
-startup derives its authoritative indexes from data files, so absent or stale
-sidecars cannot redirect reads. Inspection does not import custom index modules.
-The loader reconstructs the ID map from the final live records.
+Startup inspects command-log order and the committed prefix, as before. It loads
+`index.offset.json` and `index.id.json` for the base, followed by
+`index.offset.<command-id>.json` and `index.id.<command-id>.json` for committed
+changesets only. Existing index hooks continue writing these files.
+
+A 64 KiB byte buffer scans canonical framing and SHA-256 digests. Persisted
+offsets must match every framed record range. The same scan reads leading
+JSONTag headers to validate the complete composed ID map, including ID removal,
+renaming and duplicate-ID precedence. Valid persisted indexes are used; missing,
+unreadable, malformed, incomplete or stale indexes are reconstructed in memory.
+Loading never rewrites data or sidecars and does not import custom index modules.
+
+Record bodies remain lazy, except for opening the root and the unusual fallback
+for reference-only records. Malformed framing or metadata fails loading; body
+syntax errors surface as storage failures when read. Configured integrity
+checks still cover all canonical bytes. This does not claim full syntax
+validation of every unread body.
 
 Each query worker opens its own read-only descriptors and registers the ordered
 base/changeset sources with its parser. ID lookups use the complete record
@@ -92,20 +102,28 @@ memory. Command/status logs and schemas are still read into memory. Backup/copy
 utilities still temporarily buffer individual files when copying them; this
 cycle changes dataset retrieval and replay, not their copy algorithm.
 
-Startup still reads all canonical bytes for validation and decodes live records
-to reconstruct IDs. It trades startup work for lazy subsequent reads. A generated
-328,877,813-byte / 20,000-record store opened and answered an ID lookup with a
-48 MB JavaScript heap limit. One local run measured approximately 17.5 seconds
-open and 93 ms query (including worker readiness), with 8.9 MB parent heap and
-24.4 MB query-worker heap. Retained byte buffers were approximately 25 KiB and
-58 KiB respectively. These are warm local measurements, not a cold-storage,
-physical-RAM or total-process-memory bound.
+Startup still reads all canonical bytes for validation. It reads tag headers
+instead of decoding every live record to check IDs; sidecars have no independent
+binding to the data contents, so merely loading them cannot safely replace this
+scan. The same header scan supplies fallback IDs when sidecars are unusable.
+
+A generated 328,877,813-byte / 20,000-record store with persisted indexes opened
+and answered an ID lookup with a 48 MB JavaScript heap limit. One local run
+measured approximately 1.08 seconds open and 91 ms query (including worker
+readiness), with 9.0 MB parent heap and 24.6 MB query-worker heap. The earlier
+full-record reconstruction took approximately 17.5 seconds open on the same
+fixture. Retained byte buffers were approximately 25 KiB and 58 KiB respectively.
+These are warm local measurements, not a cold-storage, physical-RAM or
+total-process-memory bound. The improvement comes from header-only validation;
+fallback also benefits, rather than requiring persisted indexes for lazy loading.
 
 Reproduce the disposable-fixture probe with:
 
 ```sh
 node --expose-gc --max-old-space-size=48 scripts/benchmark-file-data.mjs
 ```
+
+Pass `--indexes=missing` to exercise reconstruction without sidecars.
 
 The dependency is pinned to reviewed od-jsontag Git commit
 `24f47eb616c3a24391487197496804ed1c56837b`, because its file-backed API has not

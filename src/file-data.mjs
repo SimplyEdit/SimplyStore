@@ -1,6 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
+import { isDeepStrictEqual } from 'node:util'
+import idIndex from './index.id.mjs'
+import offsetIndex from './index.offset.mjs'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import { RecoveryIntegrityError, assertChangesetExists } from './recovery.mjs'
@@ -60,6 +63,56 @@ class FileScan {
         }
     }
 
+    recordId(end) {
+        while (this.offset < end && [9, 10, 13, 32].includes(this.peek())) {
+            this.advance()
+        }
+        if (this.offset === end) {
+            return undefined
+        }
+        if (this.peek() === 126) {
+            // A reference-only record needs the full parser to resolve its ID.
+            return null
+        }
+        if (this.peek() !== 60) {
+            return undefined
+        }
+        const bytes = []
+        let quoted = false
+        let escaped = false
+        while (this.offset < end) {
+            const byte = this.peek()
+            this.advance()
+            bytes.push(byte)
+            if (escaped) {
+                escaped = false
+            }
+            else if (quoted && byte === 92) {
+                escaped = true
+            }
+            else if (byte === 34) {
+                quoted = !quoted
+            }
+            else if (!quoted && byte === 62) {
+                // Share the actual tag grammar, including Unicode escapes.
+                const parser = this.tagParser ??= new JSONTag.Parser()
+                parser.input = Buffer.from(bytes).toString('utf8')
+                parser.at = 0
+                parser.next()
+                try {
+                    const attributes = parser.tag().attributes
+                    const value = {}
+                    JSONTag.setAttributes(value, attributes)
+                    return JSONTag.getAttribute(value, 'id')
+                }
+                catch (error) {
+                    this.fail(`invalid record tag: ${error.message}`)
+                }
+            }
+        }
+        this.fail('unterminated record tag')
+    }
+
     number(kind) {
         let digits = 0
         let value = 0
@@ -104,7 +157,7 @@ export function hashFile(file) {
     }
 }
 
-export function scanDataFile(filename) {
+export function scanDataFile(filename, recordIds = null) {
     const file = path.resolve(filename)
     const fd = fs.openSync(file, 'r')
     try {
@@ -138,7 +191,11 @@ export function scanDataFile(filename) {
                 }
                 scan.advance()
                 const start = scan.offset
-                scan.advance(length)
+                const end = start + length
+                if (recordIds) {
+                    recordIds.set(record, scan.recordId(end))
+                }
+                scan.advance(end - scan.offset)
                 source.offsets[record++] = [start, scan.offset]
             }
             if (!Number.isSafeInteger(record) || record >= 0xffffffff) {
@@ -246,6 +303,29 @@ export class FileDataset {
     }
 }
 
+function optionalIndex(index, meta, command) {
+    try {
+        return index.load(meta, command)
+    }
+    catch (error) {
+        if (error instanceof SyntaxError || error.code) {
+            return undefined
+        }
+        throw error
+    }
+}
+
+function idsFromRecords(records) {
+    const ids = new Map()
+    for (const number of [...records.keys()].sort((a, b) => a - b)) {
+        const id = records.get(number)
+        if (id) {
+            ids.set(id, number)
+        }
+    }
+    return ids
+}
+
 export async function loadFileData(files) {
     const manifest = files.integrityFile
         ? await loadIntegrityManifest(files.integrityFile)
@@ -253,12 +333,33 @@ export async function loadFileData(files) {
     const paths = [files.dataFile, ...files.commands.map(id => {
         return assertChangesetExists(files.dataFile, id)
     })]
-    const sources = paths.map(file => {
-        const source = scanDataFile(file)
+    const meta = {
+        data: path.dirname(path.resolve(files.dataFile)),
+        parts: files.commands.length
+    }
+    const recordIds = new Map()
+    const persistedIds = new Map()
+    let completeIds = true
+    const sources = paths.map((file, part) => {
+        const command = part === 0 ? null : files.commands[part - 1]
+        const source = scanDataFile(file, recordIds)
         if (manifest) {
             verifyDigest(manifest, files.integrityFile, file, source.digest, {
                 required: files.integrityRequired
             })
+        }
+        const offsets = optionalIndex(offsetIndex, meta, command)
+        if (isDeepStrictEqual(offsets, source.offsets)) {
+            source.offsets = offsets
+        }
+        const ids = optionalIndex(idIndex, meta, command)
+        if (ids && typeof ids === 'object' && !Array.isArray(ids)) {
+            for (const [id, number] of Object.entries(ids)) {
+                persistedIds.set(id, number)
+            }
+        }
+        else {
+            completeIds = false
         }
         return source
     })
@@ -268,11 +369,14 @@ export async function loadFileData(files) {
     const dataset = new FileDataset()
     try {
         dataset.open(sources)
-        const meta = {
-            data: path.dirname(path.resolve(files.dataFile)),
-            parts: files.commands.length,
-            index: { id: dataset.rebuildIds() }
+        let ids = idsFromRecords(recordIds)
+        if ([...recordIds.values()].includes(null)) {
+            ids = dataset.rebuildIds()
         }
+        if (completeIds && isDeepStrictEqual(persistedIds, ids)) {
+            ids = persistedIds
+        }
+        meta.index = { id: ids }
         if (files.schemaFile) {
             meta.schema = JSONTag.parse(
                 fs.readFileSync(files.schemaFile, 'utf8')

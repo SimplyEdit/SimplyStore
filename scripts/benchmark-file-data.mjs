@@ -20,8 +20,21 @@ let runtime
 try {
     const fd = fs.openSync(datafile, 'w')
     try {
-        const writeRecord = text => {
-            const bytes = Buffer.from(`(${Buffer.byteLength(text)})${text}\n`)
+        const offsets = {}
+        const ids = {}
+        let fileOffset = 0
+        let record = 0
+        const writeRecord = (text, id) => {
+            const prefix = `(${Buffer.byteLength(text)})`
+            const bytes = Buffer.from(`${prefix}${text}\n`)
+            offsets[record] = [
+                fileOffset + prefix.length, fileOffset + bytes.length - 1
+            ]
+            if (id) {
+                ids[id] = record
+            }
+            record++
+            fileOffset += bytes.length
             let offset = 0
             while (offset < bytes.length) {
                 offset += fs.writeSync(fd, bytes, offset)
@@ -32,7 +45,13 @@ try {
         for (let number = 1; number <= records; number++) {
             writeRecord(`<object id="item-${number}">${JSON.stringify({
                 number, padding
-            })}`)
+            })}`, `item-${number}`)
+        }
+        if (args.indexes !== 'missing') {
+            fs.writeFileSync(path.join(dir, 'index.offset.json'),
+                JSON.stringify(offsets))
+            fs.writeFileSync(path.join(dir, 'index.id.json'),
+                JSON.stringify(ids))
         }
     }
     finally {
@@ -64,6 +83,7 @@ try {
     console.log(JSON.stringify({
         bytes: fs.statSync(datafile).size, records, openMs, queryMs,
         sources: runtime.sources.length,
+        persistedIndexes: args.indexes !== 'missing',
         idCount: runtime.meta.index.id.size,
         parent: {
             heapUsed: memory.heapUsed, arrayBuffers: memory.arrayBuffers

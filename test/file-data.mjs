@@ -7,9 +7,12 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import { FileDataset, scanDataFile, hashFile, loadFileData } from '../src/file-data.mjs'
+import { FileDataset, FileParser, scanDataFile, hashFile, loadFileData } from '../src/file-data.mjs'
 import { appendIntegrityRecord } from '../src/integrity.mjs'
 import index from '../src/index.mjs'
+import offsetIndex from '../src/index.offset.mjs'
+import idIndex from '../src/index.id.mjs'
+import { getIndex } from '@muze-nl/od-jsontag/src/symbols.mjs'
 import WorkerPool from '../src/workerPool.mjs'
 import StoreRuntime from '../src/store-runtime.mjs'
 import { makeServerFixture } from './durability-helpers.mjs'
@@ -112,8 +115,10 @@ test('sessions close all handles on failure and reject changed source identities
 
 test('opening and partial reads never read the entire file through readFile', async t => {
     const { file } = fixture(t)
-    t.mock.method(fs, 'readFileSync', () => {
-        throw new Error('whole-file read is forbidden')
+    const read = fs.readFileSync
+    t.mock.method(fs, 'readFileSync', (name, ...args) => {
+        assert.notEqual(name, file, 'whole dataset read is forbidden')
+        return read(name, ...args)
     })
     const loaded = await loadFileData({ dataFile: file, commands: [] })
     const dataset = open(t, loaded.sources, loaded.meta)
@@ -349,4 +354,163 @@ test('lazy query read failures stop mutation, while query-thrown flags do not', 
         '{"id":"after-failure","name":"addPerson","value":{"name":"bad"}}'
     )
     assert.equal(accepted.code, 503)
+})
+
+function writeIndexes(dir, offsets, ids, command = '') {
+    const suffix = command ? `.${command}` : ''
+    fs.writeFileSync(path.join(dir, `index.offset${suffix}.json`),
+        JSON.stringify(offsets))
+    fs.writeFileSync(path.join(dir, `index.id${suffix}.json`),
+        JSON.stringify(ids))
+}
+
+test('startup consumes valid sidecars without decoding unread record bodies', async t => {
+    const { file, dir, source } = fixture(t)
+    writeIndexes(dir, source.offsets, {first: 1, last: 2})
+    const before = fs.readdirSync(dir).map(name => [
+        name, fs.readFileSync(path.join(dir, name))
+    ])
+    const loadedOffsets = []
+    const loadOffsets = offsetIndex.load
+    t.mock.method(offsetIndex, 'load', (...args) => {
+        const offsets = loadOffsets(...args)
+        loadedOffsets.push(offsets)
+        return offsets
+    })
+    const loadIds = t.mock.method(idIndex, 'load')
+    const parsed = new Set()
+    const firstParse = FileParser.prototype.firstParse
+    t.mock.method(FileParser.prototype, 'firstParse', function (target) {
+        parsed.add(target[getIndex])
+        return firstParse.call(this, target)
+    })
+    t.mock.method(FileDataset.prototype, 'rebuildIds', () => {
+        throw new Error('full-record ID reconstruction is forbidden')
+    })
+    const loaded = await loadFileData({dataFile: file, commands: []})
+    assert.equal(loaded.sources[0].offsets, loadedOffsets[0])
+    assert.equal(loadIds.mock.callCount(), 1)
+    assert.deepEqual([...loaded.meta.index.id], [['first', 1], ['last', 2]])
+    assert.deepEqual([...parsed], [0])
+    assert.deepEqual(fs.readdirSync(dir).map(name => [
+        name, fs.readFileSync(path.join(dir, name))
+    ]), before)
+})
+
+test('startup loads only committed command sidecars in authoritative order', async t => {
+    const { file, dir, source } = fixture(t)
+    writeIndexes(dir, source.offsets, {first: 1, last: 2})
+    const payload = '<object id="last">{"name":"committed"}'
+    const patch = path.join(dir, 'data.edit.jsontag')
+    fs.writeFileSync(patch, `+2\n(${Buffer.byteLength(payload)})${payload}`)
+    writeIndexes(dir, scanDataFile(patch).offsets, {last: 2}, 'edit')
+    writeIndexes(dir, {'2': [1, 99]}, {uncommitted: 2}, 'uncommitted')
+    const loadIds = t.mock.method(idIndex, 'load')
+    const loadOffsets = t.mock.method(offsetIndex, 'load')
+    const loaded = await loadFileData({dataFile: file, commands: ['edit']})
+    for (const mock of [loadIds, loadOffsets]) {
+        assert.deepEqual(mock.mock.calls.map(call => call.arguments[1]),
+            [null, 'edit'])
+    }
+    assert.deepEqual([...loaded.meta.index.id], [['first', 1], ['last', 2]])
+    const dataset = open(t, loaded.sources, loaded.meta)
+    assert.equal(dataset.parser.getLineProxy(2).name, 'committed')
+})
+
+for (const invalid of ['{', 'null', '[]', '{}',
+    '{"last":1}', '{"first":1,"last":2,"extra":2}']) {
+    test(`invalid/incomplete ID sidecars fall back: ${invalid}`, async t => {
+        const { file, dir, source } = fixture(t)
+        writeIndexes(dir, source.offsets, {})
+        fs.writeFileSync(path.join(dir, 'index.id.json'), invalid)
+        const loaded = await loadFileData({dataFile: file, commands: []})
+        assert.deepEqual([...loaded.meta.index.id], [['first', 1], ['last', 2]])
+    })
+}
+
+test('offset sidecars cannot omit, redirect or add records', async t => {
+    const { file, dir, source } = fixture(t)
+    const invalid = [null, [], {}, {'0': source.offsets[0]},
+        {...source.offsets, '1': source.offsets[2]},
+        {...source.offsets, '9': source.offsets[2]}]
+    for (const offsets of invalid) {
+        writeIndexes(dir, offsets, {first: 1, last: 2})
+        const loaded = await loadFileData({dataFile: file, commands: []})
+        assert.deepEqual(loaded.sources[0].offsets, source.offsets)
+        const dataset = new FileDataset(loaded.meta)
+        try {
+            dataset.open(loaded.sources)
+            assert.equal(dataset.root.items[0].name, 'first')
+        }
+        finally {
+            dataset.close()
+        }
+    }
+    fs.writeFileSync(path.join(dir, 'index.offset.json'), '{')
+    const loaded = await loadFileData({dataFile: file, commands: []})
+    assert.deepEqual(loaded.sources[0].offsets, source.offsets)
+})
+
+test('ID overlays remove old IDs and restore lower duplicates after renames', async t => {
+    const { file, dir } = fixture(t)
+    const record = text => `(${Buffer.byteLength(text)})${text}\n`
+    fs.writeFileSync(file, record('{"items":[~1,~2,~3]}') +
+        record('<object id="duplicate">{"name":"lower"}') +
+        record('<object id="duplicate">{"name":"higher"}') +
+        record('<object id="removed">{}'))
+    writeIndexes(dir, scanDataFile(file).offsets, {duplicate: 2, removed: 3})
+    const patch = path.join(dir, 'data.rename.jsontag')
+    fs.writeFileSync(patch, '+2\n' + record('<object id="renamed">{}') +
+        record('{}'))
+    writeIndexes(dir, scanDataFile(patch).offsets, {renamed: 2}, 'rename')
+    const loaded = await loadFileData({dataFile: file, commands: ['rename']})
+    assert.deepEqual([...loaded.meta.index.id], [['duplicate', 1], ['renamed', 2]])
+    const dataset = open(t, loaded.sources, loaded.meta)
+    assert.equal(dataset.parser.getLineProxy(1).name, 'lower')
+})
+
+test('ID header validation handles escaped delimiters and buffer boundaries', async t => {
+    const { file, dir } = fixture(t)
+    const ids = ['漢😀>\\tail', '__proto__', 'constructor', 'x'.repeat(70000)]
+    const record = text => `(${Buffer.byteLength(text)})${text}\n`
+    fs.writeFileSync(file, record('{"items":[~1-4]}') + ids.map(id => {
+        return record(`  <object id=${JSON.stringify(id)}>{"text":"ignored"}`)
+    }).join(''))
+    const expected = Object.fromEntries(ids.map((id, i) => [id, i + 1]))
+    writeIndexes(dir, scanDataFile(file).offsets, expected)
+    const read = fs.readSync
+    t.mock.method(fs, 'readSync', (fd, buffer, offset, length, position) => {
+        return read(fd, buffer, offset, Math.min(31, length), position)
+    })
+    const loaded = await loadFileData({dataFile: file, commands: []})
+    assert.deepEqual(loaded.meta.index.id, new Map(Object.entries(expected)))
+    const dataset = open(t, loaded.sources, loaded.meta)
+    assert.deepEqual(dataset.rebuildIds(), loaded.meta.index.id)
+})
+
+test('unterminated or invalid tags cannot be hidden by valid-looking indexes', async t => {
+    const { file, dir } = fixture(t)
+    for (const payload of ['<object id="bad> {}', '<object id=bad>{}',
+        '<object id="bad\\"id">{}']) {
+        fs.writeFileSync(file, `(${Buffer.byteLength(payload)})${payload}`)
+        writeIndexes(dir, scanDataFile(file).offsets, {bad: 0})
+        await assert.rejects(loadFileData({dataFile: file, commands: []}),
+            /Invalid OD-JSONTag data/)
+    }
+})
+
+test('body syntax stays lazy while malformed reads still mark storage failure', async t => {
+    const { file, dir } = fixture(t)
+    const record = text => `(${Buffer.byteLength(text)})${text}\n`
+    fs.writeFileSync(file, record('{"items":[~1]}') +
+        record('<object id="unread">{"name":invalid}'))
+    writeIndexes(dir, scanDataFile(file).offsets, {unread: 1})
+    const loaded = await loadFileData({dataFile: file, commands: []})
+    assert.equal(loaded.meta.index.id.get('unread'), 1)
+    const dataset = open(t, loaded.sources, loaded.meta)
+    assert.equal(dataset.parser.readFailure, undefined)
+    assert.throws(() => dataset.parser.getLineProxy(1).name, error => {
+        return error.storageFailure === true
+    })
+    assert.equal(dataset.parser.readFailure.storageFailure, true)
 })
