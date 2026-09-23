@@ -7,5 +7,5 @@ project:DES-20260923-TTZ7C-47
     dcterms:identifier "DES-20260923-TTZ7C-47" ;
     sd:repositoryPath ".spiral/designs/DES-20260923-TTZ7C-47.md" ;
     sd:status sd:Active ;
-    sd:satisfies [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-46 ; sd:gitCommit "b279aefe78a262a041b59dff2e2c199233fbcf7d" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "b279aefe78a262a041b59dff2e2c199233fbcf7d" ] .
+    sd:satisfies [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-46 ; sd:gitCommit "15088d395ae6466231edaf932ec7e889171729de" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "15088d395ae6466231edaf932ec7e889171729de" ] .
