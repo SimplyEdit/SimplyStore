@@ -24,11 +24,14 @@ shared-memory data after reviewing od-jsontag hardening. This continues the
 file-only roadmap direction, prioritized ahead of rebuild. SRC-45, UND-48,
 REQ-46 and DES-47 (20260923-TTZ7C namespace) retain the commitment. Implementation
 uses ordered file sources, bounded clean-record caches, worker-owned handles,
-streamed framing/hash scans and file-backed administrative replay. Persisted
-offset/ID sidecars are loaded and validated against canonical framing and
-record headers, with derived fallback. The maintainer verified example-folder
-operation and required this persisted-index completion in the same version. EVD-20260923-TTZ7C-49 records 155 passing tests, clean lint, a fresh-package
-installation and large-file/real-data probes. Human acceptance remains pending. Client-visible version metadata and audit
+streamed framing/hash scans and file-backed administrative replay. Committed ID
+indexes are trusted and loaded directly; missing indexes reconstruct, and
+validation/reconstruction are explicit maintenance options. ID indexes are
+finalized from serialized bytes and durable before success. Duplicate IDs are
+errors; no legacy index compatibility is required. The maintainer verified the
+example folder and explicitly confirmed these corrections.
+EVD-20260923-TTZ7C-49 records 170 passing tests, clean lint and large-file probes.
+Human acceptance remains pending. Client-visible version metadata and audit
 trails follow this migration; no such feature is implemented by this cycle.
 
 Latest accepted cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning

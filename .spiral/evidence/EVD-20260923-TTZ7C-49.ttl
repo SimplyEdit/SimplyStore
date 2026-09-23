@@ -7,7 +7,7 @@ project:EVD-20260923-TTZ7C-49
     dcterms:identifier "EVD-20260923-TTZ7C-49" ;
     sd:repositoryPath ".spiral/evidence/EVD-20260923-TTZ7C-49.md" ;
     sd:status sd:Active ;
-    sd:verifies [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "d9d8ff860ed2b74585ea66454382c9baf4a09250" ] ;
-    sd:verifies [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "d9d8ff860ed2b74585ea66454382c9baf4a09250" ] ;
-    sd:verifies [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-34 ; sd:gitCommit "d9d8ff860ed2b74585ea66454382c9baf4a09250" ]  ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:EVD-20260923-TTZ7C-49 ; sd:gitCommit "d9d8ff860ed2b74585ea66454382c9baf4a09250" ] .
+    sd:verifies [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "7689e2670f3acfd10d55f212e18a540eb5b42f98" ] ;
+    sd:verifies [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "7689e2670f3acfd10d55f212e18a540eb5b42f98" ] ;
+    sd:verifies [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-34 ; sd:gitCommit "7689e2670f3acfd10d55f212e18a540eb5b42f98" ]  ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:EVD-20260923-TTZ7C-49 ; sd:gitCommit "7689e2670f3acfd10d55f212e18a540eb5b42f98" ] .
