@@ -8,4 +8,4 @@ project:CYC-20260923-TTZ7C-44
     sd:repositoryPath ".spiral/cycles/CYC-20260923-TTZ7C-44.md" ;
     sd:status sd:Active  ;
     sd:derivedFrom [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-46 ; sd:gitCommit "a75db831ee6779bbf297e94b9d1baf694692cb84" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:CYC-20260923-TTZ7C-44 ; sd:gitCommit "8299fcc8b8fcf113091ae85bbcf11f867f8c5908" ] .
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:CYC-20260923-TTZ7C-44 ; sd:gitCommit "a64b81373b2ef3d8252b400d7a18b9242038adb2" ] .

@@ -8,4 +8,6 @@ project:DEF-20260923-TTZ7C-50
     sd:repositoryPath ".spiral/defects/DEF-20260923-TTZ7C-50.md" ;
     sd:status sd:Active ;
     sd:provenanceConfidence sd:Evidenced ;
-    sd:observes [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "bfeed2c5c45cd3ac58dd42aac868585f31c59d19" ] .
+    sd:observes [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "bfeed2c5c45cd3ac58dd42aac868585f31c59d19" ]  ;
+    sd:observes [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "cdc1564744989c955a187fdce4baed22ec5d0fd7" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DEF-20260923-TTZ7C-50 ; sd:gitCommit "4bb10c2013fd2a7cb989b02586b992b936121362" ] .
