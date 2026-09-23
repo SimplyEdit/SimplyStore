@@ -8,4 +8,4 @@ project:DES-20260923-TTZ7C-47
     sd:repositoryPath ".spiral/designs/DES-20260923-TTZ7C-47.md" ;
     sd:status sd:Active ;
     sd:satisfies [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-46 ; sd:gitCommit "15088d395ae6466231edaf932ec7e889171729de" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "15088d395ae6466231edaf932ec7e889171729de" ] .
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "06e37b7f430d095a35ed0f200f73e358b20f0a94" ] .
