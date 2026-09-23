@@ -278,14 +278,18 @@ export class StoreRuntime {
         }
     }
 
-    runQuery(request, { slow = false } = {}) {
+    async runQuery(request, { slow = false } = {}) {
         let pool = this.queryWorkerPool
         let timeout = this.configuration.timeout
         if (slow) {
             pool = this.slowQueryWorkerPool
             timeout = this.configuration.slowTimeout
         }
-        return pool.run('query', request, { timeout })
+        const result = await pool.run('query', request, { timeout })
+        if (result.storageFailure) {
+            this.failStorage(new Error('Unable to read committed data'))
+        }
+        return result
     }
 
     getCommandStatus(commandId) {

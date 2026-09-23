@@ -301,7 +301,10 @@ test('a lazy read failure during a command is a storage failure', async t => {
     const loaded = await loadFileData({dataFile: file, commands: []})
     const commandsFile = path.join(dir, 'commands.mjs')
     fs.writeFileSync(commandsFile, `export default {
-        read(data) { data.items[1].name }
+        read(data) {
+            try { data.items[1].name } catch (error) {}
+            data.changedAfterFailure = true
+        }
     }`)
     await initialize({
         ...loaded, datafile: file, commandsFile,
@@ -312,6 +315,7 @@ test('a lazy read failure during a command is a storage failure', async t => {
     await assert.rejects(runCommand('{"id":"read","name":"read"}'), error => {
         return error.storageFailure === true
     })
+    assert.equal(fs.existsSync(path.join(dir, 'data.read.jsontag')), false)
 })
 
 test('lazy query read failures stop mutation, while query-thrown flags do not', async t => {

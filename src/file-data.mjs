@@ -5,6 +5,7 @@ import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
 import { RecoveryIntegrityError, assertChangesetExists } from './recovery.mjs'
 import { loadIntegrityManifest, verifyDigest } from './integrity.mjs'
+import { storageError } from './storage.mjs'
 
 function identity(stat) {
     return {
@@ -157,8 +158,31 @@ export function scanDataFile(filename) {
     }
 }
 
+// Keep read failure in host-owned state even when a handler/query catches it.
+export class FileParser extends Parser {
+    firstParse(target) {
+        try {
+            return super.firstParse(target)
+        }
+        catch (error) {
+            this.readFailure = storageError(error)
+            throw this.readFailure
+        }
+    }
+
+    getLineProxy(index) {
+        try {
+            return super.getLineProxy(index)
+        }
+        catch (error) {
+            this.readFailure = storageError(error)
+            throw this.readFailure
+        }
+    }
+}
+
 export class FileDataset {
-    constructor(meta = {}, immutable = true, ParserType = Parser) {
+    constructor(meta = {}, immutable = true, ParserType = FileParser) {
         this.parser = new ParserType(undefined, immutable)
         this.parser.meta = { ...meta, resultArray: [] }
         this.handles = []

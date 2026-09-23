@@ -2,15 +2,14 @@ import {VM} from 'vm2'
 import { memoryUsage } from 'node:process'
 import JSONTag from '@muze-nl/jsontag'
 import {source} from '@muze-nl/od-jsontag/src/symbols.mjs'
-import { FileDataset } from './file-data.mjs'
-import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
+import { FileDataset, FileParser } from './file-data.mjs'
 import {_,from,not,anyOf,allOf,asc,desc,sum,count,avg,max,min,many,one,first,distinct} from '@muze-nl/jaqt'
 import process from 'node:process'
 
 // vm2 protects array species before host calls. Give it the already-safe
 // constructor descriptor on raw query arrays before the read-only proxy exists,
 // so methods like map/filter need no temporary mutation through that proxy.
-class QueryParser extends Parser {
+class QueryParser extends FileParser {
     getArrayProxy(array, parent) {
         Object.defineProperty(array, 'constructor', {
             value: undefined,
@@ -75,7 +74,30 @@ const tasks = {
         return true
     },
     query: async (task) => {
-        return runQuery(task.req.path, task.req, task.req.body, task.timeout)
+        let response
+        try {
+            response = runQuery(
+                task.req.path, task.req, task.req.body, task.timeout
+            )
+        }
+        catch (error) {
+            if (!parser.readFailure) {
+                throw error
+            }
+        }
+        // Query code can catch errors or throw its own properties. Only the
+        // parser's host-owned failure state identifies a storage problem.
+        if (parser.readFailure) {
+            const error = {code: 500, message: 'Unable to read committed data'}
+            return {
+                code: 500,
+                storageFailure: true,
+                body: task.req.jsontag
+                    ? JSONTag.stringify(error)
+                    : JSON.stringify(error)
+            }
+        }
+        return response
     },
     memoryUsage: async () => {
         let result = memoryUsage()

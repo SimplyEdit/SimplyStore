@@ -117,6 +117,9 @@ export default async function runCommand(commandStr) {
         if (commands[task.name]) {
             let time = Date.now()
             await commands[task.name](dataspace, task, undefined, metaProxy)
+            if (parser.readFailure) {
+                throw parser.readFailure
+            }
             // TODO: if command/task makes no changes, skip updating
             // data.jsontag and writing it.
 
@@ -125,6 +128,9 @@ export default async function runCommand(commandStr) {
             if (changes.length) {
                 changes.uuid = task.id
                 await index.update(dataspace, meta, changes)
+            }
+            if (parser.readFailure) {
+                throw parser.readFailure
             }
             // Serialize only changes.
             const serialized = Buffer.concat([
@@ -172,6 +178,9 @@ export default async function runCommand(commandStr) {
     }
     catch (err) {
         console.error('task error', err)
+        if (parser.readFailure) {
+            throw parser.readFailure
+        }
         throw publishing ? storageError(err) : err
     }
     return response

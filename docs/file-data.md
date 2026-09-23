@@ -47,6 +47,10 @@ worker termination also closes descriptors opened through Node's tracked file
 APIs. Runtime shutdown waits for both pools to terminate before releasing store
 ownership. A failed source update makes the pool unavailable and stops further
 command acceptance rather than allowing the worker to skip an update.
+Lazy read/decode/reference failures are recorded in host-owned parser state.
+Even if a command or query catches the error, publication is refused and the
+runtime stops accepting mutations. Query code cannot forge this state by throwing
+an object with a `storageFailure` property.
 
 Administrative replay opens file sources too. `inspectStore()` now returns a
 plain `sources` array instead of live `data` proxies and retained `buffers`.
