@@ -18,7 +18,13 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Active cycle: none. Latest accepted cycle: CYC-20260923-TTZ7C-44,
+Active cycle: CYC-20260923-TTZ7C-51, required integrity and existing-store
+initialization, on spiral/CYC-20260923-TTZ7C-51-required-integrity. This continues
+the reliability roadmap from the accepted file-backed tip while integration is
+pending. The maintainer explicitly confirmed mandatory hashes, initialization
+and latency measurement. No integration or example-data rewrite is authorized.
+
+Latest accepted cycle: CYC-20260923-TTZ7C-44,
 File-backed dataset runtime, accepted on 2026-09-23, awaiting integration on
 spiral/CYC-20260923-TTZ7C-44-file-backed. The maintainer authorized replacing
 shared-memory data after reviewing od-jsontag hardening. This continues the
@@ -35,7 +41,7 @@ example folder and explicitly confirmed these corrections.
 EVD-20260923-TTZ7C-49 records 178 passing tests, clean lint and large-file probes.
 The maintainer confirmed the tests, successful example command application and
 persistence after restart. Acceptance is retained in the cycle record.
-Integration remains pending; no next cycle is selected. Client-visible version
+Integration remains pending; CYC-51 now continues integrity work. Client-visible version
 metadata and audit trails follow this migration; neither is implemented here.
 
 Latest integrated cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning

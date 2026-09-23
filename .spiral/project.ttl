@@ -16,7 +16,7 @@ project:CTX-001
         sd:gitCommit "79fcf670d4558c75b9933743e6f2ea5616221eb0"
     ] ;
     sd:derivedFrom [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "46fb22fe5c4fecbb23c3b8d3b59e5ff6e58e11c2" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:CTX-001 ; sd:gitCommit "8013c0c74fb1f01bb882b0b221c4502ef4970b85" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:CTX-001 ; sd:gitCommit "4680c76c8faabde53ecd712e1b903f2e8b0eddb6" ] ;
     sd:developerEvaluationReadinessBar "Developers should be able to evaluate bounded durability claims from invariants, executable tests, evidence artifacts, explicit failure behavior, and documented known gaps." ;
     sd:hasAudience project:AUD-DEVELOPERS, project:AUD-END-USERS, project:AUD-OPERATORS ;
     sd:hasDownstreamProject project:DOWNSTREAM-CURRICULUM-STORE ;
