@@ -8,5 +8,5 @@ project:UND-20260923-TTZ7C-48
     sd:repositoryPath ".spiral/understandings/UND-20260923-TTZ7C-48.md" ;
     sd:status sd:Accepted ;
     sd:interprets [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "8299fcc8b8fcf113091ae85bbcf11f867f8c5908" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "e98a14d1e8a9f4d698989d39b88e887da762d292" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:UND-20260923-TTZ7C-48 ; sd:gitCommit "e98a14d1e8a9f4d698989d39b88e887da762d292" ] .
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "7e1ea39dc4056beec311c8e6d832d97d2a550d58" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:UND-20260923-TTZ7C-48 ; sd:gitCommit "7e1ea39dc4056beec311c8e6d832d97d2a550d58" ] .
