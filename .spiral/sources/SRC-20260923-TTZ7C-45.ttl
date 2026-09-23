@@ -8,4 +8,5 @@ project:SRC-20260923-TTZ7C-45
     sd:repositoryPath ".spiral/sources/SRC-20260923-TTZ7C-45.md" ;
     sd:status sd:Active ;
     sd:sourceAvailability sd:Retained ;
-    sd:provenanceConfidence sd:Explicit .
+    sd:provenanceConfidence sd:Explicit ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "829a8dd81da5447c8e113a73312952a50d1c037d" ] .
