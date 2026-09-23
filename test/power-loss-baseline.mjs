@@ -1,3 +1,4 @@
+import { FileDataset } from '../src/file-data.mjs'
 import { Buffer } from 'node:buffer'
 // The original baseline is retained at EVD-20260919-TTZ7C-23's Git version.
 // These assertions implement the corrected command-only / authoritative-log
@@ -101,8 +102,11 @@ test('PL10 an actual short changeset write is completed before acknowledgment', 
                 path.basename(e.file).startsWith('data.A.jsontag.')
         ).length >= 2
     )
+    const dataset = new FileDataset()
+    t.after(() => dataset.close())
+    const data = dataset.open((await inspectStore(store)).sources)
     assert.deepEqual(
-        (await inspectStore(store)).data.persons.map(p => p.name),
+        data.persons.map(p => p.name),
         ['A']
     )
 })

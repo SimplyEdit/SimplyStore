@@ -9,7 +9,9 @@ const integrityAlgorithm = 'sha256'
 
 export function getDefaultIntegrityFile(dataFile) {
 	const extension = dataFile.split('.').pop()
-	const basefile = dataFile.substring(0, dataFile.length - (extension.length + 1))
+	const basefile = dataFile.substring(
+		0, dataFile.length - (extension.length + 1)
+	)
 	return `${basefile}.integrity.${extension}`
 }
 
@@ -26,9 +28,14 @@ export async function loadIntegrityManifest(integrityFile) {
 	let text
 	try {
 		text = await fs.readFile(integrityFile, 'utf8')
-	} catch (error) {
+	}
+ catch (error) {
 		if (error.code === 'ENOENT') {
-			return entries
+			throw new RecoveryIntegrityError(
+				`Missing integrity manifest ${integrityFile}; ` +
+				'use recover.mjs init-integrity for a stopped existing store',
+				{ file: integrityFile, recordKind: 'integrity manifest' }
+			)
 		}
 		throw error
 	}
@@ -39,7 +46,8 @@ export async function loadIntegrityManifest(integrityFile) {
 		let record
 		try {
 			record = JSONTag.parse(line)
-		} catch (cause) {
+		}
+ catch (cause) {
 			throw new RecoveryIntegrityError('Invalid integrity manifest record', {
 				file: integrityFile,
 				lineNumber: index + 1,
@@ -73,7 +81,17 @@ export async function loadIntegrityManifest(integrityFile) {
 	return entries
 }
 
-export function verifyIntegrity(manifest, integrityFile, file, buffer, options = {}) {
+export function verifyIntegrity(
+	manifest, integrityFile, file, buffer, options = {}
+) {
+	return verifyDigest(
+		manifest, integrityFile, file, digestBuffer(buffer), options
+	)
+}
+
+export function verifyDigest(
+	manifest, integrityFile, file, actual, options = {}
+) {
 	const key = integrityFileKey(integrityFile, file)
 	const record = manifest.get(key)
 	if (!record) {
@@ -85,7 +103,6 @@ export function verifyIntegrity(manifest, integrityFile, file, buffer, options =
 		}
 		return false
 	}
-	const actual = digestBuffer(buffer)
 	if (record.digest !== actual) {
 		throw new RecoveryIntegrityError(`Integrity mismatch for ${key}`, {
 			file,
@@ -96,11 +113,30 @@ export function verifyIntegrity(manifest, integrityFile, file, buffer, options =
 }
 
 export async function appendIntegrityRecord(integrityFile, file, buffer) {
-	const record = {
-		file: integrityFileKey(integrityFile, file),
-		algorithm: integrityAlgorithm,
-		digest: digestBuffer(buffer)
-	}
-	await appendFile(integrityFile, JSONTag.stringify(record))
-	return record
+	return appendIntegrityDigest(integrityFile, file, digestBuffer(buffer))
+}
+
+export function integrityRecords(integrityFile, digests) {
+    return digests.map(([file, digest]) => ({
+        file: integrityFileKey(integrityFile, file),
+        algorithm: integrityAlgorithm,
+        digest
+    }))
+}
+
+export function serializeIntegrityRecords(integrityFile, digests) {
+    return integrityRecords(integrityFile, digests)
+        .map(record => JSONTag.stringify(record)).join('\n')
+}
+
+export async function appendIntegrityDigests(integrityFile, digests) {
+    if (digests.length) {
+        await appendFile(integrityFile,
+            serializeIntegrityRecords(integrityFile, digests))
+    }
+}
+
+export async function appendIntegrityDigest(integrityFile, file, digest) {
+    await appendIntegrityDigests(integrityFile, [[file, digest]])
+    return integrityRecords(integrityFile, [[file, digest]])[0]
 }

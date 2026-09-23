@@ -18,12 +18,43 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Latest accepted cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
-Context, on spiral/CYC-20260919-TTZ7C-42-roadmap. The maintainer accepted the
-evaluated branch tip 10a39df3e946944a168614fd59514f2aeb4aec05 on 2026-09-23.
-The documentation cycle is closed; integration into master remains a separate
-decision. No next product task is selected; Spiral risk analysis selects it
-using ROADMAP.md and current evidence.
+Active cycle: none. Latest accepted cycle: CYC-20260923-TTZ7C-51, required
+integrity and existing-store initialization, accepted on 2026-09-23, awaiting
+integration on spiral/CYC-20260923-TTZ7C-51-required-integrity. This continues
+the reliability roadmap from the accepted file-backed tip while integration is
+pending. The maintainer explicitly confirmed mandatory hashes, initialization
+and latency measurement. Implementation and evaluation are complete: 193 tests
+pass, lint is clean, the copied example retains its command after initialization,
+and local ext4 median completion increased roughly 2 ms. EVD-55 retains evidence.
+Normal startup now requires hashes; existing stores use explicit init-integrity.
+The maintainer confirmed startup refusal without integrity, successful
+initialization and working commands. Acceptance is retained in CYC-51.
+Both CYC-44 and CYC-51 are accepted; integration remains a separate decision.
+No next cycle is selected.
+
+Previously accepted cycle: CYC-20260923-TTZ7C-44,
+File-backed dataset runtime, accepted on 2026-09-23, awaiting integration on
+spiral/CYC-20260923-TTZ7C-44-file-backed. The maintainer authorized replacing
+shared-memory data after reviewing od-jsontag hardening. This continues the
+file-only roadmap direction, prioritized ahead of rebuild. SRC-45, UND-48,
+REQ-46 and DES-47 (20260923-TTZ7C namespace) retain the commitment. Implementation
+uses ordered file sources, bounded clean-record caches, worker-owned handles,
+bounded hashing and file-backed administrative replay. Committed offset and ID
+indexes are trusted and loaded directly; missing indexes reconstruct, and
+validation/reconstruction are explicit maintenance options. ID indexes are
+finalized from serialized bytes and durable before success. Integrity manifests
+cover canonical data and present standard index files. Duplicate IDs are
+errors; no legacy index compatibility is required. The maintainer verified the
+example folder and explicitly confirmed these corrections.
+EVD-20260923-TTZ7C-49 records 178 passing tests, clean lint and large-file probes.
+The maintainer confirmed the tests, successful example command application and
+persistence after restart. Acceptance is retained in the cycle record.
+Integration remains pending; accepted CYC-51 adds mandatory integrity.
+Client-visible version metadata and audit trails follow this migration;
+neither is implemented here.
+
+Latest integrated cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
+Context. Accepted on 2026-09-23 and integrated through PR #24 at dbb0703.
 
 Previously accepted and integrated cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
 Workflows, on spiral/CYC-20260919-TTZ7C-36-runtime-contracts. The maintainer

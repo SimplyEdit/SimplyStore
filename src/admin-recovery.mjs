@@ -4,8 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import { from, _, anyOf, not } from '@muze-nl/jaqt'
-import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
-import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import { loadFileData, loadDataSource } from './file-data.mjs'
 import {
     inspectStore,
     inventory,
@@ -23,7 +22,8 @@ import {
 } from './storage.mjs'
 import { executeWorker } from './execute-worker.mjs'
 import { nextActiveCommandStatus } from './recovery.mjs'
-import { loadIntegrityManifest, verifyIntegrity } from './integrity.mjs'
+import { appendArtifactIntegrity } from './index-files.mjs'
+import { loadIntegrityManifest, verifyDigest } from './integrity.mjs'
 
 const defaultWorker = fileURLToPath(
     new URL('./command-worker.mjs', import.meta.url)
@@ -238,7 +238,7 @@ class RecoveryApplication {
         this.journal = null
         this.planHash = null
         this.meta = null
-        this.buffers = null
+        this.sources = null
         this.expectedManifest = null
     }
 
@@ -363,23 +363,14 @@ class RecoveryApplication {
         if (inspection.errors.length) {
             throw new Error(inspection.errors.join('; '))
         }
-        const parser = new Parser()
-        let data
-        for (const bytes of inspection.buffers) {
-            data = parser.parse(bytes)
-        }
-        // Rebuild parser indexes without invoking custom hooks.
-        this.meta = {
-            index: { id: new Map() },
-            data: path.dirname(this.config.datafile),
-            parts: inspection.committed.length
-        }
-        this.buffers = [serialize(data, { meta: this.meta })]
-        if (this.config.schemaFile) {
-            this.meta.schema = JSONTag.parse(
-                await fs.readFile(this.config.schemaFile, 'utf8')
-            )
-        }
+        const loaded = await loadFileData({
+            dataFile: this.config.datafile,
+            commands: inspection.committed,
+            schemaFile: this.config.schemaFile,
+            integrityFile: this.config.integrityFile
+        })
+        this.meta = loaded.meta
+        this.sources = loaded.sources
         const integrityFile = this.plan.config.integrityFile
         if (this.plan.files[integrityFile] != null) {
             this.expectedManifest = await loadIntegrityManifest(integrityFile)
@@ -431,14 +422,13 @@ class RecoveryApplication {
                 id,
                 command: command.line,
                 meta: this.meta,
-                data: this.buffers,
+                sources: this.sources,
                 commandsFile: this.plan.code.commandsFile,
                 indexFile: this.plan.code.indexFile,
                 datafile: this.config.datafile,
                 // Retained digests are checked before replacement manifest and
                 // done records are allowed.
-                integrityFile: null,
-                integrityRequired: false
+                deferIntegrityPublication: true
             },
             30000
         )
@@ -475,40 +465,27 @@ class RecoveryApplication {
         for (const file of this.config.requiredFiles) {
             await syncFile(file)
         }
+        const source = loadDataSource(result.source.file, this.meta, id)
         if (this.expectedManifest && command.status === 'done') {
-            verifyIntegrity(
+            verifyDigest(
                 this.expectedManifest,
                 this.plan.config.integrityFile,
                 command.file,
-                result.data,
+                source.digest,
                 { required: true }
             )
         }
-        if (this.config.integrity || this.expectedManifest) {
-            await this.appendResultIntegrity(command, result.data)
-        }
+        await appendArtifactIntegrity(this.config.integrityFile,
+            source.file, source.digest, this.meta, id)
         await appendRecord(
             this.config.commandStatus,
             JSONTag.stringify({ command: id, code: 200, status: 'done' })
         )
-        this.buffers.push(result.data)
+        this.sources.push(source)
         Object.assign(this.meta, result.meta)
         await appendRecord(
             this.journal,
             JSON.stringify({ event: 'done', id, attempt: active.attempt })
-        )
-    }
-
-    async appendResultIntegrity(command, data) {
-        const { appendIntegrityRecord } = await import('./integrity.mjs')
-        const targetFile = path.join(
-            path.dirname(this.config.datafile),
-            path.basename(command.file)
-        )
-        await appendIntegrityRecord(
-            this.config.integrityFile,
-            targetFile,
-            data
         )
     }
 

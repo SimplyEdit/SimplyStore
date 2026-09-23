@@ -1,6 +1,6 @@
 # SimplyStore
 
-SimplyStore is a radically simpler backend storage server. It does not have a database, certainly no SQL or GraphQL, it is not REST. In return it has a well defined API that is automatically derived from your dataset. It supports JSONTag to allow for semantically meaningful data, without having to do the full switch to Linked Data and triple stores. The query format is javascript, you can post javascript queries that will run on the server. All data is read into memory and is available to these javascript queries without needing (or allowing) disk access or indexes.
+SimplyStore is a radically simpler backend storage server. It does not have a database, certainly no SQL or GraphQL, it is not REST. In return it has a well defined API that is automatically derived from your dataset. It supports JSONTag to allow for semantically meaningful data, without having to do the full switch to Linked Data and triple stores. The query format is javascript, you can post javascript queries that will run on the server. Dataset records are read lazily from indexed files. Javascript queries use ordinary objects and arrays; SimplyStore manages file access and indexes.
 
 [JSONTag](https://github.com/muze-nl/jsontag) is an enhancement over JSON that allows you to tag JSON data with metadata using HTML-like tags.
 Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox. 
@@ -13,6 +13,7 @@ Note: _There are known security issues in VM2, so the project will switch to V8-
 - [Background](#background)
 - [Install](#install)
 - [Usage](#usage)
+- [File-backed Data](docs/file-data.md)
 - [Custom Index Modules](#custom-index-modules)
 - [Example Query](#examples)
 - [Goals](#goals)
@@ -65,7 +66,18 @@ You should be able to go http://localhost:3000/query/ and see something like thi
 
 ## Durability and recovery
 
-See the [durability contract](DURABILITY.md) and [administrator recovery guide](docs/recovery.md). Command-log order governs execution. Acceptance and completion await file and directory barriers. Uncertain or pending work found at startup requires administrator assessment; missing data does not prove that external effects did not happen. Existing store formats are retained without migration.
+See the [durability contract](DURABILITY.md) and [administrator recovery guide](docs/recovery.md). Command-log order governs execution. Acceptance and completion await file and directory barriers. Uncertain or pending work found at startup requires administrator assessment; missing data does not prove that external effects did not happen. Canonical data formats remain unchanged.
+
+## File-backed data
+
+See the [file-backed data guide](docs/file-data.md) for worker/file lifetimes,
+index rebuilding, memory limits, and the internal worker-message changes.
+Existing stores retain their current formats and need no conversion.
+
+Integrity hashes are mandatory for data and present standard index files.
+New-store conversion creates the manifest automatically. Existing stores without
+one need the stopped-store [initialization command](docs/recovery.md#initialize-integrity-for-an-existing-store)
+before opening; startup never invents a replacement baseline.
 
 ## Custom Index Modules
 
@@ -177,7 +189,7 @@ SimplyStore is a more defined and usable REST like service, out of the box. One 
 
 The SimplyStore design is predicated on the following realisations:
 
-  1. Most data today will fit comfortably in memory in a commodity server.
+  1. Files provide lazy record access; indexes and active edits still use memory.
   2. REST today is usually JSON-over-HTTP, but JSON crucially misses a <link> type.
   3. JSON is never just JSON. You need additional things like JSON-LD or JSON-Schema, to make sense of it. 
   4. There is no clear onramp from JSON to Linked Data.
@@ -185,7 +197,7 @@ The SimplyStore design is predicated on the following realisations:
 
 So the scope for SimplyStore is:
 
-- datasets that will fit comfortably in memory, for now I've set a test goal of about 1GB of data.
+- datasets whose indexes and active working set fit in memory, with file-backed record storage.
 - usecases that are mostly-read, with sparse updates.
 - scale-in-depth, so scale up is limited to the limits of a single computer system
 - linked data (RDF et al) is not an immediate concern, but there must be a plausible onramp / conversion to and from linked data.

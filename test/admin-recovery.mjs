@@ -1,3 +1,4 @@
+import { FileDataset } from '../src/file-data.mjs'
 import { Buffer } from 'node:buffer'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -5,6 +6,10 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import JSONTag from '@muze-nl/jsontag'
+import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
+import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
+import { appendIntegrityRecord, getDefaultIntegrityFile }
+    from '../src/integrity.mjs'
 import { makeServerFixture } from './durability-helpers.mjs'
 import {
     planRecovery,
@@ -43,6 +48,22 @@ async function setup(t, entries) {
     }
     const statusLines = statuses.map(status => JSONTag.stringify(status))
     await fs.writeFile(store.commandStatus, statusLines.join('\n') + '\n')
+    // A lost committed output still has its original digest in the manifest.
+    const previous = [await fs.readFile(store.datafile)]
+    for (const [id, status] of entries) {
+        if (status === 'done') {
+            const parser = new Parser(undefined, false)
+            let data
+            for (const bytes of previous) {
+                data = parser.parse(bytes)
+            }
+            data.persons.push({name: id})
+            const bytes = serialize(data, {meta: parser.meta, changes: true})
+            await appendIntegrityRecord(getDefaultIntegrityFile(store.datafile),
+                path.join(store.dir, `data.${id}.jsontag`), bytes)
+            previous.push(bytes)
+        }
+    }
     return { store, outputs }
 }
 async function runRecovery(store, outputs, plan) {
@@ -77,7 +98,7 @@ test('administrator recovers trailing missing/waiting commands in log order on a
         'Inspection does not expose JAQT proxies'
     )
     assert.deepEqual(
-        actual.data.persons.map(p => p.name),
+        personNames(actual),
         ['A', 'B']
     )
     assert.deepEqual(await fs.readFile(store.commandStatus), before)
@@ -164,7 +185,7 @@ test('backup and restore validate saved bytes without executing commands', async
         sourceQuiescent: true
     })
     assert.deepEqual(
-        (await inspectStore(restored.config)).data.persons.map(p => p.name),
+        personNames(await inspectStore(restored.config)),
         ['A']
     )
     assert.deepEqual(restored.missingFromBackup, [])
@@ -390,7 +411,7 @@ test('approved recovery resumes from completed candidate prefix without repeatin
     await fs.mkdir(retry)
     const result = await runRecovery(partial, retry, plan)
     assert.deepEqual(
-        (await inspectStore(result.config)).data.persons.map(p => p.name),
+        personNames(await inspectStore(result.config)),
         ['A', 'B']
     )
     assert.equal(await fs.readFile(witness, 'utf8'), 'A\nB\n')
@@ -440,6 +461,7 @@ test('multi-directory integrity paths and file permissions survive backup and re
     store.commandStatus = path.join(logdir, 'status.jsontag')
     await fs.writeFile(store.commandLog, '')
     await fs.writeFile(store.commandStatus, '')
+    await fs.unlink(getDefaultIntegrityFile(store.datafile))
     store.integrityFile = path.join(logdir, 'integrity.jsontag')
     const { appendIntegrityRecord } = await import('../src/integrity.mjs')
     await appendIntegrityRecord(
@@ -547,7 +569,7 @@ test('verified A prefix permits only missing B, waiting C and missing D in log o
     await fs.mkdir(next)
     const result = await runRecovery(source, next, plan)
     assert.deepEqual(
-        (await inspectStore(result.config)).data.persons.map(p => p.name),
+        personNames(await inspectStore(result.config)),
         ['A', 'B', 'C', 'D']
     )
     assert.deepEqual(
@@ -706,5 +728,46 @@ test('backup coverage distinguishes changed history and data from missing source
             result,
             'Restore reports remain plain cloneable data'
         )
+    }
+})
+
+function personNames(inspection) {
+    const dataset = new FileDataset()
+    try {
+        return dataset.open(inspection.sources).persons.map(p => p.name)
+    }
+    finally {
+        dataset.close()
+    }
+}
+
+test('recovery fingerprints final sidecars and verifies the copied prefix', async t => {
+    const { store, outputs } = await setup(t, [['A', 'accepted']])
+    const { appendIntegrityRecord, loadIntegrityManifest, verifyIntegrity } =
+        await import('../src/integrity.mjs')
+    const { appendIndexIntegrity } = await import('../src/index-files.mjs')
+    const { default: offsetIndex } = await import('../src/index.offset.mjs')
+    const { default: idIndex, prepareIdIndex } =
+        await import('../src/index.id.mjs')
+    const bytes = await fs.readFile(store.datafile)
+    const meta = {data: store.dir}
+    await offsetIndex.writeSerialized(bytes, meta)
+    idIndex.write(meta, prepareIdIndex(bytes).entries)
+    store.integrityFile = path.join(store.dir, 'data.integrity.jsontag')
+    await appendIntegrityRecord(store.integrityFile, store.datafile, bytes)
+    await appendIndexIntegrity(store.integrityFile, meta)
+    const plan = await planRecovery(store, {quiescent: true})
+    assert.equal(plan.actionable, true)
+    const result = await runRecovery(store, outputs, plan)
+    const report = await inspectStore(result.config)
+    assert.equal(report.ready, true)
+    const manifest = await loadIntegrityManifest(result.config.integrityFile)
+    for (const suffix of ['', '.A']) {
+        for (const kind of ['id', 'offset']) {
+            const file = path.join(path.dirname(result.config.datafile),
+                `index.${kind}${suffix}.json`)
+            assert.equal(verifyIntegrity(manifest, result.config.integrityFile,
+                file, await fs.readFile(file), {required: true}), true)
+        }
     }
 })

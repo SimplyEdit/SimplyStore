@@ -2,13 +2,14 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import JSONTag from '@muze-nl/jsontag'
 import { from, _, anyOf, not } from '@muze-nl/jaqt'
-import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
+import { FileDataset, hashFile, loadDataSource } from './file-data.mjs'
+import idIndex from './index.id.mjs'
+import { loadStoredIndex } from './index-files.mjs'
 import { createHash } from 'node:crypto'
-import { assertOdJsonTagFraming, getChangesetPath } from './recovery.mjs'
+import { getChangesetPath } from './recovery.mjs'
 import {
     getDefaultIntegrityFile,
-    loadIntegrityManifest,
-    verifyIntegrity
+    loadIntegrityManifest
 } from './integrity.mjs'
 
 export const hash = bytes => createHash('sha256').update(bytes).digest('hex')
@@ -16,13 +17,6 @@ export const validCommandId = id =>
     typeof id === 'string' && id.length > 0 && !/[/\\\0]/.test(id)
 export function storePaths(options = {}) {
     const datafile = path.resolve(options.datafile || './data.od-jsontag')
-    let integrity
-    if (options.integrity === undefined) {
-        integrity = Boolean(options.integrityFile)
-    }
-    else {
-        integrity = Boolean(options.integrity)
-    }
     const config = {
         datafile,
         commandLog: path.resolve(options.commandLog || './command-log.jsontag'),
@@ -32,7 +26,9 @@ export function storePaths(options = {}) {
         integrityFile: path.resolve(
             options.integrityFile || getDefaultIntegrityFile(datafile)
         ),
-        integrity,
+        integrity: true,
+        validateIndexes: Boolean(options.validateIndexes),
+        rebuildIndexes: Boolean(options.rebuildIndexes),
         requiredFiles: (options.requiredFiles || []).map(file =>
             path.resolve(file)
         )
@@ -101,7 +97,7 @@ export async function inventory(config) {
                 throw new Error(`Symlink in store artifact: ${file}`)
             }
             if (entry.isFile()) {
-                files[file] = hash(await fs.readFile(file))
+                files[file] = hashFile(file)
             }
         }
     }
@@ -116,7 +112,7 @@ export async function inventory(config) {
     for (const file of required) {
         if (!(file in files)) {
             try {
-                files[file] = hash(await fs.readFile(file))
+                files[file] = hashFile(file)
             }
             catch (error) {
                 if (error.code !== 'ENOENT') {
@@ -138,8 +134,16 @@ export async function inspectStore(options = {}) {
     return inspector.inspect()
 }
 
+// Only the explicit initialization workflow may inspect an unsealed store.
+export async function inspectUnsealedStore(options = {}) {
+    const config = storePaths({...options,
+        validateIndexes: true, rebuildIndexes: false})
+    return new StoreInspector(config, true).inspect()
+}
+
 class StoreInspector {
-    constructor(config) {
+    constructor(config, unsealed = false) {
+        this.unsealed = unsealed
         this.config = config
         this.errors = []
         this.warnings = []
@@ -147,22 +151,28 @@ class StoreInspector {
         this.commands = []
         this.commandsById = new Map()
         this.manifest = null
-        this.parser = new Parser()
-        this.buffers = []
+        this.dataset = new FileDataset()
+        this.verified = new Map()
         this.committed = []
-        this.data = undefined
         this.prefixValid = false
     }
 
     async inspect() {
-        await this.validateConfiguredPaths()
-        this.files = await inventory(this.config)
-        await this.loadCommandHistory()
-        await this.loadIntegrityManifest()
-        await this.reconstructCommittedState()
-        this.validateStoreArtifacts()
-        await this.verifyStableSnapshot()
-        return this.createReport()
+        try {
+            await this.validateConfiguredPaths()
+            this.files = await inventory(this.config)
+            await this.loadCommandHistory()
+            if (!this.unsealed) {
+                await this.loadIntegrityManifest()
+            }
+            await this.reconstructCommittedState()
+            this.validateStoreArtifacts()
+            await this.verifyStableSnapshot()
+            return this.createReport()
+        }
+        finally {
+            this.dataset.close()
+        }
     }
 
     async loadCommandHistory() {
@@ -327,13 +337,9 @@ class StoreInspector {
     async loadIntegrityManifest() {
         try {
             const integrityFile = this.config.integrityFile
-            const enabled =
-                this.config.integrity || this.files[integrityFile] != null
-            if (!enabled) {
-                return
-            }
             if (this.files[integrityFile] == null) {
-                throw new Error(`Missing integrity manifest ${integrityFile}`)
+                throw new Error(`Missing integrity manifest ${integrityFile}; ` +
+                    'use recover.mjs init-integrity for a stopped existing store')
             }
             await this.readRecords(integrityFile, 'integrity manifest')
             this.manifest = await loadIntegrityManifest(integrityFile)
@@ -343,19 +349,16 @@ class StoreInspector {
         }
     }
 
-    async readVerifiedData(file) {
-        const bytes = await fs.readFile(file)
-        assertOdJsonTagFraming(bytes, file)
-        if (this.manifest) {
-            verifyIntegrity(
-                this.manifest,
-                this.config.integrityFile,
-                file,
-                bytes,
-                { required: true }
-            )
+    async readVerifiedData(file, command = null) {
+        const meta = { data: path.dirname(this.config.datafile) }
+        const options = {
+            ...this.config, manifest: this.manifest, integrityRequired: true
         }
-        return bytes
+        // Verify present ID sidecars too; normal inspection never parses tags.
+        loadStoredIndex(idIndex, meta, command, options)
+        const source = loadDataSource(file, meta, command, options)
+        this.verified.set(file, source)
+        return source
     }
 
     async reconstructCommittedState() {
@@ -369,12 +372,11 @@ class StoreInspector {
 
     async readBaseDataset() {
         try {
-            const bytes = await this.readVerifiedData(this.config.datafile)
-            if (!bytes.length) {
+            const source = await this.readVerifiedData(this.config.datafile)
+            if (!source.size) {
                 throw new Error('Empty base dataset')
             }
-            this.data = this.parser.parse(bytes)
-            this.buffers.push(bytes)
+            this.dataset.append(source)
         }
         catch (error) {
             this.errors.push(error.message)
@@ -395,7 +397,7 @@ class StoreInspector {
         }
         if (command.present) {
             try {
-                await this.readVerifiedData(command.file)
+                await this.readVerifiedData(command.file, command.id)
             }
             catch (error) {
                 command.condition = 'corrupt'
@@ -427,9 +429,8 @@ class StoreInspector {
             return
         }
         try {
-            const bytes = await this.readVerifiedData(command.file)
-            this.data = this.parser.parse(bytes)
-            this.buffers.push(bytes)
+            const source = this.verified.get(command.file)
+            this.dataset.append(source)
             this.committed.push(command.id)
         }
         catch (error) {
@@ -508,8 +509,7 @@ class StoreInspector {
             commands: this.commands,
             committed: this.committed,
             ready,
-            data: this.data,
-            buffers: this.buffers
+            sources: [...this.dataset.sources]
         }
     }
 }

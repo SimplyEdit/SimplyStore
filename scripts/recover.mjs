@@ -12,6 +12,7 @@ import {
     verifyCandidate
 } from '../src/admin-recovery.mjs'
 import { inspectStore } from '../src/store-inspection.mjs'
+import { initializeIntegrity } from '../src/initialize-integrity.mjs'
 
 const [action, ...args] = process.argv.slice(2)
 const options = {}
@@ -37,6 +38,8 @@ const required = key => {
 }
 async function main() {
     switch (action) {
+        case 'init-integrity':
+            return initializeIntegrity(await read(required('store')))
         case 'inspect': {
             const plan = await planRecovery(await read(required('store')), {
                 quiescent: options.quiescent === true
@@ -121,7 +124,7 @@ async function main() {
         }
         default:
             throw new Error(
-                'Usage: recover.mjs inspect|apply|backup|restore|unlock|finish|verify --store config.json ...; see docs/recovery.md'
+                'Usage: recover.mjs init-integrity|inspect|apply|backup|restore|unlock|finish|verify --store config.json ...; see docs/recovery.md'
             )
     }
 }

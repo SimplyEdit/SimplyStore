@@ -69,7 +69,7 @@ async function openRuntime(t, overrides = {}) {
         async runWorker() {
             events.push('committed data loaded')
             return {
-                data: new Uint8Array([1]),
+                sources: [{file: fixture.datafile}],
                 meta: {
                     index: { id: new Map() },
                     parts: 1
@@ -102,7 +102,7 @@ async function openRuntime(t, overrides = {}) {
 test('runtime opens committed state and closes its owned resources', async t => {
     const opened = await openRuntime(t)
 
-    assert.equal(opened.runtime.data.length, 1)
+    assert.equal(opened.runtime.sources.length, 1)
     assert.equal(opened.runtime.meta.parts, 1)
     assert.equal(opened.pools.length, 2)
     assert.equal(opened.ownershipReleased(), false)
@@ -177,7 +177,7 @@ test('runtime keeps concurrent acceptance and execution in command-log order',
                 const parsed = JSONTag.parse(task.command)
                 starts.push(parsed.id)
                 return {
-                    data: new Uint8Array([starts.length + 1]),
+                    source: { file: `data.${parsed.id}.jsontag` },
                     meta: { parts: starts.length + 1 }
                 }
             }

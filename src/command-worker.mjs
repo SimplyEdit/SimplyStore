@@ -1,5 +1,5 @@
 import { parentPort } from 'node:worker_threads'
-import runCommand, { initialize } from '../src/command-worker-module.mjs'
+import runCommand, { initialize, close } from '../src/command-worker-module.mjs'
 
 parentPort.on('message', async data => {
     let result
@@ -14,6 +14,9 @@ parentPort.on('message', async data => {
             message: error.message,
             storageFailure: Boolean(error.storageFailure)
         }
+    }
+    finally {
+        close()
     }
     parentPort.postMessage(result)
 })

@@ -7,7 +7,9 @@ import {fileURLToPath} from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import Parser from '@muze-nl/od-jsontag'
 import serialize from '@muze-nl/od-jsontag/src/serialize.mjs'
-import runCommand, {initialize} from '../src/command-worker-module.mjs'
+import runCommand, {initialize, close} from '../src/command-worker-module.mjs'
+
+import { scanDataFile } from '../src/file-data.mjs'
 
 const baseIndex = new URL('../src/index.mjs', import.meta.url)
 
@@ -26,8 +28,11 @@ async function fixture(t, indexSource) {
 		await fs.writeFile(indexFile, indexSource)
 	}
 	const base = serialize(JSONTag.parse('{"items":[{"name":"first"},{"name":"untouched"}]}'))
+	const datafile = path.join(dir, 'data.jsontag')
+	await fs.writeFile(datafile, base)
+	t.after(close)
 	const task = {
-		data: [base], datafile: path.join(dir, 'data.jsontag'), commandsFile, indexFile,
+		sources: [scanDataFile(datafile)], datafile: path.join(dir, 'data.jsontag'), commandsFile, indexFile,
 		meta: {data: dir, parts: 0, index: {id: new Map()}, resultArray: []}
 	}
 	await initialize(task)
@@ -107,7 +112,7 @@ test('successive command indexes are relative to their own changeset files', asy
 	const {dir, base, task} = await fixture(t)
 	await runCommand(JSONTag.stringify({id: 'first', name: 'edit', value: 'longer first value'}))
 	const first = await verifyOffsets(dir, 'first')
-	await initialize({...task, data: [base, first.bytes], meta: {data: dir, parts: 1, index: {id: new Map()}, resultArray: []}})
+	await initialize({...task, sources: [task.sources[0], scanDataFile(path.join(dir, 'data.first.jsontag'))], meta: {data: dir, parts: 1, index: {id: new Map()}, resultArray: []}})
 	await runCommand(JSONTag.stringify({id: 'second', name: 'edit', item: 1, value: 'x'}))
 	const second = await verifyOffsets(dir, 'second')
 	assert.deepEqual(Object.keys(second.offsets), ['2'])
@@ -168,4 +173,18 @@ test('custom finalization rejection propagates from the command worker', async t
 	const {dir} = await fixture(t, 'export default {update() {}, async finalize() { throw new Error("custom finalization failed") }}')
 	await assert.rejects(runCommand('{"id":"rejected","name":"edit","value":"changed"}'), /custom finalization failed/)
 	await assert.rejects(fs.access(path.join(dir, 'index.offset.rejected.json')), /ENOENT/)
+})
+
+test('a finalizer cannot publish changed canonical bytes as the command result', async t => {
+    await fixture(t, `import fs from 'node:fs/promises'
+export default {
+    update() {},
+    async finalize(serialized, meta, uuid) {
+        await fs.appendFile(meta.data + '/data.' + uuid + '.jsontag', '\\n')
+    }
+}`)
+    await assert.rejects(
+        runCommand('{"id":"tampered","name":"edit","value":"changed"}'),
+        /Changeset changed during finalization/
+    )
 })

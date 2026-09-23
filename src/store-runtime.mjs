@@ -1,4 +1,3 @@
-import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
@@ -55,26 +54,20 @@ function createRuntimeConfiguration(options) {
     const datafile = options.datafile || './data.od-jsontag'
     const integrityFile =
         options.integrityFile || getDefaultIntegrityFile(datafile)
-    const integrity = Boolean(
-        options.integrity ||
-        options.integrityFile ||
-        fs.existsSync(integrityFile)
-    )
     const storeOptions = {
         ...options,
         datafile,
         commandLog: options.commandLog || './command-log.jsontag',
         commandStatus: options.commandStatus || './command-status.jsontag',
-        integrity
-    }
-    if (integrity) {
-        storeOptions.integrityFile = integrityFile
+        integrityFile
     }
     const store = storePaths(storeOptions)
 
     return {
         store,
         schemaFile: options.schemaFile || null,
+        validateIndexes: Boolean(options.validateIndexes),
+        rebuildIndexes: Boolean(options.rebuildIndexes),
         maxWorkers: options.maxWorkers || 8,
         queryWorker:
             options.queryWorker || rootDirectory + '/src/query-worker.mjs',
@@ -165,7 +158,7 @@ export class StoreRuntime {
     constructor(configuration, mechanisms) {
         this.configuration = configuration
         this.mechanisms = mechanisms
-        this.data = []
+        this.sources = []
         this.meta = {}
         this.status = new Map()
         this.commandQueue = []
@@ -225,11 +218,10 @@ export class StoreRuntime {
                 dataFile: config.store.datafile,
                 indexFile: config.indexFile,
                 schemaFile: config.schemaFile,
+                validateIndexes: config.validateIndexes,
+                rebuildIndexes: config.rebuildIndexes,
                 commands,
-                integrityFile: config.store.integrity
-                    ? config.store.integrityFile
-                    : null,
-                integrityRequired: config.store.integrity
+                integrityFile: config.store.integrityFile
             },
             {
                 timeout: config.loadTimeout,
@@ -239,7 +231,7 @@ export class StoreRuntime {
     }
 
     initializeLoadedState(inspection, loaded) {
-        this.data = [loaded.data]
+        this.sources = loaded.sources
         this.meta = loaded.meta
         this.status = new Map(
             inspection.commands.map(command => {
@@ -261,13 +253,16 @@ export class StoreRuntime {
             config.queryWorker,
             this.queryWorkerInitialTask(config.slowTimeout)
         )
+        for (const pool of [this.queryWorkerPool, this.slowQueryWorkerPool]) {
+            pool.on?.('error', error => this.failStorage(error))
+        }
     }
 
     queryWorkerInitialTask(timeout) {
         return {
             name: 'init',
             req: {
-                body: this.data,
+                sources: this.sources,
                 meta: this.meta,
                 access: this.configuration.access
             },
@@ -275,14 +270,18 @@ export class StoreRuntime {
         }
     }
 
-    runQuery(request, { slow = false } = {}) {
+    async runQuery(request, { slow = false } = {}) {
         let pool = this.queryWorkerPool
         let timeout = this.configuration.timeout
         if (slow) {
             pool = this.slowQueryWorkerPool
             timeout = this.configuration.slowTimeout
         }
-        return pool.run('query', request, { timeout })
+        const result = await pool.run('query', request, { timeout })
+        if (result.storageFailure) {
+            this.failStorage(new Error('Unable to read committed data'))
+        }
+        return result
     }
 
     getCommandStatus(commandId) {
@@ -486,14 +485,11 @@ export class StoreRuntime {
             {
                 ...command,
                 meta: this.meta,
-                data: this.data,
+                sources: this.sources,
                 commandsFile: config.commandsFile,
                 indexFile: config.indexFile,
                 datafile: config.store.datafile,
-                integrityFile: config.store.integrity
-                    ? config.store.integrityFile
-                    : null,
-                integrityRequired: config.store.integrity
+                integrityFile: config.store.integrityFile
             },
             config.commandTimeout
         )
@@ -559,14 +555,14 @@ export class StoreRuntime {
     }
 
     publishCommandResult(result) {
-        if (!result.data) {
+        if (!result.source) {
             return
         }
-        this.data.push(result.data)
+        this.sources.push(result.source)
         Object.assign(this.meta, result.meta)
         const task = {
             name: 'update',
-            req: { body: result.data, meta: this.meta }
+            req: { source: result.source, meta: this.meta }
         }
         this.queryWorkerPool.update(task)
         this.slowQueryWorkerPool.update(task)
@@ -593,8 +589,8 @@ export class StoreRuntime {
     async closeResources() {
         await this.serializeAcceptance()
         await this.runner
-        this.queryWorkerPool.close()
-        this.slowQueryWorkerPool.close()
+        await this.queryWorkerPool.close()
+        await this.slowQueryWorkerPool.close()
         if (!this.storageFailed && this.ownership) {
             await this.ownership.release()
             this.ownership = null
