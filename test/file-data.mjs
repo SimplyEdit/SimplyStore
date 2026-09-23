@@ -295,3 +295,49 @@ test('ID precedence follows record order when a patch fills an earlier hole', as
     const loaded = await loadFileData({dataFile: file, commands: ['fill']})
     assert.equal(loaded.meta.index.id.get('duplicate'), 5)
 })
+
+test('a lazy read failure during a command is a storage failure', async t => {
+    const { dir, file } = fixture(t)
+    const loaded = await loadFileData({dataFile: file, commands: []})
+    const commandsFile = path.join(dir, 'commands.mjs')
+    fs.writeFileSync(commandsFile, `export default {
+        read(data) { data.items[1].name }
+    }`)
+    await initialize({
+        ...loaded, datafile: file, commandsFile,
+        indexFile: fileURLToPath(new URL('../src/index.mjs', import.meta.url))
+    })
+    t.after(close)
+    fs.truncateSync(file, 0)
+    await assert.rejects(runCommand('{"id":"read","name":"read"}'), error => {
+        return error.storageFailure === true
+    })
+})
+
+test('lazy query read failures stop mutation, while query-thrown flags do not', async t => {
+    let runtime
+    t.after(async () => runtime?.close())
+    const fixture = await makeServerFixture(t, {
+        initialData: '{"persons":[{"name":"unread"}]}'
+    })
+    runtime = await StoreRuntime.open({...fixture, maxWorkers: 1})
+    const request = body => ({path: '/', body, jsontag: false})
+    await runtime.runQuery(request('data.persons.length'))
+    // Finish both initializations before altering a disposable source file.
+    await runtime.runQuery(request('data.persons.length'), {slow: true})
+    const spoofed = await runtime.runQuery(request(
+        'throw {storageFailure: true}'
+    ))
+    assert.equal(spoofed.code, 422)
+    assert.equal(runtime.storageFailed, false)
+    fs.truncateSync(fixture.datafile, 0)
+    const result = await runtime.runQuery(request(
+        'try { data.persons[0].name } catch (error) {} "caught"'
+    ))
+    assert.equal(result.code, 500)
+    assert.equal(runtime.storageFailed, true)
+    const accepted = await runtime.acceptCommand(
+        '{"id":"after-failure","name":"addPerson","value":{"name":"bad"}}'
+    )
+    assert.equal(accepted.code, 503)
+})
