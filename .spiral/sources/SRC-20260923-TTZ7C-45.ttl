@@ -9,4 +9,4 @@ project:SRC-20260923-TTZ7C-45
     sd:status sd:Active ;
     sd:sourceAvailability sd:Retained ;
     sd:provenanceConfidence sd:Explicit ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "829a8dd81da5447c8e113a73312952a50d1c037d" ] .
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:SRC-20260923-TTZ7C-45 ; sd:gitCommit "37968ecce058f738900821c38b53d203a91a9845" ] .
