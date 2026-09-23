@@ -18,7 +18,14 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Latest accepted cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
+Latest accepted cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
+Context, on spiral/CYC-20260919-TTZ7C-42-roadmap. The maintainer accepted the
+evaluated branch tip 10a39df3e946944a168614fd59514f2aeb4aec05 on 2026-09-23.
+The documentation cycle is closed; integration into master remains a separate
+decision. No next product task is selected; Spiral risk analysis selects it
+using ROADMAP.md and current evidence.
+
+Previously accepted and integrated cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
 Workflows, on spiral/CYC-20260919-TTZ7C-36-runtime-contracts. The maintainer
 confirmed this cycle after independent review found three regressions in the
 accepted runtime refactor. It deliberately precedes remaining randomized/soak
@@ -26,8 +33,9 @@ work to repair shutdown completion, storage-failure acceptance and duplicate-ID
 compatibility, and clarify inspection/recovery coordinators. Source SRC-37,
 understanding UND-38, request REQ-39 and design DES-40 use the full
 20260919-TTZ7C namespace. The maintainer accepted the evaluated branch tip
-061571e48c453e5f3d7086a33af0d94926b2f7ea on 2026-09-19. Integration is pending
-a separate decision; no cycle is active. Implementation and acceptance are complete:
+061571e48c453e5f3d7086a33af0d94926b2f7ea on 2026-09-19. It was integrated through
+PR #23 into master at b482053bdf0d3b3fc8902cce3169408d31ed9f6e.
+Implementation and acceptance are complete:
 118 regression tests and focused lint pass; EVD-20260919-TTZ7C-41 records six
 new regression cases and the restored contracts. The production change adds
 18 net lines across runtime, inspection and administrative recovery.
@@ -41,7 +49,8 @@ exposed by the accepted durability cycle. Its source, understanding, request and
 design are `SRC-20260919-TTZ7C-28`, `UND-20260919-TTZ7C-29`,
 `REQ-20260919-TTZ7C-30` and `DES-20260919-TTZ7C-32`. The maintainer accepted the
 cycle on 2026-09-19. The accepted branch was integrated locally into `master` at
-`0d23ed0354fb9f1285d9bc3b15c0a1089583d65b`; the correction cycle above is accepted and awaits integration.
+`0d23ed0354fb9f1285d9bc3b15c0a1089583d65b`; the correction cycle above is also
+accepted and integrated.
 
 Accepted-cycle outcome: `IMP-20260919-TTZ7C-33` moves
 opened-store state and lifecycle into one cohesive `StoreRuntime`, leaving
@@ -72,6 +81,13 @@ Acceptance-review refinements: explicit multiline blocks, selective JAQT queries
 Status: **Complete**
 
 Human-confirmed complete on: 2026-08-17
+
+Targeted frame refresh: the 2026-09-19 roadmap interview clarifies UI audiences,
+file-backed-only storage direction, remote versus internal API compatibility,
+and a conditional public-query target. SRC-20260919-TTZ7C-43 retains the answers.
+These are future outcomes, not claims that deployment readiness has changed.
+Other intake commitments remain in force; reopen specific topics when a concrete
+cycle exposes missing requirements.
 
 | Required topic | Disposition | Notes / source |
 |---|---|---|
@@ -123,37 +139,78 @@ Legacy sequential artifact IDs remain valid and should not be renamed. CYC-018 i
 
 ## Intended Users
 
-Primary audience: developers using or extending SimplyStore.
+Primary audience: developers evaluating, using and extending SimplyStore.
+For the redesigned UI, first serve developers testing queries and exploring data,
+then administrators checking status and performing maintenance. Next support
+schema/command work, grants/accounts and audit inspection by developers/admins.
+Downstream systems must be able to extend or overhaul the UI simply.
 
-Secondary audience: end users interacting with systems built on SimplyStore, including query/command UI users where relevant.
+End users of downstream systems remain relevant in their own project contexts.
+The roadmap's configurable anonymous query access is a future target requiring
+sandbox evaluation, not an assertion of current public deployment safety.
 
-Tertiary audience: operators running SimplyStore-backed systems.
-
-Known from existing README: SimplyStore is a Node.js/Express library for serving in-memory datasets through a derived API and JavaScript query endpoint.
-
-Current known downstream project: `slonl/curriculum-store`, described publicly as a SimplyStore server with curriculum data. Human context says this is part of the SLO OpenData curriculum system at `https://opendata.slo.nl/curriculum/`. Public lookup confirmed the repository and OpenData page exist on 2026-08-17; the exact runtime dependency relationship has not been inspected.
+Known downstream project: `slonl/curriculum-store`. Its schema implementation
+is the starting point for shared schema information. During the roadmap interview,
+local inspection of `data/schema.jsontag`, `src/import.merge.mjs` and
+`scripts/tojsontag.mjs` found types, properties, relationships, labels, constraints
+and import-time structural checks. Generalizing them requires investigation of
+other datasets; this is not evidence of comprehensive validation.
 
 ## Current Direction
 
-SimplyStore should become more production ready and less experimental while keeping its focus on simplicity. Production readiness is currently aimed primarily at developers evaluating SimplyStore, secondarily at the `curriculum-store` environment, and later at proposed changes coming from that downstream use.
+[ROADMAP.md](../ROADMAP.md), based on the maintainer interview retained in
+[SRC-20260919-TTZ7C-43](sources/SRC-20260919-TTZ7C-43.md), is the current broad
+product direction. Its order is presentational; **Spiral risk analysis selects
+the actual next task**. No implementation cycle was selected in the interview.
 
-Known from existing README/roadmap: the project is experimental, should not be treated as production-ready by default, and has a known direction to replace VM2 with a safer isolate-based query runtime.
+The listed outcomes are:
 
-The first production-readiness priority is proving more of SimplyStore's ACID claims, specifically durability. The durability goal is for SimplyStore to survive crashes at any point in its update cycle and recover, or fail instead of silently using corrupted data.
+1. Full-history rebuild into a separate dataset, then discoverable Unix-style
+   administrative CLI operations with useful help.
+2. File-backed retrieval as the sole approach and evaluation of a replacement
+   query sandbox. Preserve the remote API; internal data access may change.
+3. Recursive per-object history, including deletion and restoration under the
+   same ID, with command, author and message information.
+4. UI redesign around developer query/exploration tasks, with maintenance and
+   grant-controlled administration, and simple downstream customization.
+5. UI/file-based schema authoring, personal query/visualization fixtures, and
+   in-UI conversation using the user's own AI.
+6. Temporary shared workspaces, conflict resolution and optional instance-level
+   merge approval by listed accounts.
 
-The current durability/extensibility source is `.spiral/sources/SRC-001.md`. The first ordered slice is baseline archaeology, followed by a crash/fault-injection harness, an independent reconstruction oracle, adversarial storage tests, retry/idempotency hardening, after-change handler contracts, handler failure evidence, optional integrity roots, integrity acceptance tests, property/randomized durability tests, destructive soak tests, a minimal post-commit extension seam, a demonstration derived store, and `DURABILITY.md`.
+This is a **revision** of the old immediate sequence. Broader randomized/soak
+and filesystem testing, availability improvements, a command IDE, published
+fixtures, authoring AI, MCP and automation remain later options. Risk analysis
+may bring forward an investigation that reduces important downstream uncertainty.
+Keep the project's simplicity constraint central, including future change cost.
 
-**2026-09-19 refinement — revise immediate order:** `SRC-20260919-TTZ7C-18`, `UND-20260919-TTZ7C-19`, and `REQ-20260919-TTZ7C-20` bring durable file publication and administrative recovery ahead of general randomized/soak work. These refine the earlier failure-only allowance: explicit startup refusal must be accompanied by a tested recovery route. Accepted/completed acknowledgments need complete file/directory persistence barriers; storage-fault evidence precedes hardening, followed by recovery tooling, command-input completeness, consistent backup/restore, latency measurements, and a disposable filesystem power-loss exercise. The rest of the original roadmap remains.
+SRC-001 / REQ-001 / DES-001 retain the original durability rationale and
+invariants. SRC-20260919-TTZ7C-18 / REQ-20260919-TTZ7C-20 refined power-loss and
+administrative recovery; that implementation is accepted. DURABILITY.md states
+its bounded filesystem evidence. Do not read earlier requests for baseline tests
+or recovery implementation as proof that this work is still missing.
 
-**Recovery contract (required, not yet implemented):** missing datasets do not prove that external effects never happened. Ordinary rerun requires administrator approval and no later accepted command with a dataset; execute eligible trailing missing/waiting commands in original order from verified preceding state. Automatic retries must not bypass this rule. Preserve original evidence, preview recovery on a copy, and validate before explicit promotion. Required command inputs must be logged; omissions are bugs. Separate full rebuild may replay selected history with changed code into a new store while instructing commands/hooks to suppress external side effects. Record that cooperative contract in this cycle; full rebuild tooling is follow-up work.
+Ordinary recovery requires administrator authorization and no later accepted
+command with a dataset before an earlier command may rerun. Missing files do
+not prove effects did not happen. Preserve original evidence and deliberate
+promotion. Full-history rebuilding with selected code and suppressed effects is
+separate, still future work. Logged commands must contain all required inputs.
 
-Process continuity rule: before proposing the next durability/production-readiness cycle, re-read `.spiral/sources/SRC-001.md`, `.spiral/requests/REQ-001.md`, `.spiral/designs/DES-001.md`, and the 2026-09-19 refinement in `.spiral/sources/SRC-20260919-TTZ7C-18.md` / `.spiral/requests/REQ-20260919-TTZ7C-20.md`; identify the current position in that ordered plan; compare the latest evidence with it; and explicitly classify the proposal as continue, revise, or deliberate deviation.
+Workspaces must prohibit external effects during workspace execution; accepted
+merges may perform them. Actual merge execution versus publication of a validated
+replay remains a design investigation, judged by simplicity now and later.
+QuickJS/V8 selection, schema generalization and bring-your-own-AI connections
+also remain open. The roadmap does not authorize file-format migrations.
 
-Current Spiral collaboration rule: treat planning, evaluation, and ambiguous human suggestions as discourse until a sufficiently explicit commitment exists. Human confirmation of a cycle goal is the commitment boundary for execution within that goal; later tentative comments should not silently become scope expansion. Before commitment, surface material ambiguities, contradictions, unsupported premises, or alternative framings when resolving them differently could materially change downstream work.
+Before proposing a cycle, read the roadmap and applicable durability references,
+reconcile current effective behavior and accepted evidence, and classify the
+proposal as continue, revise or deliberate deviation. Prioritize uncertainty,
+downstream leverage, late-discovery cost and cheap falsifiability. Horizon labels
+are disposition metadata, not a scoring model or fixed task queue.
 
-Current Spiral risk-selection rule: when choosing the next risk to reduce, consider uncertainty, downstream leverage, late-discovery cost, and cheap falsifiability. Existing blocker/near-term/deferred/existential horizons remain useful disposition metadata, but they are not a scoring model or a substitute for asking what later work depends on an assumption.
-
-A later/secondary direction is adding more options for including SimplyStore as part of a larger system. This should happen through minimal lifecycle seams, not by implementing Kafka, queues, topics, consumer groups, webhooks, a message bus, or an event-sourcing framework in SimplyStore core before evidence requires it.
+Treat unresolved planning suggestions as discourse. Confirm a concrete goal and
+an evidenced gap before consequential product changes. The roadmap establishes
+direction, not blanket implementation or integration authorization.
 
 ## Project Goals And Important Outcomes
 
@@ -163,16 +220,19 @@ A later/secondary direction is adding more options for including SimplyStore as 
 | Developer evaluation confidence | Primary production-readiness audience | Developers should be able to evaluate SimplyStore's limited durability claims from invariants, executable tests, evidence artifacts, explicit failure behavior, and documented known gaps | Human input, `REQ-001`, `DES-001`, current durability tests / explicit and evidenced |
 | Curriculum-store support | Known downstream context | SimplyStore changes should consider `curriculum-store` as a real environment, without letting it silently define all project priorities | Human input and public lookup / explicit and evidenced |
 | Simplicity | Current human direction and project identity | Must remain a shaping constraint while production readiness improves; do not add database/message-bus/event-sourcing machinery without evidence | Human input, README, completed intake / explicit and evidenced |
-| Durability proof for ACID claims | First production-readiness priority | Survive crashes at any point in the update cycle and recover, or fail instead of silently using corrupted data; first work is baseline evidence and crash/fault-injection testing | Human input, README roadmap, `SRC-001` / explicit and evidenced |
+| Durability proof for ACID claims | Preserve the accepted foundation while extending the system | Retain acknowledged-state, ordering and recovery guarantees within the documented envelope; broader testing is long range | DURABILITY.md, accepted EVD-27/EVD-41, SRC-20260919-TTZ7C-43 |
 | Integration into larger systems | Secondary direction after durability | Add minimal lifecycle seams for derived stores and post-commit observers; do not add broad messaging/event machinery without evidence | Human input, `SRC-001` / explicit |
 | Usable self-describing API over simple datasets | Stated project purpose | Preserve existing public behavior unless a cycle explicitly justifies and evaluates a breaking change | README, completed intake |
 | JSONTag-based semantic data support | Central differentiator | Preserve compatibility expectations unless a cycle explicitly justifies and evaluates a breaking change | README, completed intake |
 | Safe query execution | JavaScript queries run against provided data | VM2 is known unsafe; target replacement pending | README |
-| Dataset scale expectations | README states a test goal around 1GB in memory | Unknown; not a current intake driver | README |
+| Dataset scale expectations | Larger datasets with reduced memory use | File-backed-only direction; exact scale/latency targets remain to be measured | SRC-20260919-TTZ7C-43; maintainer reports favorable tests, not reproduced here |
 
 ## Project Posture
 
-Brownfield reusable Node.js library moving from experimental toward developer-evaluable production readiness. It is not yet an established production service; the current hardening focus is bounded durability evidence and minimal extensibility while preserving simplicity.
+Brownfield reusable Node.js library moving from experimental toward
+developer-evaluable production readiness. The roadmap builds on accepted bounded
+durability evidence while preserving simplicity. Internet-facing queries are a
+future evaluation target, not a current deployment-safety claim.
 
 ## Important Invariants And Commitments
 
@@ -180,7 +240,7 @@ Brownfield reusable Node.js library moving from experimental toward developer-ev
 |---|---|---|
 | Simplicity remains central | Production readiness should not turn SimplyStore into a conventional database, event-sourcing framework, message bus, or broad data platform | Human input / explicit |
 | Durable on-disk format must not silently change | Any on-disk format change needs an explicit cycle that treats migration, compatibility, and failure behavior as part of the work | Human input / explicit |
-| JavaScript query API must not silently change | Query API compatibility matters to developers and downstream users; breaking changes need explicit justification and evaluation | Human input / explicit |
+| Remote API compatibility | Preserve the remote interface; internal data-access APIs may change where needed for file-backed retrieval/runtime independence. Do not infer authorization for unrelated public behavior changes. | SRC-20260919-TTZ7C-43 / explicit |
 | REST API must not silently change | REST behavior is part of the public integration surface; breaking changes need explicit justification and evaluation | Human input / explicit |
 | Existing public data behavior should be preserved by default | Behavior changes need a cycle-level reason and evidence, especially where `curriculum-store` or other downstream users may depend on it | Human input / explicit |
 | Durability claims require executable evidence | SimplyStore should survive crashes at any update point and recover, or fail instead of silently using corrupted data | Human input / explicit |
@@ -204,11 +264,11 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Decision / commitment | Why it still matters | Reversibility / exit cost | Source/confidence |
 |---|---|---|---|
 | Node.js/Express library | Defines integration surface and runtime | Unknown | `package.json`, README / evidenced |
-| In-memory data model | Shapes scale, persistence, query behavior, and failure modes | Unknown | README / evidenced |
+| Existing in-memory/shared-memory model | Historical implementation; roadmap replaces it with file-backed retrieval only | Internal data access may change; preserve remote API and durability | SRC-20260919-TTZ7C-43 / explicit future direction |
 | JavaScript query interface | Core user-facing capability and security concern | Unknown | README / evidenced |
 | JSONTag support | Core semantic-data representation | Unknown | README / evidenced |
 | VM2 currently used for sandboxing | Known security issue and migration pressure | Intended to replace; exit cost unknown | README, `package.json` / evidenced |
-| ACID/durability claims should be proven before broader production confidence | Current first priority | Must cover crashes at any point in update cycle; exact scenario ordering pending human input | Human input, README roadmap / explicit and evidenced |
+| ACID/durability claims need bounded evidence | Still governs confidence as roadmap features change the runtime | Preserve the documented envelope; risk analysis selects further evidence work | SRC-001, DURABILITY.md, SRC-20260919-TTZ7C-43 |
 | Do not add machinery until an invariant or demonstrated use case requires it | Preserves simplicity while adding production evidence | High-level principle; local application must be justified per cycle | `SRC-001` / explicit |
 
 ## Core Concepts / Vocabulary
@@ -264,9 +324,14 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | JSONTag packages | Data format support | Core dependency | Parsing/serialization behavior |
 | JAQT | Query helper library | Unknown | Query examples and behavior |
 
-## Known / Tolerated Problems And Risks
+## Historical Risk Register — Revalidate Before Selection
 
-| Concern | Current disposition | Evidence/source | Notes |
+The rows below retain earlier investigation snapshots. Several were addressed
+by later accepted cycles, particularly durability and recovery. They are not a
+current task queue or proof of an outstanding defect. Use current code,
+DURABILITY.md, accepted evidence and ROADMAP.md to reassess them before selection.
+
+| Concern | Disposition when recorded | Evidence/source | Historical notes |
 |---|---|---|---|
 | VM2 has known security issues | Investigate | README | README says to keep SimplyStore away from public access until replacement |
 | Durability claims are not yet sufficiently proven | Investigate | Human input, README roadmap, `SRC-001`, `EVD-001` | Active first Spiral cycle area; target is recovery after crashes at any update point or explicit failure rather than silent corrupted-data use |
@@ -318,13 +383,10 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 
 ## Later Possibilities
 
-- Continue guided brownfield intake as concrete durability, security, API, and downstream questions arise.
-- Add a developer/operator script for resetting or cleaning local/example datasets after explicit recovery failures.
-- Administrative inspection, authorized ordered recovery, and consistent backup/restore are now committed in CYC-20260919-TTZ7C-17. More general automatic repair remains a later decision.
-- Characterize the VM2 replacement risk as a candidate early Spiral cycle.
-- Extend process-level fault tests around command acceptance, changeset write, status append, and restart recovery.
-- Define larger-system integration options after the durability priority is better bounded.
-- Produce `DURABILITY.md` only when executable evidence supports the documented claims.
+Use ROADMAP.md for current later options and scope. Broader testing and
+availability, a command IDE, published fixtures, authoring AI, MCP and automation
+remain longer range. Existing minimal post-commit/derived-store ideas may support
+concrete integration needs without requiring a broad event framework.
 
 ## Durable Non-Goals
 
