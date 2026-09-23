@@ -7,5 +7,5 @@ project:CYC-20260923-TTZ7C-44
     dcterms:identifier "CYC-20260923-TTZ7C-44" ;
     sd:repositoryPath ".spiral/cycles/CYC-20260923-TTZ7C-44.md" ;
     sd:status sd:Active  ;
-    sd:derivedFrom [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-46 ; sd:gitCommit "a75db831ee6779bbf297e94b9d1baf694692cb84" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:CYC-20260923-TTZ7C-44 ; sd:gitCommit "a64b81373b2ef3d8252b400d7a18b9242038adb2" ] .
+    sd:derivedFrom [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-46 ; sd:gitCommit "b279aefe78a262a041b59dff2e2c199233fbcf7d" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:CYC-20260923-TTZ7C-44 ; sd:gitCommit "d9d8ff860ed2b74585ea66454382c9baf4a09250" ] .
