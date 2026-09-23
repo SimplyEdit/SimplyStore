@@ -18,12 +18,14 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Current documentation cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
-Context, on spiral/CYC-20260919-TTZ7C-42-roadmap. The completed maintainer
-interview authorizes the roadmap update only. No next product task is selected;
-Spiral risk analysis selects it using ROADMAP.md and current evidence.
+Latest accepted cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
+Context, on spiral/CYC-20260919-TTZ7C-42-roadmap. The maintainer accepted the
+evaluated branch tip 10a39df3e946944a168614fd59514f2aeb4aec05 on 2026-09-23.
+The documentation cycle is closed; integration into master remains a separate
+decision. No next product task is selected; Spiral risk analysis selects it
+using ROADMAP.md and current evidence.
 
-Latest accepted cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
+Previously accepted and integrated cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
 Workflows, on spiral/CYC-20260919-TTZ7C-36-runtime-contracts. The maintainer
 confirmed this cycle after independent review found three regressions in the
 accepted runtime refactor. It deliberately precedes remaining randomized/soak
