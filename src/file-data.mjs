@@ -8,7 +8,7 @@ import idIndex, {
 import offsetIndex from './index.offset.mjs'
 import { loadStoredIndex } from './index-files.mjs'
 import JSONTag from '@muze-nl/jsontag'
-import Parser from '@muze-nl/od-jsontag/src/parse.mjs'
+import Parser from '@muze-nl/od-jsontag/src/node.mjs'
 import { RecoveryIntegrityError, assertChangesetExists } from './recovery.mjs'
 import { getDefaultIntegrityFile, loadIntegrityManifest, verifyDigest }
     from './integrity.mjs'

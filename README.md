@@ -3,10 +3,10 @@
 SimplyStore is a radically simpler backend storage server. It does not have a database, certainly no SQL or GraphQL, it is not REST. In return it has a well defined API that is automatically derived from your dataset. It supports JSONTag to allow for semantically meaningful data, without having to do the full switch to Linked Data and triple stores. The query format is javascript, you can post javascript queries that will run on the server. Dataset records are read lazily from indexed files. Javascript queries use ordinary objects and arrays; SimplyStore manages file access and indexes.
 
 [JSONTag](https://github.com/muze-nl/jsontag) is an enhancement over JSON that allows you to tag JSON data with metadata using HTML-like tags.
-Javascript queries are run in a [VM2](https://www.npmjs.com/package/vm2) sandbox. 
+Javascript queries run in fresh [isolated-vm](https://github.com/laverdet/isolated-vm) isolates with read-only, host-authorized data views.
 You can query data using the [jaqt](https://github.com/muze-nl/jaqt/)  library.
 
-Note: _There are known security issues in VM2, so the project will switch to V8-isolate. For now make sure SimplyStore is not publically accessible, by adding an api gateway in front of it for example_
+See [query execution](docs/query-runtime.md) for capabilities, resource limits, native runtime requirements and the tested isolation boundary. Engine replacement alone does not establish readiness for unrestricted public access.
 
 ## Table of Contents
 
@@ -14,6 +14,7 @@ Note: _There are known security issues in VM2, so the project will switch to V8-
 - [Install](#install)
 - [Usage](#usage)
 - [File-backed Data](docs/file-data.md)
+- [Query Execution and Limits](docs/query-runtime.md)
 - [Custom Index Modules](#custom-index-modules)
 - [Example Query](#examples)
 - [Goals](#goals)
@@ -24,7 +25,7 @@ Note: _There are known security issues in VM2, so the project will switch to V8-
 <a name="install"></a>
 ## Install
 
-SimplyStore is a NodeJS/[ExpressJS](https://expressjs.com/) library. You can install it in your application like this:
+SimplyStore is a NodeJS/[ExpressJS](https://expressjs.com/) library requiring Node 22 or newer and a compatible isolated-vm native addon. You can install it in your application like this:
 
 ```shell
 npm install @muze-nl/simplystore
@@ -57,7 +58,7 @@ simplystore is an [express application](https://expressjs.com/), with all the us
 If you start your server:
 
 ```shell
-node myApp.js
+node --no-node-snapshot myApp.js
 ```
 
 You should be able to go http://localhost:3000/query/ and see something like this:

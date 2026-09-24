@@ -1,0 +1,20 @@
+[
+  {
+    "name": "filter",
+    "ms": 565.751063,
+    "reads": 10000,
+    "result": 1667
+  },
+  {
+    "name": "sort",
+    "ms": 91.27740399999993,
+    "reads": 1667,
+    "result": 1666
+  },
+  {
+    "name": "project",
+    "ms": 0.1880230000000438,
+    "reads": 0,
+    "result": "50 checked below"
+  }
+]

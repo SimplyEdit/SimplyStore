@@ -2,6 +2,7 @@ import { AsyncResource } from 'node:async_hooks'
 import { EventEmitter } from 'node:events'
 import path from 'node:path'
 import { Worker } from 'node:worker_threads'
+import { WorkerTimeoutError } from './execute-worker.mjs'
 
 class QueryTask extends AsyncResource {
     constructor(task, resolve, reject) {
@@ -42,9 +43,12 @@ export default class WorkerPool extends EventEmitter {
 
     addNewWorker() {
         const worker = new Worker(this.workerFile)
-        const state = { pending: [this.initTask], active: null, query: null }
+        const state = {
+            pending: [this.initTask], active: null, query: null, timer: null
+        }
         this.workers.set(worker, state)
         worker.on('message', result => {
+            clearTimeout(state.timer)
             const query = state.query
             state.active = null
             state.query = null
@@ -76,6 +80,15 @@ export default class WorkerPool extends EventEmitter {
             task = query.task
         }
         state.active = task
+        if (task.name === 'query' && task.timeout > 0) {
+            // Allow the isolate to return its timeout response first. The
+            // outer deadline also covers host callbacks and message handling.
+            const deadline = task.timeout + 250
+            state.timer = setTimeout(() => {
+                this.workerFailed(worker,
+                    new WorkerTimeoutError('query worker', deadline))
+            }, deadline)
+        }
         worker.postMessage(task)
     }
 
@@ -84,6 +97,7 @@ export default class WorkerPool extends EventEmitter {
         if (!state) {
             return
         }
+        clearTimeout(state.timer)
         this.workers.delete(worker)
         const termination = worker.terminate()
         this.terminating.add(termination)
@@ -148,6 +162,7 @@ export default class WorkerPool extends EventEmitter {
             query.done(error)
         }
         await Promise.all([...this.workers].map(async ([worker, state]) => {
+            clearTimeout(state.timer)
             await worker.terminate()
             if (state.query) {
                 state.query.done(error)

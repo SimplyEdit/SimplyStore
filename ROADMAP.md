@@ -91,19 +91,22 @@ performance guarantee. Verify representative query/command performance and
 memory use, including data larger than RAM, when choosing the implementation.
 Preserve consistent views, authoritative ordering and durability behavior.
 
-### Replace VM2; evaluate QuickJS and V8 isolates
+### Replace VM2 with isolated-vm
 
 Replace the existing VM2 sandbox with an execution boundary whose isolation and
 performance can support consideration of an internet-facing query interface.
-QuickJS and V8 isolates are candidates to investigate, not selected dependencies
-or a commitment to replace the whole server runtime.
+The maintainer selected isolated-vm on 2026-09-24 after comparing QuickJS,
+Secure Exec and isolated-vm. The [retained benchmark](benchmark/query-engines/comparison.md)
+shows a substantial advantage with the portable parser and synchronous data
+bridge. Selection authorizes query-worker integration, not replacement of the
+whole server runtime. Do not use snapshots for this integration.
 
 Required query behavior:
 
 - Anonymous or authenticated access, configurable per instance.
 - Read-only dataset access under the applicable grants.
-- No arbitrary filesystem or network access; dataset reads go through a
-  controlled boundary.
+- No imports, Node modules, filesystem, network or database APIs in queries;
+  permitted dataset access goes through a controlled boundary.
 - Enforced execution-time, memory and result-size limits.
 
 Evaluate candidate isolation, termination, resource enforcement, compatibility
@@ -115,7 +118,8 @@ help remove shared-memory coupling without exposing arbitrary files to queries.
 
 Allow a JavaScript query to find a specific object's previous version, then
 follow previous versions recursively. Each version gives access to its command,
-author and message. The purpose is a UI-readable audit trail.
+author and message. The immediate purpose is queryable history and an inspectable audit trail;
+a dedicated user interface can follow later.
 
 - Deleted objects remain discoverable by ID and retain their history.
 - Deletion remains a visible step in the version chain.

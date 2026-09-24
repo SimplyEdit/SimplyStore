@@ -50,6 +50,14 @@ function normalizeWorkerTimeout(name, value, defaultValue) {
     return timeout
 }
 
+function queryLimit(name, value, fallback, minimum = 1) {
+    const limit = value ?? fallback
+    if (!Number.isSafeInteger(limit) || limit < minimum) {
+        throw new Error(`${name} must be an integer of at least ${minimum}`)
+    }
+    return limit
+}
+
 function createRuntimeConfiguration(options) {
     const datafile = options.datafile || './data.od-jsontag'
     const integrityFile =
@@ -79,8 +87,15 @@ function createRuntimeConfiguration(options) {
             options.commandsFile || rootDirectory + '/src/commands.mjs',
         indexFile: options.indexFile || rootDirectory + '/src/index.mjs',
         access: options.access || null,
-        timeout: options.timeout || 1000,
-        slowTimeout: options.slowTimeout || 10000,
+        timeout: queryLimit('timeout', options.timeout, 1000),
+        slowTimeout: queryLimit('slowTimeout', options.slowTimeout, 10000),
+        queryMemoryLimit: queryLimit(
+            'queryMemoryLimit', options.queryMemoryLimit, 64, 8
+        ),
+        maxQueryResultBytes: queryLimit(
+            'maxQueryResultBytes', options.maxQueryResultBytes,
+            10 * 1024 * 1024, 256
+        ),
         commandTimeout: normalizeWorkerTimeout(
             'commandTimeout',
             options.commandTimeout,
@@ -264,7 +279,11 @@ export class StoreRuntime {
             req: {
                 sources: this.sources,
                 meta: this.meta,
-                access: this.configuration.access
+                access: this.configuration.access,
+                limits: {
+                    memoryLimit: this.configuration.queryMemoryLimit,
+                    maxResultBytes: this.configuration.maxQueryResultBytes
+                }
             },
             timeout
         }
