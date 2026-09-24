@@ -6,4 +6,5 @@ project:EVD-20260924-TTZ7C-60 a sd:VerificationEvidence ;
     sd:repositoryPath ".spiral/evidence/EVD-20260924-TTZ7C-60.md" ;
     sd:verifies [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "bd507554a2fed6f77322ef38a98839f127d810db" ] ;
     sd:verifies [ a sd:ArtifactReference ; sd:artifact project:DES-20260924-TTZ7C-59 ; sd:gitCommit "1e2c7851a12ddc1b4c236d557a70479f411dfb8d" ] ;
+    sd:verifies [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "bd8f8eb3ee617c5f9e9198f234725ef7ab5b4201" ] ;
     sd:status sd:Active .

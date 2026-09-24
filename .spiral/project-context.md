@@ -18,14 +18,18 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Active cycle: CYC-20260924-TTZ7C-56, isolated-vm query execution, on
+Latest accepted cycle: CYC-20260924-TTZ7C-56, isolated-vm query execution, on
 spiral/CYC-20260924-TTZ7C-56-isolated-vm. The maintainer selected isolated-vm after
 capability and performance probes and explicitly authorized continuation.
 SRC-20260924-TTZ7C-57 retains the commitment. This continues ROADMAP section 2.
 The branch implementation now uses isolated-vm with host-authorized read-only
 views and fresh per-query isolates. EVD-20260924-TTZ7C-60 records 202 passing tests,
 clean lint, copied-example verification and actual worker timings (about 453 ms
-for a 10,000-record scan). Human acceptance and integration remain pending.
+for a 10,000-record scan). The maintainer accepted the cycle on 2026-09-24 at
+bd8f8eb3ee617c5f9e9198f234725ef7ab5b4201 and requested version 0.11.0.
+The published od-jsontag 0.5.0 package also passed all 202 tests and copied-example
+checks. Acceptance closes this cycle; integration remains pending. No next cycle
+is active.
 Queries must have no import, Node filesystem/network/database authority. Preserve
 existing grants and file-backed ordering. Queryable history follows; UI can wait.
 
