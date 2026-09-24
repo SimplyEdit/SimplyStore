@@ -4,4 +4,5 @@
 project:CYC-20260924-TTZ7C-56 a sd:Cycle ;
     dcterms:identifier "CYC-20260924-TTZ7C-56" ;
     sd:repositoryPath ".spiral/cycles/CYC-20260924-TTZ7C-56.md" ;
+    sd:derivedFrom [ a sd:ArtifactReference ; sd:artifact project:REQ-20260924-TTZ7C-58 ; sd:gitCommit "fdef01a844e14f50c0af1aac6e89461714736f6d" ] ;
     sd:status sd:Active .

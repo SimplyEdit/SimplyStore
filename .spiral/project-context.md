@@ -22,7 +22,10 @@ Active cycle: CYC-20260924-TTZ7C-56, isolated-vm query execution, on
 spiral/CYC-20260924-TTZ7C-56-isolated-vm. The maintainer selected isolated-vm after
 capability and performance probes and explicitly authorized continuation.
 SRC-20260924-TTZ7C-57 retains the commitment. This continues ROADMAP section 2.
-The current implementation still uses VM2; integration and evaluation are pending.
+The branch implementation now uses isolated-vm with host-authorized read-only
+views and fresh per-query isolates. EVD-20260924-TTZ7C-60 records 202 passing tests,
+clean lint, copied-example verification and actual worker timings (about 453 ms
+for a 10,000-record scan). Human acceptance and integration remain pending.
 Queries must have no import, Node filesystem/network/database authority. Preserve
 existing grants and file-backed ordering. Queryable history follows; UI can wait.
 
@@ -333,7 +336,7 @@ This is not yet a claim that SimplyStore is production-safe for all workloads. I
 | Dependency | Role | Replaceability/constraint | Review scope |
 |---|---|---|---|
 | Express | HTTP application framework | Unknown | Runtime/API behavior |
-| VM2 | Current JavaScript sandbox | Known security concern; planned replacement | Security, query behavior |
+| isolated-vm | Fresh query isolates on CYC-56 | Native V8 dependency; host-authorized data bridge | Query capabilities, limits, compatibility and deployment boundary |
 | JSONTag packages | Data format support | Core dependency | Parsing/serialization behavior |
 | JAQT | Query helper library | Unknown | Query examples and behavior |
 
