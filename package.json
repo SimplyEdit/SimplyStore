@@ -25,7 +25,7 @@
 	"dependencies": {
 		"@muze-nl/jaqt": "^0.10.6",
 		"@muze-nl/jsontag": "^0.10.4",
-		"@muze-nl/od-jsontag": "git+https://github.com/muze-nl/od-jsontag.git#24f47eb616c3a24391487197496804ed1c56837b",
+		"@muze-nl/od-jsontag": "0.5.0",
 		"esbuild": "0.25.12",
 		"express": "^5.2.1",
 		"isolated-vm": "6.2.0"

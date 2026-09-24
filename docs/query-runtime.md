@@ -30,8 +30,9 @@ workers initialize at the current committed head.
 
 This differs from the initial engine benchmark's raw-record bridge. Keeping the
 existing parser and grants on the host avoids moving authority into the hostile
-query realm. Portable od-jsontag remains independent work; this integration uses
-the accepted pinned Node parser.
+query realm. This integration uses od-jsontag 0.5.0 through its Node entry point
+(`src/node.mjs`) for file-descriptor input. The package's portable parser is not
+loaded into the query isolate.
 
 ## Limits
 
