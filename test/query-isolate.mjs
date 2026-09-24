@@ -13,7 +13,7 @@ async function open(t, options = {}) {
     const fixture = await makeServerFixture(t, {
         initialData: '{"persons":[' +
             '<object id="alice">{"name":"Padmé 𠮷", "gender":"private",' +
-            '"age":32,"url":<url>"https://example.test/a"},' +
+            '"age":32,"existenceOnly":"private","url":<url>"https://example.test/a"},' +
             '<object id="bob">{"name":"Bob","gender":"private","age":20}' +
             '],"hidden":{"secret":"do not expose"}}'
     })
@@ -21,6 +21,9 @@ async function open(t, options = {}) {
     await fs.writeFile(access, `
         import { basename } from 'node:path'
         export default function access(object, property, method) {
+            if (property === 'existenceOnly') {
+                return method === 'has'
+            }
             return property !== basename('/hidden/gender') &&
                 property !== 'hidden' &&
                 !(property === 'age' && method === 'has')
@@ -112,6 +115,9 @@ test('host grants protect reads, reflection and parser internals', async t => {
     assert.equal(await query('data.persons[0].name'), 'Padmé 𠮷')
     assert.equal(await query('"age" in data.persons[0]'), false)
     assert.equal(await query('data.persons[0].age'), 32)
+    assert.deepEqual(await query(`[
+        'existenceOnly' in data.persons[0], data.persons[0].existenceOnly
+    ]`), [true, null])
 })
 
 test('queries have no Node or import capabilities, including generated imports',

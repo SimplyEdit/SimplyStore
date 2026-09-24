@@ -112,10 +112,10 @@ export class QueryView {
         const name = property(key)
         // The parser's descriptor trap applies the same grants as reading.
         // Never forward a host prototype or function into the isolate.
-        const descriptor = Reflect.getOwnPropertyDescriptor(value, name)
         if (operation === 'has') {
-            return Boolean(descriptor) && Reflect.has(value, name)
+            return Reflect.has(value, name)
         }
+        const descriptor = Reflect.getOwnPropertyDescriptor(value, name)
         if (!descriptor) {
             return { present: false }
         }
