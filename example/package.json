@@ -3,7 +3,7 @@
     "main": "server.mjs",
     "scripts": {
         "build": "node ../scripts/convert.mjs swdb.jsontag data.jsontag",
-        "start": "node server.mjs",
+        "start": "node --no-node-snapshot server.mjs",
         "init-integrity": "node ../scripts/recover.mjs init-integrity --store store.json"
     },
     "dependencies": {

@@ -4,15 +4,15 @@
 	"main": "src/server.mjs",
 	"type": "module",
 	"scripts": {
-		"start": "node src/run.mjs",
-		"test": "node --test test/required-integrity.mjs test/file-data.mjs test/index-ids.mjs test/store-runtime.mjs test/durability-startup.mjs test/conversion-offsets.mjs test/command-offsets.mjs",
-		"test:acid": "node --test test/acid-baseline.mjs",
-		"test:durability": "node --test test/durability-crash.mjs",
-		"test:handlers": "node --test test/after-change-handlers.mjs",
-		"test:power-loss": "node --test --test-reporter=tap test/power-loss-baseline.mjs",
+		"start": "node --no-node-snapshot src/run.mjs",
+		"test": "node --no-node-snapshot --test test/query-isolate.mjs test/required-integrity.mjs test/file-data.mjs test/index-ids.mjs test/store-runtime.mjs test/durability-startup.mjs test/conversion-offsets.mjs test/command-offsets.mjs",
+		"test:acid": "node --no-node-snapshot --test test/acid-baseline.mjs",
+		"test:durability": "node --no-node-snapshot --test test/durability-crash.mjs",
+		"test:handlers": "node --no-node-snapshot --test test/after-change-handlers.mjs",
+		"test:power-loss": "node --no-node-snapshot --test --test-reporter=tap test/power-loss-baseline.mjs",
 		"test:power-loss:strict": "SIMPLYSTORE_BASELINE_STRICT=1 node --test --test-reporter=tap test/power-loss-baseline.mjs",
-		"test:recovery": "node --test test/storage.mjs test/admin-recovery.mjs",
-		"bench:durability": "node --test test/durability-latency.mjs"
+		"test:recovery": "node --no-node-snapshot --test test/storage.mjs test/admin-recovery.mjs",
+		"bench:durability": "node --no-node-snapshot --test test/durability-latency.mjs"
 	},
 	"author": "auke@muze.nl",
 	"license": "MIT",
@@ -26,8 +26,9 @@
 		"@muze-nl/jaqt": "^0.10.6",
 		"@muze-nl/jsontag": "^0.10.4",
 		"@muze-nl/od-jsontag": "git+https://github.com/muze-nl/od-jsontag.git#24f47eb616c3a24391487197496804ed1c56837b",
+		"esbuild": "0.25.12",
 		"express": "^5.2.1",
-		"vm2": "^3.12.2"
+		"isolated-vm": "6.2.0"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
@@ -43,6 +44,10 @@
 		"LICENSE",
 		"src/",
 		"www/",
-		"scripts/"
-	]
+		"scripts/",
+		"docs/query-runtime.md"
+	],
+	"engines": {
+		"node": ">=22.0.0"
+	}
 }

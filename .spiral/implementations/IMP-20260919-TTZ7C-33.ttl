@@ -32,8 +32,10 @@ project:IMP-20260919-TTZ7C-33
     sd:implementationLocation "test/index-ids.mjs" ;
     sd:implementationLocation "scripts/benchmark-file-data.mjs" ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "83edb03bc406b9e651ef93bed69b87ece17dcf47" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:DEF-20260923-TTZ7C-50 ; sd:gitCommit "4bb10c2013fd2a7cb989b02586b992b936121362" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "c8a3fd9464abfd5e7b699a2752789d82af4da2da" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-54 ; sd:gitCommit "c8a3fd9464abfd5e7b699a2752789d82af4da2da" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-53 ; sd:gitCommit "c8a3fd9464abfd5e7b699a2752789d82af4da2da" ] ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260924-TTZ7C-59 ; sd:gitCommit "1e2c7851a12ddc1b4c236d557a70479f411dfb8d" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "1e119dd101dd231a7cf24ba1b9d6c3e4999e8f60" ] ;
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:REQ-20260924-TTZ7C-58 ; sd:gitCommit "fdef01a844e14f50c0af1aac6e89461714736f6d" ] ;
+    sd:shapedBy [ a sd:ArtifactReference ; sd:artifact <https://muze.nl/ns/spiral-developer/culture/CUL-MUZE-001> ; sd:gitCommit "8d4b2c738a413abd4cccca740ce958f486e5f7af" ] ;
+    sd:implementationLocation "src/query-isolate.mjs", "src/query-view.mjs", "src/query-guest.mjs", "test/query-isolate.mjs", "scripts/benchmark-query-runtime.mjs" ;
     sd:implementationChangeKind sd:SemanticChange .
