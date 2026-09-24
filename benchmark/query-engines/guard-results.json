@@ -1,0 +1,13 @@
+{
+  "globals": {
+    "require": "undefined",
+    "process": "undefined",
+    "fetch": "undefined",
+    "TextEncoder": "undefined",
+    "TextDecoder": "undefined"
+  },
+  "dynamic": "Not supported",
+  "generated": "Not supported",
+  "timeoutMs": 100.36332499999999,
+  "afterTimeout": 3
+}

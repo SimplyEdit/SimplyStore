@@ -18,43 +18,25 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Active cycle: none. Latest accepted cycle: CYC-20260923-TTZ7C-51, required
-integrity and existing-store initialization, accepted on 2026-09-23, awaiting
-integration on spiral/CYC-20260923-TTZ7C-51-required-integrity. This continues
-the reliability roadmap from the accepted file-backed tip while integration is
-pending. The maintainer explicitly confirmed mandatory hashes, initialization
-and latency measurement. Implementation and evaluation are complete: 193 tests
-pass, lint is clean, the copied example retains its command after initialization,
-and local ext4 median completion increased roughly 2 ms. EVD-55 retains evidence.
-Normal startup now requires hashes; existing stores use explicit init-integrity.
-The maintainer confirmed startup refusal without integrity, successful
-initialization and working commands. Acceptance is retained in CYC-51.
-Both CYC-44 and CYC-51 are accepted; integration remains a separate decision.
-No next cycle is selected.
+Active cycle: CYC-20260924-TTZ7C-56, isolated-vm query execution, on
+spiral/CYC-20260924-TTZ7C-56-isolated-vm. The maintainer selected isolated-vm after
+capability and performance probes and explicitly authorized continuation.
+SRC-20260924-TTZ7C-57 retains the commitment. This continues ROADMAP section 2.
+The current implementation still uses VM2; integration and evaluation are pending.
+Queries must have no import, Node filesystem/network/database authority. Preserve
+existing grants and file-backed ordering. Queryable history follows; UI can wait.
 
-Previously accepted cycle: CYC-20260923-TTZ7C-44,
-File-backed dataset runtime, accepted on 2026-09-23, awaiting integration on
-spiral/CYC-20260923-TTZ7C-44-file-backed. The maintainer authorized replacing
-shared-memory data after reviewing od-jsontag hardening. This continues the
-file-only roadmap direction, prioritized ahead of rebuild. SRC-45, UND-48,
-REQ-46 and DES-47 (20260923-TTZ7C namespace) retain the commitment. Implementation
-uses ordered file sources, bounded clean-record caches, worker-owned handles,
-bounded hashing and file-backed administrative replay. Committed offset and ID
-indexes are trusted and loaded directly; missing indexes reconstruct, and
-validation/reconstruction are explicit maintenance options. ID indexes are
-finalized from serialized bytes and durable before success. Integrity manifests
-cover canonical data and present standard index files. Duplicate IDs are
-errors; no legacy index compatibility is required. The maintainer verified the
-example folder and explicitly confirmed these corrections.
-EVD-20260923-TTZ7C-49 records 178 passing tests, clean lint and large-file probes.
-The maintainer confirmed the tests, successful example command application and
-persistence after restart. Acceptance is retained in the cycle record.
-Integration remains pending; accepted CYC-51 adds mandatory integrity.
-Client-visible version metadata and audit trails follow this migration;
-neither is implemented here.
+Latest integrated cycle: CYC-20260923-TTZ7C-51, required integrity, accepted
+and integrated through PR #26 at 029b36f. The earlier file-backed CYC-44 is also
+accepted and integrated. The previous pending-integration text was stale.
+Normal startup requires integrity manifests; init-integrity initializes existing
+stores explicitly. CYC-51 evidence records 193 passing tests, example operation,
+and approximately 2 ms median local command-latency overhead.
 
-Latest integrated cycle: CYC-20260919-TTZ7C-42, Updated Roadmap And Planning
-Context. Accepted on 2026-09-23 and integrated through PR #24 at dbb0703.
+The integrated file-backed foundation uses ordered sources, trusted offset/ID
+indexes, worker-owned file handles, bounded clean-record caches, mandatory hashes,
+and durable index publication. Duplicate IDs are errors; no legacy index mode
+exists. Keep these contracts while replacing query execution.
 
 Previously accepted and integrated cycle: CYC-20260919-TTZ7C-36, Reliable Runtime Contracts And Readable
 Workflows, on spiral/CYC-20260919-TTZ7C-36-runtime-contracts. The maintainer
