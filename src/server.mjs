@@ -23,27 +23,18 @@ async function run(server, options = {}) {
     }
     const port = options.port || 3000
     const wwwroot = options.wwwroot || rootDirectory + '/www'
-    const runtime = await StoreRuntime.open(options, {
-        onStorageFailure(error) {
-            console.error(
-                'Storage outcome uncertain; stopping mutation. ' +
-                'Administrator recovery required:',
-                error
-            )
-            setImmediate(() => process.exit(1))
-        }
-    })
+    let runtime = null
+    let listener = null
+    let stopRequested = false
 
-    configureRoutes(server, runtime, wwwroot)
-    const listener = server.listen(port, () => {
-        console.log('SimplyStore listening on port ' + port)
-    })
-    listener.on('error', error => {
-        runtime.failStorage(error)
-    })
-
+    // Handle stop signals from the start: opening takes ownership, so a stop
+    // while opening lets it finish (or fail) and then closes normally.
     async function shutdown() {
-        listener.close()
+        stopRequested = true
+        if (!runtime) {
+            return
+        }
+        listener?.close()
         try {
             await runtime.close()
             process.exit(runtime.storageFailed ? 1 : 0)
@@ -55,6 +46,29 @@ async function run(server, options = {}) {
 
     process.once('SIGTERM', shutdown)
     process.once('SIGINT', shutdown)
+
+    runtime = await StoreRuntime.open(options, {
+        onStorageFailure(error) {
+            console.error(
+                'Storage outcome uncertain; stopping mutation. ' +
+                'Administrator recovery required:',
+                error
+            )
+            setImmediate(() => process.exit(1))
+        }
+    })
+    if (stopRequested) {
+        await shutdown()
+        return
+    }
+
+    configureRoutes(server, runtime, wwwroot)
+    listener = server.listen(port, () => {
+        console.log('SimplyStore listening on port ' + port)
+    })
+    listener.on('error', error => {
+        runtime.failStorage(error)
+    })
 }
 
 function configureRoutes(server, runtime, wwwroot) {

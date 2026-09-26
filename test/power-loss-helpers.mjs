@@ -154,7 +154,12 @@ export async function copyImage(t, store) {
 		path.join(os.tmpdir(), 'simplystore-crash-image-')
 	)
 	t.after(() => fs.rm(dir, { recursive: true, force: true }))
-	await fs.cp(store.dir, dir, { recursive: true })
+	// Like tar or rsync, skip an owner's liveness socket: it holds no data,
+	// and a copied lock without it still needs administrator release.
+	await fs.cp(store.dir, dir, {
+		recursive: true,
+		filter: async source => !(await fs.lstat(source)).isSocket()
+	})
 	const image = { ...store, dir }
 	for (const key of [
 		'datafile',

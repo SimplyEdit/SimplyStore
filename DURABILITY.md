@@ -43,7 +43,11 @@ suppression remains a separate follow-up contract.
 
 Ownership locks exclude cooperating server/admin writers across configured
 paths. They are not protection against arbitrary filesystem writers or older
-binaries. Stale locks require explicit offline assessment, never PID-age stealing.
+binaries. A server takes over a stale server lock only when that owner's
+liveness socket refuses connections, proving its process has ended on this
+machine; startup assessment still applies, and all other stale locks require
+explicit offline assessment, never PID-age stealing. Stores must not be shared
+between machines.
 Custom hooks must await their work; declare additional required artifacts with
 `requiredFiles`. Default indexes are reconstructible; custom dependencies need
 their own conformance checks. Unsupported directory-sync operations fail rather

@@ -99,11 +99,33 @@ backup or retain the diagnosis; do not claim a safe rerun.
 ## Deal with ownership after a crash
 
 Each mutable directory has a `.simplystore-lock` during operation. Normal shutdown
-drains accepted work before releasing ownership. A crash or storage fault leaves
-locks. Neither PID age nor an apparently dead process authorizes automatic stealing.
-A hung shutdown can be terminated, but then requires this offline procedure.
+drains accepted work before releasing ownership, including a stop that arrives
+while the server is still opening the store. A crash, `SIGKILL`, power loss or
+storage fault leaves locks.
 
-After confirming that no writer remains, inspect and explicitly release locks:
+A server lock contains `owner.sock`, a Unix socket its process listens on. The
+kernel refuses connections to it once that process has ended, however it ended.
+When a server starts and finds a server lock whose socket refuses connections,
+it takes the lock over, logs `Store ownership took over …`, and appends the
+previous owner's diagnostics to `.simplystore-takeovers.jsonl` in the store
+directory. The normal startup checks then still apply: a crash during a command
+stops startup with `Administrative recovery required`, and nothing is rerun.
+
+Anything else is not proof, and startup refuses with `Store is locked`: a
+running owner, a lock written by an older SimplyStore, a lock from an
+administrative tool, a missing or incomplete lock or socket, a store path too
+long for a socket (107 bytes including `/.simplystore-lock/owner.sock`), or a
+filesystem without sockets. A leftover `.simplystore-lock.takeover` directory
+means a takeover was interrupted and also blocks startup. Copies of a store made
+with tools that skip sockets, such as `tar` or `rsync` without `--specials`,
+carry locks that need administrator release.
+
+The proof is local to one machine. Do not open a store directory from more
+than one machine, for example over a network filesystem. PID age, timeouts and
+signal probes never authorize a takeover.
+
+After confirming that no writer remains, inspect and explicitly release locks
+and any interrupted takeover:
 
 ```sh
 node scripts/recover.mjs unlock --store store.json --confirmed-stopped \

@@ -34,14 +34,14 @@ project:IMP-20260919-TTZ7C-26 a sd:Implementation ;
     sd:implementationLocation "docs/recovery.md" ;
     sd:implementationLocation "DURABILITY.md" ;
     sd:implementationLocation "eslint.config.js" ;
-    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260919-TTZ7C-24 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260919-TTZ7C-24 ; sd:gitCommit "2cfb2ee6d202ce63828af985c26569a7c78b32c2" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260919-TTZ7C-25 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-003 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260917-TTZ7C-14 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260819-09ZEF-7 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "83edb03bc406b9e651ef93bed69b87ece17dcf47" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:DEF-20260923-TTZ7C-50 ; sd:gitCommit "4bb10c2013fd2a7cb989b02586b992b936121362" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "c8a3fd9464abfd5e7b699a2752789d82af4da2da" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-26 ; sd:gitCommit "1e119dd101dd231a7cf24ba1b9d6c3e4999e8f60" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-54 ; sd:gitCommit "c8a3fd9464abfd5e7b699a2752789d82af4da2da" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:REQ-20260923-TTZ7C-53 ; sd:gitCommit "c8a3fd9464abfd5e7b699a2752789d82af4da2da" ] ;
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:REQ-20260926-TTZ7C-66 ; sd:gitCommit "26bd6babd3d2fd9af191a861cc166c271ee62c89" ] ;
+    sd:implementationLocation "src/store-runtime.mjs", "test/store-ownership.mjs", "test/durability-crash.mjs", "test/power-loss-helpers.mjs" ;
     sd:implementationChangeKind sd:SemanticChange .

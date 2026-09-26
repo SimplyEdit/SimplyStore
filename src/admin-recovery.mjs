@@ -851,6 +851,7 @@ class OfflineLockRelease {
         this.config = null
         this.report = null
         this.removed = []
+        this.takeovers = []
     }
 
     async preview() {
@@ -860,6 +861,7 @@ class OfflineLockRelease {
         const directories = await this.findLockDirectories()
         for (const directory of directories) {
             await this.inspectLock(directory)
+            await this.inspectTakeover(directory)
         }
         return this.createPreview()
     }
@@ -912,7 +914,8 @@ class OfflineLockRelease {
             return
         }
         const unknownContents = entries.some(
-            entry => entry !== 'owner.json' && !entry.endsWith('.tmp')
+            entry => entry !== 'owner.json' && entry !== 'owner.sock' &&
+                !entry.endsWith('.tmp')
         )
         if (unknownContents) {
             throw new Error(`Unknown lock contents: ${lock}`)
@@ -937,6 +940,11 @@ class OfflineLockRelease {
     async readOwnerFiles(lock, entries) {
         const ownerFiles = []
         for (const entry of entries) {
+            // A liveness socket has no contents to preserve.
+            if (entry === 'owner.sock') {
+                ownerFiles.push({ name: entry, socket: true })
+                continue
+            }
             const bytes = await fs.readFile(path.join(lock, entry))
             ownerFiles.push({
                 name: entry,
@@ -996,6 +1004,7 @@ class OfflineLockRelease {
             operator: this.operator,
             reason: this.reason,
             removed: this.removed,
+            takeovers: this.takeovers,
             finish: () => this.finish()
         }
     }
@@ -1009,10 +1018,33 @@ class OfflineLockRelease {
             await fs.rmdir(lock)
             await syncDirectory(path.dirname(lock))
         }
+        for (const { takeover } of this.takeovers) {
+            await fs.rm(takeover, { recursive: true })
+            await syncDirectory(path.dirname(takeover))
+        }
+    }
+
+    // An interrupted automatic takeover leaves its directory, possibly with
+    // the previous owner's lock inside. Preserve what it holds, then remove it.
+    async inspectTakeover(directory) {
+        const takeover = path.join(directory, '.simplystore-lock.takeover')
+        const previous = path.join(takeover, 'previous')
+        if (await this.readLockEntries(takeover) === null) {
+            return
+        }
+        const entries = await this.readLockEntries(previous)
+        let ownerFiles = []
+        if (entries !== null) {
+            ownerFiles = await this.readOwnerFiles(previous, entries)
+        }
+        this.takeovers.push({ takeover, ownerFiles })
     }
 
     async verifyLockUnchanged(lock, ownerFiles) {
         for (const entry of ownerFiles) {
+            if (entry.socket) {
+                continue
+            }
             const current = await fs.readFile(path.join(lock, entry.name))
             if (current.toString('base64') !== entry.bytes) {
                 throw new Error('Lock changed after preview')
