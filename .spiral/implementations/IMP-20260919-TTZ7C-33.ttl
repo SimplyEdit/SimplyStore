@@ -33,10 +33,9 @@ project:IMP-20260919-TTZ7C-33
     sd:implementationLocation "scripts/benchmark-file-data.mjs" ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-47 ; sd:gitCommit "83edb03bc406b9e651ef93bed69b87ece17dcf47" ] ;
     sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260923-TTZ7C-54 ; sd:gitCommit "c8a3fd9464abfd5e7b699a2752789d82af4da2da" ] ;
-    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260924-TTZ7C-59 ; sd:gitCommit "d881fe1e1e81450182b64d4e35ebf4d4bb648860" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "bd507554a2fed6f77322ef38a98839f127d810db" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:DEF-20260926-TTZ7C-62 ; sd:gitCommit "d34a97f400e5708d0a7aa23d4f601f3ab51ae7d6" ] ;
-    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260926-TTZ7C-61 ; sd:gitCommit "a2a7aaf207d666cd80a6d662a2e254414f1a1c02" ] ;
+    sd:implements [ a sd:ArtifactReference ; sd:artifact project:DES-20260924-TTZ7C-59 ; sd:gitCommit "832afc19533e730013c43491a23d8cb41bba97f8" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:IMP-20260919-TTZ7C-33 ; sd:gitCommit "eb3a13c5aff090d5b6fd23528b79fadef03b5332" ] ;
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260926-TTZ7C-61 ; sd:gitCommit "269a729823d135f48e4570e6e12af1e818bfcaf8" ] ;
     sd:shapedBy [ a sd:ArtifactReference ; sd:artifact <https://muze.nl/ns/spiral-developer/culture/CUL-MUZE-001> ; sd:gitCommit "8d4b2c738a413abd4cccca740ce958f486e5f7af" ] ;
-    sd:implementationLocation "src/query-isolate.mjs", "src/query-view.mjs", "src/query-guest.mjs", "test/query-isolate.mjs", "scripts/benchmark-query-runtime.mjs", "docs/query-runtime.md" ;
+    sd:implementationLocation "src/query-isolate.mjs", "src/query-view.mjs", "src/query-guest.mjs", "test/query-isolate.mjs", "test/durability-helpers.mjs", "scripts/benchmark-query-runtime.mjs", "docs/query-runtime.md" ;
     sd:implementationChangeKind sd:SemanticChange .

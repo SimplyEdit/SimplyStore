@@ -336,9 +336,10 @@ test('shared data without ids links by record in JSONTag responses',
             named: JSONTag.parse('<object id="~1">{"value":3}')
         }
         initialValue.also = initialValue.named
+        let runtime
+        t.after(() => runtime?.close())
         const fixture = await makeServerFixture(t, { initialValue })
-        const runtime = await StoreRuntime.open({ ...fixture, maxWorkers: 1 })
-        t.after(() => runtime.close())
+        runtime = await StoreRuntime.open({ ...fixture, maxWorkers: 1 })
         const response = body => {
             return runtime.runQuery({ path: '/', body, jsontag: true })
         }
@@ -348,9 +349,9 @@ test('shared data without ids links by record in JSONTag responses',
         assert.equal(data.a, data.b)
         assert.equal(data.list[0], data.a)
         assert.equal(data.also, data.named)
+        // The shared object is record 1; the stored id "~1" forces a suffix.
         const id = JSONTag.getAttribute(data.a, 'id')
-        assert.match(id, /^~\d+$/)
-        assert.notEqual(id, '~1')
+        assert.equal(id, '~1-1')
         assert.equal(JSONTag.getAttribute(data.alone, 'id'), undefined)
         assert.equal((await response('data')).body, result.body)
         const hidden = await runtime.runQuery({

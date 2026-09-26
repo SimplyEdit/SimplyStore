@@ -24,6 +24,18 @@ export function prepare(read, validURL, initial) {
     const cacheGet = Function.prototype.call.bind(Map.prototype.get)
     const cacheSet = Function.prototype.call.bind(Map.prototype.set)
     const dereference = Function.prototype.call.bind(WeakRef.prototype.deref)
+    const Weak = WeakMap
+    const weakHas = Function.prototype.call.bind(WeakMap.prototype.has)
+    const weakGet = Function.prototype.call.bind(WeakMap.prototype.get)
+    const weakSet = Function.prototype.call.bind(WeakMap.prototype.set)
+    const assign = Object.assign
+    const isArray = Array.isArray
+    const getAttribute = JSONTag.getAttribute
+    const setAttribute = JSONTag.setAttribute
+    const attributesSymbol = symbols[1]
+    // Views and their references, and output ids assigned while serializing.
+    const references = new Weak()
+    const outputIds = new Weak()
     const makeWeak = value => new WeakReference(value)
     const metadataKey = key => symbols.indexOf(key)
     const immutable = () => {
@@ -68,23 +80,56 @@ export function prepare(read, validURL, initial) {
         }
         // Data cannot change during a query, so each host answer is read once.
         // Shared objects are then traversed without repeating host calls.
-        // Descriptions are cached, not values: tagged copies stay fresh.
+        // A tagged scalar is copied once, so repeated reads return the same
+        // object; child views are not kept here, so scans do not pin them.
         const reads = new Cache()
         const exists = new Cache()
+        let copies
         let keys
         const readOnce = (answers, operation, encoded) => {
             if (!cacheHas(answers, encoded)) {
-                cacheSet(answers, encoded, read(operation, reference, encoded))
+                const answer = read(operation, reference, encoded)
+                if (answer?.entry) {
+                    // Inherited properties must not change what an entry is.
+                    setPrototype(answer.entry, null)
+                }
+                cacheSet(answers, encoded, answer)
             }
             return cacheGet(answers, encoded)
+        }
+        const entryValue = (encoded, entry) => {
+            if (!('tagged' in entry)) {
+                return wrap(entry)
+            }
+            if (!copies) {
+                copies = new Cache()
+            }
+            if (!cacheHas(copies, encoded)) {
+                cacheSet(copies, encoded, wrap(entry))
+            }
+            return cacheGet(copies, encoded)
+        }
+        // While serializing, a linked view without an id reports its output
+        // id through the attribute read JSONTag performs.
+        const outputAttributes = encoded => {
+            const attributes = {}
+            const result = readOnce(reads, 'get', encoded)
+            if (result.present) {
+                assign(attributes, entryValue(encoded, result.entry))
+            }
+            attributes.id = weakGet(outputIds, proxy)
+            return attributes
         }
         const proxy = new Proxy(target, {
             get(target, key, receiver) {
                 const encoded = remoteKey(key)
+                if (key === attributesSymbol && weakHas(outputIds, proxy)) {
+                    return outputAttributes(encoded)
+                }
                 if (encoded !== -1) {
                     const result = readOnce(reads, 'get', encoded)
                     if (result.present) {
-                        return wrap(result.entry)
+                        return entryValue(encoded, result.entry)
                     }
                 }
                 return Reflect.get(target, key, receiver)
@@ -123,7 +168,7 @@ export function prepare(read, validURL, initial) {
                     return undefined
                 }
                 return {
-                    value: wrap(result.entry),
+                    value: entryValue(encoded, result.entry),
                     enumerable: result.enumerable,
                     configurable: true,
                     writable: false
@@ -136,7 +181,62 @@ export function prepare(read, validURL, initial) {
             preventExtensions: immutable
         })
         setCached(key, makeWeak(proxy))
+        weakSet(references, proxy, reference)
         return proxy
+    }
+
+    // JSONTag links an object reached twice by its id, and writes a generated
+    // id onto it when it has none. Views are read-only and the isolate has no
+    // crypto, so assign those ids first, following JSONTag's own traversal.
+    function assignOutputIds(value) {
+        const seen = new Weak()
+        const assigned = new Cache()
+        let generated = 0
+        const unused = candidate => {
+            let id = candidate
+            let suffix = 0
+            while (cacheHas(assigned, id) || read('hasId', null, id)) {
+                suffix++
+                id = candidate + '-' + suffix
+            }
+            cacheSet(assigned, id, true)
+            return id
+        }
+        const identify = value => {
+            const reference = weakGet(references, value)
+            if (reference && typeof reference[0] === 'number' &&
+                reference.length === 1) {
+                weakSet(outputIds, value, unused('~' + reference[0]))
+            }
+            else if (reference && reference[0] === 'schema') {
+                weakSet(outputIds, value, unused('~schema-' + reference[1]))
+            }
+            else {
+                generated++
+                setAttribute(value, 'id', unused('~query-' + generated))
+            }
+        }
+        const visit = value => {
+            if (isArray(value)) {
+                for (const item of value) {
+                    visit(item)
+                }
+            }
+            else if (value && typeof value === 'object') {
+                if (weakHas(seen, value)) {
+                    if (!getAttribute(value, 'id')) {
+                        identify(value)
+                    }
+                }
+                else {
+                    weakSet(seen, value, true)
+                    for (const key in value) {
+                        visit(value[key])
+                    }
+                }
+            }
+        }
+        visit(value)
     }
 
     const root = wrap(initial.root)
@@ -207,6 +307,7 @@ export function prepare(read, validURL, initial) {
         let body
         if (taggedResponse) {
             parseAllObjects(result)
+            assignOutputIds(result)
             body = stringifyTagged(result)
         }
         else {
