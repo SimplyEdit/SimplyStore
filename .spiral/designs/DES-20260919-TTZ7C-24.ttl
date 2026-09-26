@@ -24,4 +24,6 @@ project:DES-20260919-TTZ7C-24 a sd:Design ;
         sd:gitCommit "9958f0e296e84169c21c02aa478ac4aae5a06a41" ] ;
     sd:changeCausedBy [ a sd:ArtifactReference ;
         sd:artifact project:SRC-20260919-TTZ7C-18 ;
-        sd:gitCommit "9fecb10ba1b58c79779394130e1c5cf500206ea9" ] .
+        sd:gitCommit "9fecb10ba1b58c79779394130e1c5cf500206ea9" ] ;
+    sd:satisfies [ a sd:ArtifactReference ; sd:artifact project:REQ-20260926-TTZ7C-66 ; sd:gitCommit "26bd6babd3d2fd9af191a861cc166c271ee62c89" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DES-20260919-TTZ7C-24 ; sd:gitCommit "59179b6c93b7e21c3b2c69db46c53fbe706927c3" ] .
