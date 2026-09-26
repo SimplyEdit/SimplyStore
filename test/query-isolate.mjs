@@ -29,10 +29,12 @@ async function open(t, options = {}) {
                 !(property === 'age' && method === 'has')
         }
     `)
+    const { schema = '{"version":42,"nested":{"value":"ok"}}', ...limits } =
+        options
     const schemaFile = path.join(fixture.dir, 'schema.jsontag')
-    await fs.writeFile(schemaFile, '{"version":42,"nested":{"value":"ok"}}')
+    await fs.writeFile(schemaFile, schema)
     runtime = await StoreRuntime.open({
-        ...fixture, access, schemaFile, maxWorkers: 1, ...options
+        ...fixture, access, schemaFile, maxWorkers: 1, ...limits
     })
     async function response(body, extra = {}) {
         return runtime.runQuery({ path: '/', body, jsontag: false, ...extra })
@@ -247,4 +249,61 @@ test('outer query deadline replaces a stuck worker at the committed head',
         pool.update({name: 'update', req: {source: {}, meta: {}}})
         await failed
         assert.equal(await pool.run('query', {}, {timeout: 50}), 2)
+    })
+
+// Shared and cyclic references, as produced by <link> in a schema file.
+const graphSchema = '{"types":{' +
+    '"Node":<object id="/schema/types/Node/">{"label":"node",' +
+    '"children":[<link>"/schema/types/Node/"],' +
+    '"title":<object id="/schema/properties/title/">{"type":"string"}},' +
+    '"Leaf":<object id="/schema/types/Leaf/">{' +
+    '"title":<link>"/schema/properties/title/"}},' +
+    '"contexts":{"a":{"root":<link>"/schema/types/Node/"},' +
+    '"b":{"root":<link>"/schema/types/Node/"}}}'
+
+test('schema objects keep identity across paths, links and cycles',
+    async t => {
+        const { query, response } = await open(t, {schema: graphSchema})
+        assert.equal(await query(
+            'meta.schema.types.Node.title === meta.schema.types.Leaf.title'
+        ), true)
+        assert.equal(await query(
+            'meta.schema.types.Node.children[0] === meta.schema.types.Node'
+        ), true)
+        assert.equal(await query(
+            'meta.schema.contexts.a.root === meta.schema.contexts.b.root'
+        ), true)
+        const host = JSONTag.parse(graphSchema)
+        assert.deepEqual(
+            await query('Reflect.ownKeys(meta.schema.types.Node).map(String)'),
+            Reflect.ownKeys(host.types.Node).map(String)
+        )
+        assert.deepEqual(await query('meta.schema.types.Leaf'),
+            {title: {type: 'string'}})
+        const tagged = await response('meta.schema', {jsontag: true})
+        assert.equal(tagged.code, undefined, tagged.body)
+        assert.equal(tagged.body, JSONTag.stringify(host))
+        const start = performance.now()
+        const cyclic = await response('meta.schema', {jsontag: false})
+        assert.equal(cyclic.code, 422, cyclic.body)
+        assert.match(cyclic.body, /circular/i)
+        assert.ok(performance.now() - start < 2000)
+    })
+
+test('widely shared schema objects serialize as links within the timeout',
+    async t => {
+        // Each level links twice to the next: 26 objects, 2^25 paths.
+        const levels = 25
+        let schema = '<object id="/schema/' + levels + '/">{"value":"end"}'
+        for (let level = levels - 1; level >= 0; level--) {
+            const next = '<link>"/schema/' + (level + 1) + '/"'
+            schema = '<object id="/schema/' + level + '/">{' +
+                '"left":' + schema + ',"right":' + next + '}'
+        }
+        const { response } = await open(t, {schema})
+        const start = performance.now()
+        const result = await response('meta.schema', {jsontag: true})
+        assert.equal(result.code, undefined, result.body)
+        assert.equal(result.body, JSONTag.stringify(JSONTag.parse(schema)))
+        assert.ok(performance.now() - start < 1000)
     })
