@@ -28,8 +28,13 @@ clean lint, copied-example verification and actual worker timings (about 453 ms
 for a 10,000-record scan). The maintainer accepted the cycle on 2026-09-24 at
 bd8f8eb3ee617c5f9e9198f234725ef7ab5b4201 and requested version 0.11.0.
 The published od-jsontag 0.5.0 package also passed all 202 tests and copied-example
-checks. Acceptance closes this cycle; integration remains pending. No next cycle
-is active.
+checks. The cycle was integrated into `master` at bd61d9c (pull request #27).
+
+Active cycle: CYC-20260926-TTZ7C-63, schema identity across the query isolate,
+on spiral/CYC-20260926-TTZ7C-63-schema-identity. It corrects
+DEF-20260926-TTZ7C-62, where curriculum-store's shared schema exhausted query
+limits, as a deliberate deviation from the roadmap; object history remains the
+next roadmap target.
 Queries must have no import, Node filesystem/network/database authority. Preserve
 existing grants and file-backed ordering. Queryable history follows; UI can wait.
 
