@@ -18,23 +18,20 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Latest accepted cycle: CYC-20260924-TTZ7C-56, isolated-vm query execution, on
-spiral/CYC-20260924-TTZ7C-56-isolated-vm. The maintainer selected isolated-vm after
-capability and performance probes and explicitly authorized continuation.
-SRC-20260924-TTZ7C-57 retains the commitment. This continues ROADMAP section 2.
-The branch implementation now uses isolated-vm with host-authorized read-only
-views and fresh per-query isolates. EVD-20260924-TTZ7C-60 records 202 passing tests,
-clean lint, copied-example verification and actual worker timings (about 453 ms
-for a 10,000-record scan). The maintainer accepted the cycle on 2026-09-24 at
-bd8f8eb3ee617c5f9e9198f234725ef7ab5b4201 and requested version 0.11.0.
-The published od-jsontag 0.5.0 package also passed all 202 tests and copied-example
-checks. The cycle was integrated into `master` at bd61d9c (pull request #27).
+Latest accepted cycle: CYC-20260926-TTZ7C-63, object identity across the query
+isolate, on spiral/CYC-20260926-TTZ7C-63-schema-identity, accepted on 2026-09-26
+at fa6c791. It corrects DEF-20260926-TTZ7C-62 (curriculum-store's shared schema
+exhausted query limits) and, at the maintainer's request, identity for all query
+data: stable private schema handles, schema ids in query workers, record-derived
+output ids for shared objects without an `id`, and per-query tagged scalar
+identity. EVD-20260926-TTZ7C-64 records 207 passing tests and about 4% added
+cost on large scans. It was a deliberate deviation from the roadmap; object
+history remains the next roadmap target. Integration is pending; no cycle is
+active.
 
-Active cycle: CYC-20260926-TTZ7C-63, schema identity across the query isolate,
-on spiral/CYC-20260926-TTZ7C-63-schema-identity. It corrects
-DEF-20260926-TTZ7C-62, where curriculum-store's shared schema exhausted query
-limits, as a deliberate deviation from the roadmap; object history remains the
-next roadmap target.
+The preceding cycle, CYC-20260924-TTZ7C-56 (isolated-vm query execution, SimplyStore
+0.11.0), is accepted and integrated at bd61d9c (pull request #27).
+
 Queries must have no import, Node filesystem/network/database authority. Preserve
 existing grants and file-backed ordering. Queryable history follows; UI can wait.
 
