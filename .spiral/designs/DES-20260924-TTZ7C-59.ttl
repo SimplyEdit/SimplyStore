@@ -8,4 +8,4 @@ project:DES-20260924-TTZ7C-59 a sd:Design ;
     sd:status sd:Active ;
     sd:constrainedBy [ a sd:ArtifactReference ; sd:artifact project:DEF-20260926-TTZ7C-62 ; sd:gitCommit "d34a97f400e5708d0a7aa23d4f601f3ab51ae7d6" ] ;
     sd:constrainedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260926-TTZ7C-61 ; sd:gitCommit "269a729823d135f48e4570e6e12af1e818bfcaf8" ] ;
-    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DES-20260924-TTZ7C-59 ; sd:gitCommit "d881fe1e1e81450182b64d4e35ebf4d4bb648860" ] .
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DES-20260924-TTZ7C-59 ; sd:gitCommit "eb3a13c5aff090d5b6fd23528b79fadef03b5332" ] .
