@@ -4,6 +4,7 @@ import path from 'node:path'
 import test from 'node:test'
 import JSONTag from '@muze-nl/jsontag'
 import StoreRuntime from '../src/store-runtime.mjs'
+import { QueryView } from '../src/query-view.mjs'
 import WorkerPool from '../src/workerPool.mjs'
 import { makeServerFixture } from './durability-helpers.mjs'
 
@@ -306,4 +307,23 @@ test('widely shared schema objects serialize as links within the timeout',
         assert.equal(result.code, undefined, result.body)
         assert.equal(result.body, JSONTag.stringify(JSONTag.parse(schema)))
         assert.ok(performance.now() - start < 1000)
+    })
+
+test('schema handles are stable across views and separately parsed schemas',
+    () => {
+        const references = schema => {
+            const view = new QueryView({ parser: { meta: { schema } } }, 1024)
+            return [
+                schema,
+                schema.types.Node.title,
+                schema.types.Leaf.title,
+                schema.contexts.b.root
+            ].map(value => view.describe(value, []).reference)
+        }
+        const schema = JSONTag.parse(graphSchema)
+        const first = references(schema)
+        assert.deepEqual(first[0], ['schema', 0])
+        assert.deepEqual(first[1], first[2])
+        assert.deepEqual(references(schema), first)
+        assert.deepEqual(references(JSONTag.parse(graphSchema)), first)
     })

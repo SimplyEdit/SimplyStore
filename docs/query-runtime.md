@@ -27,10 +27,10 @@ every scanned record in memory. Schema objects may be shared or cyclic, so the
 host numbers them once per schema and resolves views by that private handle.
 One stored object is one view within a query: `===` holds across paths, and
 JSONTag responses link shared objects using the schema file's ids. Each view
-reads a property from the host once per query. Tagged scalar values are copied into the guest;
-changes to such copies do not modify stored data. Object and array mutations
-throw. Committed source updates still serialize with queries, and replacement
-workers initialize at the current committed head.
+reads a property from the host once per query. Tagged scalar values are copied
+into the guest; changes to such copies do not modify stored data. Object and
+array mutations throw. Committed source updates still serialize with queries,
+and replacement workers initialize at the current committed head.
 
 This differs from the initial engine benchmark's raw-record bridge. Keeping the
 existing parser and grants on the host avoids moving authority into the hostile
