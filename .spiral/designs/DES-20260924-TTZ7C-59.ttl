@@ -5,4 +5,7 @@ project:DES-20260924-TTZ7C-59 a sd:Design ;
     dcterms:identifier "DES-20260924-TTZ7C-59" ;
     sd:repositoryPath ".spiral/designs/DES-20260924-TTZ7C-59.md" ;
     sd:satisfies [ a sd:ArtifactReference ; sd:artifact project:REQ-20260924-TTZ7C-58 ; sd:gitCommit "fdef01a844e14f50c0af1aac6e89461714736f6d" ] ;
-    sd:status sd:Active .
+    sd:status sd:Active ;
+    sd:changeCausedBy [ a sd:ArtifactReference ; sd:artifact project:DEF-20260926-TTZ7C-62 ; sd:gitCommit "d34a97f400e5708d0a7aa23d4f601f3ab51ae7d6" ] ;
+    sd:constrainedBy [ a sd:ArtifactReference ; sd:artifact project:SRC-20260926-TTZ7C-61 ; sd:gitCommit "bcf64e82a3a4290a1079d1029ec6bd86c67734bb" ] ;
+    sd:transforms [ a sd:ArtifactReference ; sd:artifact project:DES-20260924-TTZ7C-59 ; sd:gitCommit "1e2c7851a12ddc1b4c236d557a70479f411dfb8d" ] .
