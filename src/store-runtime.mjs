@@ -175,6 +175,7 @@ export class StoreRuntime {
         this.mechanisms = mechanisms
         this.sources = []
         this.meta = {}
+        this.schema = null
         this.status = new Map()
         this.commandQueue = []
         this.serializeAcceptance = serialWriter()
@@ -248,6 +249,7 @@ export class StoreRuntime {
     initializeLoadedState(inspection, loaded) {
         this.sources = loaded.sources
         this.meta = loaded.meta
+        this.schema = loaded.schema
         this.status = new Map(
             inspection.commands.map(command => {
                 return [command.id, command.history.at(-1)]
@@ -279,6 +281,7 @@ export class StoreRuntime {
             req: {
                 sources: this.sources,
                 meta: this.meta,
+                schema: this.schema,
                 access: this.configuration.access,
                 limits: {
                     memoryLimit: this.configuration.queryMemoryLimit,

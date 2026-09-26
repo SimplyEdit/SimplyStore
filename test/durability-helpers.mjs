@@ -43,7 +43,8 @@ export async function makeServerFixture(t, options = {}) {
 	await fs.writeFile(commandStatus, '')
 	await fs.writeFile(
 		datafile,
-		serialize(JSONTag.parse(options.initialData || '{"persons":[]}'))
+		serialize(options.initialValue ??
+			JSONTag.parse(options.initialData || '{"persons":[]}'))
 	)
 	await fs.writeFile(
 		commandsFile,

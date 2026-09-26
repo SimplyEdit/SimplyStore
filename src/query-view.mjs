@@ -19,17 +19,60 @@ function property(key) {
     throw new Error('Invalid query property')
 }
 
+// Schema objects may be shared or cyclic, so a path does not identify them.
+// Number them once per parsed schema, walking in property order, so the same
+// schema yields the same handles in every worker and query. Handles stay in
+// the bridge; query code never sees them.
+const numberedSchemas = new WeakMap()
+
+function numberSchema(schema) {
+    const objects = []
+    const handles = new Map()
+    const pending = [schema]
+    while (pending.length) {
+        const value = pending.pop()
+        if (!value || typeof value !== 'object' || handles.has(value)) {
+            continue
+        }
+        handles.set(value, objects.length)
+        objects.push(value)
+        const keys = Object.keys(value)
+        for (let index = keys.length - 1; index >= 0; index--) {
+            pending.push(value[keys[index]])
+        }
+    }
+    return { objects, handles }
+}
+
+function schemaHandles(schema) {
+    if (!schema || typeof schema !== 'object') {
+        return { objects: [], handles: new Map() }
+    }
+    let numbered = numberedSchemas.get(schema)
+    if (!numbered) {
+        numbered = numberSchema(schema)
+        numberedSchemas.set(schema, numbered)
+    }
+    return numbered
+}
+
 export class QueryView {
     constructor(dataset, maxBytes) {
         this.dataset = dataset
         this.maxBytes = maxBytes
+        this.schema = schemaHandles(dataset.parser.meta.schema)
     }
 
     resolve(reference) {
         const [record, ...keys] = reference
         let value
         if (record === 'schema') {
-            value = this.dataset.parser.meta.schema
+            const handle = keys.shift()
+            if (!Number.isSafeInteger(handle) ||
+                handle < 0 || handle >= this.schema.objects.length) {
+                throw new Error('Invalid query reference')
+            }
+            value = this.schema.objects[handle]
         }
         else {
             value = this.dataset.parser.getLineProxy(record)
@@ -63,8 +106,12 @@ export class QueryView {
             return { tagged }
         }
         const record = value[getIndex]
+        const handle = this.schema.handles.get(value)
         if (Number.isSafeInteger(record)) {
             reference = [record]
+        }
+        else if (handle !== undefined) {
+            reference = ['schema', handle]
         }
         const result = { reference, array: Array.isArray(value) }
         if (result.array) {

@@ -23,10 +23,21 @@ descriptors and property existence. Access modules can keep their trusted Node
 imports and closures.
 
 Record numbers and property paths let the host resolve views without pinning
-every scanned record in memory. Tagged scalar values are copied into the guest;
-changes to such copies do not modify stored data. Object and array mutations
-throw. Committed source updates still serialize with queries, and replacement
-workers initialize at the current committed head.
+every scanned record in memory. Schema objects may be shared or cyclic, so the
+host numbers them once per schema and resolves views by that private handle.
+One stored object is one view within a query: `===` holds across paths and
+cycles. Each view reads a property from the host once per query. Tagged scalar
+values are copied into the guest once per property and query, so repeated reads
+return the same copy; changes to a copy do not modify stored data or reach the
+next query. Object and array mutations throw.
+
+JSONTag responses link an object reached more than once by its `id`. A shared
+object without one gets an output id: `~<record>` for stored records, which
+stays the same across queries and updates, or `~query-<n>` for objects the
+query built, numbered per response. A numeric suffix avoids a stored `id`.
+Queries never see output ids. od-jsontag stores arrays inline, so an array
+shared between records is returned as separate arrays. Committed source updates still serialize with queries,
+and replacement workers initialize at the current committed head.
 
 This differs from the initial engine benchmark's raw-record bridge. Keeping the
 existing parser and grants on the host avoids moving authority into the hostile

@@ -22,6 +22,10 @@ export default {
     async init(task) {
         dataset?.close()
         dataset = new FileDataset(task.req.meta)
+        if (task.req.schema) {
+            // The cloned meta.schema has lost its JSONTag ids and types.
+            dataset.parser.meta.schema = JSONTag.parse(task.req.schema)
+        }
         if (task.req.access) {
             const access = await import(task.req.access)
             dataset.parser.meta.access = access.default

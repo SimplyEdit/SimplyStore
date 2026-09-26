@@ -453,12 +453,14 @@ async function readFileData(files, manifest) {
             ids = dataset.rebuildIds()
         }
         meta.index = { id: ids }
+        // Cloning to another thread drops JSONTag metadata such as ids, so
+        // also return the text for consumers that need the schema intact.
+        let schema = null
         if (files.schemaFile) {
-            meta.schema = JSONTag.parse(
-                fs.readFileSync(files.schemaFile, 'utf8')
-            )
+            schema = fs.readFileSync(files.schemaFile, 'utf8')
+            meta.schema = JSONTag.parse(schema)
         }
-        return { sources, meta }
+        return { sources, meta, schema }
     }
     finally {
         dataset.close()
