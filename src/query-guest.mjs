@@ -16,9 +16,13 @@ export function prepare(read, validURL, initial) {
     const stringify = JSON.stringify
     const parse = JSONTag.parse
     const charCode = Function.prototype.call.bind(String.prototype.charCodeAt)
-    const cache = new Map()
+    const Cache = Map
+    const cache = new Cache()
     const getCached = cache.get.bind(cache)
     const setCached = cache.set.bind(cache)
+    const cacheHas = Function.prototype.call.bind(Map.prototype.has)
+    const cacheGet = Function.prototype.call.bind(Map.prototype.get)
+    const cacheSet = Function.prototype.call.bind(Map.prototype.set)
     const dereference = Function.prototype.call.bind(WeakRef.prototype.deref)
     const makeWeak = value => new WeakReference(value)
     const metadataKey = key => symbols.indexOf(key)
@@ -62,11 +66,23 @@ export function prepare(read, validURL, initial) {
             }
             return key
         }
+        // Data cannot change during a query, so each host answer is read once.
+        // Shared objects are then traversed without repeating host calls.
+        // Descriptions are cached, not values: tagged copies stay fresh.
+        const reads = new Cache()
+        const exists = new Cache()
+        let keys
+        const readOnce = (answers, operation, encoded) => {
+            if (!cacheHas(answers, encoded)) {
+                cacheSet(answers, encoded, read(operation, reference, encoded))
+            }
+            return cacheGet(answers, encoded)
+        }
         const proxy = new Proxy(target, {
             get(target, key, receiver) {
                 const encoded = remoteKey(key)
                 if (encoded !== -1) {
-                    const result = read('get', reference, encoded)
+                    const result = readOnce(reads, 'get', encoded)
                     if (result.present) {
                         return wrap(result.entry)
                     }
@@ -75,16 +91,24 @@ export function prepare(read, validURL, initial) {
             },
             has(target, key) {
                 const encoded = remoteKey(key)
-                return (encoded !== -1 && read('has', reference, encoded)) ||
+                return (encoded !== -1 && readOnce(exists, 'has', encoded)) ||
                     Reflect.has(target, key)
             },
             ownKeys() {
-                return read('keys', reference).map(key => {
+                if (!keys) {
+                    keys = read('keys', reference)
+                }
+                const names = []
+                for (let index = 0; index < keys.length; index++) {
+                    const key = keys[index]
                     if (typeof key === 'number') {
-                        return symbols[key]
+                        names[index] = symbols[key]
                     }
-                    return key
-                })
+                    else {
+                        names[index] = key
+                    }
+                }
+                return names
             },
             getOwnPropertyDescriptor(target, key) {
                 if (description.array && key === 'length') {
@@ -94,7 +118,7 @@ export function prepare(read, validURL, initial) {
                 if (encoded === -1) {
                     return undefined
                 }
-                const result = read('get', reference, encoded)
+                const result = readOnce(reads, 'get', encoded)
                 if (!result.present) {
                     return undefined
                 }
