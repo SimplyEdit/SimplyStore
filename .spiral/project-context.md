@@ -18,18 +18,21 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Latest accepted cycle: CYC-20260926-TTZ7C-63, object identity across the query
-isolate, on spiral/CYC-20260926-TTZ7C-63-schema-identity, accepted on 2026-09-26
-at fa6c791. It corrects DEF-20260926-TTZ7C-62 (curriculum-store's shared schema
-exhausted query limits) and, at the maintainer's request, identity for all query
-data: stable private schema handles, schema ids in query workers, record-derived
-output ids for shared objects without an `id`, and per-query tagged scalar
-identity. EVD-20260926-TTZ7C-64 records 207 passing tests and about 4% added
-cost on large scans. It was a deliberate deviation from the roadmap; object
-history remains the next roadmap target. Integration is pending; no cycle is
-active.
+Latest accepted cycle: CYC-20260926-TTZ7C-67, self-healing store ownership, on
+spiral/CYC-20260926-TTZ7C-67-self-healing-ownership, accepted on 2026-09-26 with
+SimplyStore 0.11.2. A server takes over the lock of a runtime owner whose
+liveness socket refuses connections (audited, serialized) and then applies the
+unchanged startup assessment; other locks still need administrator release;
+stops during startup release ownership. It revises DES-20260919-TTZ7C-24 by
+maintainer decision and was a deliberate deviation from the roadmap; object
+history remains the next roadmap target. EVD-20260926-TTZ7C-68 records 215
+passing tests and a Docker heal after SIGKILL. Integration is pending; no cycle
+is active.
 
-The preceding cycle, CYC-20260924-TTZ7C-56 (isolated-vm query execution, SimplyStore
+CYC-20260926-TTZ7C-63, object identity across the query isolate, is accepted and
+integrated (pull request #28, SimplyStore 0.11.1).
+
+Earlier, CYC-20260924-TTZ7C-56 (isolated-vm query execution, SimplyStore
 0.11.0), is accepted and integrated at bd61d9c (pull request #27).
 
 Queries must have no import, Node filesystem/network/database authority. Preserve
