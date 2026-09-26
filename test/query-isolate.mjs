@@ -327,3 +327,55 @@ test('schema handles are stable across views and separately parsed schemas',
         assert.deepEqual(references(schema), first)
         assert.deepEqual(references(JSONTag.parse(graphSchema)), first)
     })
+
+test('shared data without ids links by record in JSONTag responses',
+    async t => {
+        const shared = { value: 1 }
+        const initialValue = {
+            a: shared, b: shared, list: [shared, shared], alone: { value: 2 },
+            named: JSONTag.parse('<object id="~1">{"value":3}')
+        }
+        initialValue.also = initialValue.named
+        const fixture = await makeServerFixture(t, { initialValue })
+        const runtime = await StoreRuntime.open({ ...fixture, maxWorkers: 1 })
+        t.after(() => runtime.close())
+        const response = body => {
+            return runtime.runQuery({ path: '/', body, jsontag: true })
+        }
+        const result = await response('data')
+        assert.equal(result.code, undefined, result.body)
+        const data = JSONTag.parse(result.body)
+        assert.equal(data.a, data.b)
+        assert.equal(data.list[0], data.a)
+        assert.equal(data.also, data.named)
+        const id = JSONTag.getAttribute(data.a, 'id')
+        assert.match(id, /^~\d+$/)
+        assert.notEqual(id, '~1')
+        assert.equal(JSONTag.getAttribute(data.alone, 'id'), undefined)
+        assert.equal((await response('data')).body, result.body)
+        const hidden = await runtime.runQuery({
+            path: '/', jsontag: false,
+            body: '[JSONTag.getAttribute(data.a, "id") ?? null]'
+        })
+        assert.deepEqual(JSON.parse(hidden.body), [null])
+        const built = await response(
+            'const y = {}; ({m: y, n: y, a: data.a, b: data.b})'
+        )
+        assert.equal(built.code, undefined, built.body)
+        const copy = JSONTag.parse(built.body)
+        assert.equal(copy.m, copy.n)
+        assert.equal(copy.a, copy.b)
+        assert.equal(JSONTag.getAttribute(copy.m, 'id'), '~query-1')
+        assert.equal(JSONTag.getAttribute(copy.a, 'id'), id)
+    })
+
+test('tagged scalars keep identity within a query only', async t => {
+    const { query } = await open(t)
+    assert.equal(await query(
+        'data.persons[0].url === data.persons[0].url'
+    ), true)
+    assert.equal(await query(`const url = data.persons[0].url
+        url.extra = 1
+        data.persons[0].url.extra`), 1)
+    assert.equal(await query('data.persons[0].url.extra ?? null'), null)
+})
