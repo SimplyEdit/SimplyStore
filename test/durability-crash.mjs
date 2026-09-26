@@ -189,7 +189,7 @@ test('crash after done status but before query update recovers committed state w
 	assert.equal((await getCommandStatus(port, command.id)).status, 'done')
 })
 
-test('crash ownership cannot be stolen automatically', async t => {
+test('crash during a command still requires administrator recovery', async t => {
 	const fixture = await makeServerFixture(t),
 		port = await getOpenPort()
 	const first = startServer(t, fixture, {
@@ -204,15 +204,69 @@ test('crash ownership cannot be stolen automatically', async t => {
 		value: { name: 'A' }
 	})
 	await waitForExit(first.child)
+	// The dead owner's lock is taken over, but the unfinished command is not
+	// resolved automatically.
 	const second = startServer(t, fixture, { port })
 	assert.equal((await waitForExit(second.child)).code, 1)
-	assert.match(second.getOutput(), /Store is locked/)
+	assert.match(second.getOutput(), /Administrative recovery required/)
+	await assert.rejects(fs.stat(path.join(fixture.dir, '.simplystore-lock')))
 	assert.equal(
 		(await readCommandStatusRecords(fixture)).filter(
 			s => s.status === 'active'
 		).length,
 		1
 	)
+})
+
+test('an idle server killed with SIGKILL starts again without release', async t => {
+	const fixture = await makeServerFixture(t),
+		port = await getOpenPort()
+	const first = startServer(t, fixture, { port })
+	await waitForServer(first.child, first.getOutput, port)
+	first.child.kill('SIGKILL')
+	await waitForExit(first.child)
+	const second = startServer(t, fixture, { port })
+	await waitForServer(second.child, second.getOutput, port)
+	assert.match(second.getOutput(), /took over/)
+	assert.deepEqual(await queryPersons(port), [])
+	await stopServer(second.child)
+	await assert.rejects(fs.stat(path.join(fixture.dir, '.simplystore-lock')))
+})
+
+test('a stop during startup releases ownership', async t => {
+	const fixture = await makeServerFixture(t)
+	const loadWorker = path.join(fixture.dir, 'slow-load-worker.mjs')
+	const fileData = new URL('../src/file-data.mjs', import.meta.url)
+	await fs.writeFile(
+		loadWorker,
+		`import { parentPort } from 'node:worker_threads'
+import { loadFileData } from ${JSON.stringify(fileData.href)}
+
+parentPort.on('message', async files => {
+	await new Promise(resolve => setTimeout(resolve, 1000))
+	parentPort.postMessage(await loadFileData(files))
+})
+`
+	)
+	const lock = path.join(fixture.dir, '.simplystore-lock')
+	const running = startServer(t, fixture, {
+		port: await getOpenPort(),
+		loadWorker
+	})
+	for (let attempt = 0; attempt < 100; attempt++) {
+		try {
+			await fs.stat(path.join(lock, 'owner.json'))
+			break
+		}
+		catch {
+			await new Promise(resolve => setTimeout(resolve, 20))
+		}
+	}
+	running.child.kill('SIGTERM')
+	const exit = await waitForExit(running.child)
+	assert.equal(exit.code, 0, running.getOutput())
+	assert.doesNotMatch(running.getOutput(), /SimplyStore listening/)
+	await assert.rejects(fs.stat(lock))
 })
 
 test('hanging command times out unsafe and later accepted command commits', async t => {
