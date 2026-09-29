@@ -192,8 +192,15 @@ export class StoreRuntime {
     async open() {
         const { store } = this.configuration
         this.ownership = await this.mechanisms.acquireOwnership(
-            mutableDirectories(store)
+            mutableDirectories(store), { purpose: 'runtime' }
         )
+        for (const { lock, previous } of this.ownership.takeovers ?? []) {
+            console.warn(
+                `Store ownership took over ${lock} from stopped owner ` +
+                `${previous.pid}@${previous.host} (started ` +
+                `${previous.started}); the owner's socket refused connections`
+            )
+        }
         try {
             const inspection = await this.mechanisms.inspectStore(store)
             this.assertStoreReady(inspection)

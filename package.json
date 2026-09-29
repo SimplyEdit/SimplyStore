@@ -1,11 +1,11 @@
 {
 	"name": "@muze-nl/simplystore",
-	"version": "0.11.1",
+	"version": "0.11.2",
 	"main": "src/server.mjs",
 	"type": "module",
 	"scripts": {
 		"start": "node --no-node-snapshot src/run.mjs",
-		"test": "node --no-node-snapshot --test test/query-isolate.mjs test/required-integrity.mjs test/file-data.mjs test/index-ids.mjs test/store-runtime.mjs test/durability-startup.mjs test/conversion-offsets.mjs test/command-offsets.mjs",
+		"test": "node --no-node-snapshot --test test/query-isolate.mjs test/store-ownership.mjs test/required-integrity.mjs test/file-data.mjs test/index-ids.mjs test/store-runtime.mjs test/durability-startup.mjs test/conversion-offsets.mjs test/command-offsets.mjs",
 		"test:acid": "node --no-node-snapshot --test test/acid-baseline.mjs",
 		"test:durability": "node --no-node-snapshot --test test/durability-crash.mjs",
 		"test:handlers": "node --no-node-snapshot --test test/after-change-handlers.mjs",
