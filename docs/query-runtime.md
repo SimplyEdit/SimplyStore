@@ -152,3 +152,14 @@ Its warm filesystem cache and small synthetic datasets do not establish physical
 disk throughput, total memory use, concurrent capacity, or universal speedups.
 The initial [engine comparison](../benchmark/query-engines/comparison.md) retains
 the separate raw-parser experiment that motivated engine selection.
+
+Run the disposable command-history probe with:
+
+```sh
+node --no-node-snapshot scripts/benchmark-query-history.mjs
+```
+
+It creates a store, commits repeated edits, reopens it, verifies the resulting
+history and reports open/query time, process descriptor counts, worker heap and
+current-parser resident records. `--records=<n>` and `--versions=<n>` change its
+defaults. The figures are local diagnostic observations, not capacity limits.

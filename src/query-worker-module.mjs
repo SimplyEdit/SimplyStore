@@ -82,5 +82,12 @@ export default {
 
     async memoryUsage() {
         return memoryUsage()
+    },
+
+    async historyStats() {
+        return {
+            sources: dataset.sources.length,
+            residentCurrentRecords: dataset.parser.resident.size
+        }
     }
 }

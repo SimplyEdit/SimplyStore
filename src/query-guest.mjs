@@ -35,6 +35,7 @@ export function prepare(read, validURL, initial) {
     const attributesSymbol = symbols[1]
     // Views and their references, and output ids assigned while serializing.
     const references = new Weak()
+    const historyReferences = new Weak()
     const outputIds = new Weak()
     const makeWeak = value => new WeakReference(value)
     const metadataKey = key => symbols.indexOf(key)
@@ -182,6 +183,8 @@ export function prepare(read, validURL, initial) {
         })
         setCached(key, makeWeak(proxy))
         weakSet(references, proxy, reference)
+        weakSet(historyReferences, proxy,
+            description.historyReference || reference)
         return proxy
     }
 
@@ -274,7 +277,7 @@ export function prepare(read, validURL, initial) {
         },
         history: {
             get(value) {
-                const reference = weakGet(references, value)
+                const reference = weakGet(historyReferences, value)
                 if (!reference && !validKey(value)) {
                     return undefined
                 }

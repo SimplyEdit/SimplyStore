@@ -182,6 +182,7 @@ export class QueryView {
     }
 
     describe(value, reference) {
+        const requestedReference = reference
         if (typeof value === 'function') {
             throw new Error('Functions are not query data')
         }
@@ -207,21 +208,26 @@ export class QueryView {
         const handle = this.schema.handles.get(value)
         if (Number.isSafeInteger(record)) {
             const identified = JSONTag.getAttribute(value, 'id') !== undefined
-            if (!identified && reference.length > 1) {
-                // Inline objects inherit the history of their owning record.
-                // Keep the path needed to resolve that nested view.
-            }
-            else if (reference[0] === 'historical') {
+            if (reference[0] === 'historical') {
                 reference = ['historical', reference[1], record]
             }
             else {
                 reference = [record]
+            }
+            if (!identified && requestedReference.length > 1) {
+                // Identity follows the stored record; history follows the
+                // identified owner through which this inline view was read.
+                reference.historyReference = requestedReference
             }
         }
         else if (handle !== undefined) {
             reference = ['schema', handle]
         }
         const result = { reference, array: Array.isArray(value) }
+        if (reference.historyReference) {
+            result.historyReference = reference.historyReference
+            delete reference.historyReference
+        }
         if (result.array) {
             result.length = value.length
         }

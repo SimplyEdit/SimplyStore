@@ -64,9 +64,15 @@ test('queries expose committed commands and per-object version history',
             '<object id="alice">{"name":"Alice","friend":<link>"bob"},' +
             '<object id="bob">{"name":"Bob","gender":"secret",' +
             '"profile":{"title":"friend"}}]}'
-        const commandsSource = `export default {
+        const commandsSource = `import JSONTag from ${JSON.stringify(
+            import.meta.resolve('@muze-nl/jsontag'))}
+        export default {
             rename: (data, command) => {
                 data.persons[command.index].name = command.value
+            },
+            identify: (data, command) => {
+                JSONTag.setAttribute(data.persons[command.index], 'id',
+                    command.value)
             },
             noop: () => {}
         }`
@@ -106,21 +112,42 @@ test('queries expose committed commands and per-object version history',
             message: 'Record a no-op'
         }))
         await runtime.runQueuedCommands()
+        await runtime.acceptCommand(JSONTag.stringify({
+            id: 'remove-bob-id', name: 'identify', index: 1, value: '',
+            author: 'Auke', message: 'Remove Bob ID'
+        }))
+        await runtime.runQueuedCommands()
+        assert.deepEqual(await query(`({
+            byOldId: meta.history.get('bob'),
+            versions: meta.history.get(data.persons[1]).map(x => x.version),
+            peers: meta.versions.get(3).objects.map(x => x.name)
+        })`), {
+            versions: [0, 1, 3], peers: ['Robert']
+        })
+        await runtime.acceptCommand(JSONTag.stringify({
+            id: 'restore-bob-id', name: 'identify', index: 1, value: 'bob',
+            author: 'Auke', message: 'Restore Bob ID'
+        }))
+        await runtime.runQueuedCommands()
 
         const expected = {
             commands: [
                 ['rename-bob', 'Auke', 'Rename Bob', 1, 'Robert'],
-                ['noop', 'Auke', 'Record a no-op', 2, null]
+                ['noop', 'Auke', 'Record a no-op', 2, null],
+                ['remove-bob-id', 'Auke', 'Remove Bob ID', 3, null],
+                ['restore-bob-id', 'Auke', 'Restore Bob ID', 4, 'bob']
             ],
             versionOne: ['Robert'],
             versionTwo: [],
             history: [
                 [0, null, 'Bob'],
-                [1, 'rename-bob', 'Robert']
+                [1, 'rename-bob', 'Robert'],
+                [3, 'remove-bob-id', 'Robert'],
+                [4, 'restore-bob-id', 'Robert']
             ],
             oldLink: 'Bob',
             current: 'Robert',
-            nestedHistory: 2,
+            nestedHistory: 4,
             grantApplied: true,
             timestamps: true
         }
