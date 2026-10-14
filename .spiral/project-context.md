@@ -35,7 +35,10 @@ command-log access are deliberately absent. EVD-20261014-TTZ7C-74 records the
 passing primary, ACID, durability, handler and recovery regressions plus a
 1,000-record/20-version probe. No persistent format changed. Complete historical
 dataset switching, UI and curriculum-store integration remain later work.
-Integration is pending; no cycle is active.
+It was integrated through pull request #30 at `e7b31e7`; the resulting release
+is prepared as SimplyStore `0.12.0`, with all 195 available package tests and an
+npm package dry run passing. Tagging and publication remain pending; no cycle is
+active.
 
 Latest accepted and integrated cycle: CYC-20260926-TTZ7C-67, self-healing store
 ownership, accepted on 2026-09-26 with SimplyStore 0.11.2 and integrated through
