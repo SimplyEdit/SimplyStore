@@ -18,16 +18,21 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Latest accepted cycle: CYC-20260926-TTZ7C-67, self-healing store ownership, on
-spiral/CYC-20260926-TTZ7C-67-self-healing-ownership, accepted on 2026-09-26 with
-SimplyStore 0.11.2. A server takes over the lock of a runtime owner whose
-liveness socket refuses connections (audited, serialized) and then applies the
-unchanged startup assessment; other locks still need administrator release;
-stops during startup release ownership. It revises DES-20260919-TTZ7C-24 by
-maintainer decision and was a deliberate deviation from the roadmap; object
-history remains the next roadmap target. EVD-20260926-TTZ7C-68 records 215
-passing tests and a Docker heal after SIGKILL. Integration is pending; no cycle
-is active.
+Active cycle: CYC-20261014-TTZ7C-73, queryable object and command history, on
+`spiral/CYC-20261014-TTZ7C-73-object-history` from master `7636fcc`. It continues
+ROADMAP.md section 3. SRC-20261014-TTZ7C-69 retains the maintainer's selection;
+UND-20261014-TTZ7C-70, REQ-20261014-TTZ7C-71 and DES-20261014-TTZ7C-72 define a
+lazy query surface over successful commands, global versions, per-record history
+and same-version entity peers. Complete historical dataset switching, UI and
+curriculum-store integration remain later work.
+
+Latest accepted and integrated cycle: CYC-20260926-TTZ7C-67, self-healing store
+ownership, accepted on 2026-09-26 with SimplyStore 0.11.2 and integrated through
+pull request #29 at `7636fcc`. A server takes over the lock of a runtime owner
+whose liveness socket refuses connections (audited, serialized) and then applies
+the unchanged startup assessment; other locks still need administrator release;
+stops during startup release ownership. EVD-20260926-TTZ7C-68 records 215 passing
+tests and a Docker heal after SIGKILL.
 
 CYC-20260926-TTZ7C-63, object identity across the query isolate, is accepted and
 integrated (pull request #28, SimplyStore 0.11.1).
