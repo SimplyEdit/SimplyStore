@@ -21,14 +21,17 @@ Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-
 Active cycle: CYC-20261014-TTZ7C-73, queryable object and command history, on
 `spiral/CYC-20261014-TTZ7C-73-object-history` from master `7636fcc`. It continues
 ROADMAP.md section 3. SRC-20261014-TTZ7C-69 retains the maintainer's selection;
-UND-20261014-TTZ7C-70, REQ-20261014-TTZ7C-71 and DES-20261014-TTZ7C-72 define a
-lazy query surface over successful commands, global versions, per-record history
-and same-version entity peers. Complete historical dataset switching, UI and
-curriculum-store integration remain later work.
+UND-20261014-TTZ7C-70, revised REQ-20261014-TTZ7C-71 and revised
+DES-20261014-TTZ7C-72 define a query surface over compact successful-command
+metadata, global versions, per-record history and same-version entity peers.
+SRC-20261014-TTZ7C-75 records the decision that original command inputs remain
+outside the query worker for separate tooling. Complete historical dataset
+switching, UI and curriculum-store integration remain later work.
 
-Implementation `0e6855a` is evaluation-ready. Query `meta` now exposes committed
+Implementation `e404a72` is evaluation-ready. Query `meta` now exposes committed
 commands, source versions, per-version changed objects and per-record history;
-historical links use selected-version records. EVD-20261014-TTZ7C-74 records the
+historical links use selected-version records, while original inputs and direct
+command-log access are deliberately absent. EVD-20261014-TTZ7C-74 records the
 passing primary, ACID, durability, handler and recovery regressions plus a
 1,000-record/20-version probe. No persistent format changed. Maintainer
 acceptance remains pending; do not integrate the Active branch.
