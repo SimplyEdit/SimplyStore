@@ -18,23 +18,24 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Active cycle: CYC-20261014-TTZ7C-73, queryable object and command history, on
-`spiral/CYC-20261014-TTZ7C-73-object-history` from master `7636fcc`. It continues
-ROADMAP.md section 3. SRC-20261014-TTZ7C-69 retains the maintainer's selection;
-UND-20261014-TTZ7C-70, revised REQ-20261014-TTZ7C-71 and revised
-DES-20261014-TTZ7C-72 define a query surface over compact successful-command
-metadata, global versions, per-record history and same-version entity peers.
-SRC-20261014-TTZ7C-75 records the decision that original command inputs remain
-outside the query worker for separate tooling. Complete historical dataset
-switching, UI and curriculum-store integration remain later work.
+Latest accepted cycle: CYC-20261014-TTZ7C-73, queryable object and command
+history, on `spiral/CYC-20261014-TTZ7C-73-object-history` from master `7636fcc`,
+accepted on 2026-10-14 at `6de0ddc`. It continues ROADMAP.md section 3.
+SRC-20261014-TTZ7C-69 retains the maintainer's selection; UND-20261014-TTZ7C-70,
+revised REQ-20261014-TTZ7C-71 and revised DES-20261014-TTZ7C-72 define a query
+surface over compact successful-command metadata, global versions, per-record
+history and same-version entity peers. SRC-20261014-TTZ7C-75 records the
+decision that original command inputs remain outside the query worker for
+separate tooling.
 
-Implementation `e404a72` is evaluation-ready. Query `meta` now exposes committed
-commands, source versions, per-version changed objects and per-record history;
+Implementation `e404a72` exposes committed commands, source versions,
+per-version changed objects and per-record history through query `meta`;
 historical links use selected-version records, while original inputs and direct
 command-log access are deliberately absent. EVD-20261014-TTZ7C-74 records the
 passing primary, ACID, durability, handler and recovery regressions plus a
-1,000-record/20-version probe. No persistent format changed. Maintainer
-acceptance remains pending; do not integrate the Active branch.
+1,000-record/20-version probe. No persistent format changed. Complete historical
+dataset switching, UI and curriculum-store integration remain later work.
+Integration is pending; no cycle is active.
 
 Latest accepted and integrated cycle: CYC-20260926-TTZ7C-67, self-healing store
 ownership, accepted on 2026-09-26 with SimplyStore 0.11.2 and integrated through
