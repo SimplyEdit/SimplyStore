@@ -35,6 +35,7 @@ export function prepare(read, validURL, initial) {
     const attributesSymbol = symbols[1]
     // Views and their references, and output ids assigned while serializing.
     const references = new Weak()
+    const historyReferences = new Weak()
     const outputIds = new Weak()
     const makeWeak = value => new WeakReference(value)
     const metadataKey = key => symbols.indexOf(key)
@@ -182,6 +183,8 @@ export function prepare(read, validURL, initial) {
         })
         setCached(key, makeWeak(proxy))
         weakSet(references, proxy, reference)
+        weakSet(historyReferences, proxy,
+            description.historyReference || reference)
         return proxy
     }
 
@@ -240,6 +243,7 @@ export function prepare(read, validURL, initial) {
     }
 
     const root = wrap(initial.root)
+    const validKey = id => typeof id === 'string' || typeof id === 'number'
     const meta = {
         index: {
             id: {
@@ -257,8 +261,36 @@ export function prepare(read, validURL, initial) {
                 }
             }
         },
-        schema: wrap(initial.schema)
+        schema: wrap(initial.schema),
+        commands: {
+            get(id) {
+                if (!validKey(id)) {
+                    return undefined
+                }
+                return wrap(read('command', null, id))
+            }
+        },
+        versions: {
+            get(version) {
+                return wrap(read('version', null, version))
+            }
+        },
+        history: {
+            get(value) {
+                const reference = weakGet(historyReferences, value)
+                if (!reference && !validKey(value)) {
+                    return undefined
+                }
+                return wrap(read('history', null, reference || value))
+            }
+        }
     }
+    Object.defineProperty(meta.commands, 'all', {
+        enumerable: true,
+        get() {
+            return wrap(read('commands'))
+        }
+    })
     const request = initial.request
     const taggedResponse = Boolean(request.jsontag)
     const browse = !request.body

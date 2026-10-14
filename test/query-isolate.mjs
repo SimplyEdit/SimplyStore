@@ -11,12 +11,14 @@ import { makeServerFixture } from './durability-helpers.mjs'
 async function open(t, options = {}) {
     let runtime
     t.after(() => runtime?.close())
-    const fixture = await makeServerFixture(t, {
-        initialData: '{"persons":[' +
+    const defaultData = '{"persons":[' +
             '<object id="alice">{"name":"Padmé 𠮷", "gender":"private",' +
             '"age":32,"existenceOnly":"private","url":<url>"https://example.test/a"},' +
             '<object id="bob">{"name":"Bob","gender":"private","age":20}' +
             '],"hidden":{"secret":"do not expose"}}'
+    const fixture = await makeServerFixture(t, {
+        initialData: options.initialData || defaultData,
+        commandsSource: options.commandsSource
     })
     const access = path.join(fixture.dir, 'access.mjs')
     await fs.writeFile(access, `
@@ -30,13 +32,17 @@ async function open(t, options = {}) {
                 !(property === 'age' && method === 'has')
         }
     `)
-    const { schema = '{"version":42,"nested":{"value":"ok"}}', ...limits } =
-        options
+    const schema = options.schema || '{"version":42,"nested":{"value":"ok"}}'
+    const limits = { ...options }
+    delete limits.schema
+    delete limits.initialData
+    delete limits.commandsSource
     const schemaFile = path.join(fixture.dir, 'schema.jsontag')
     await fs.writeFile(schemaFile, schema)
-    runtime = await StoreRuntime.open({
+    const runtimeOptions = {
         ...fixture, access, schemaFile, maxWorkers: 1, ...limits
-    })
+    }
+    runtime = await StoreRuntime.open(runtimeOptions)
     async function response(body, extra = {}) {
         return runtime.runQuery({ path: '/', body, jsontag: false, ...extra })
     }
@@ -45,8 +51,132 @@ async function open(t, options = {}) {
         assert.equal(result.code, undefined, result.body)
         return JSON.parse(result.body)
     }
-    return { runtime, fixture, query, response }
+    async function restart() {
+        await runtime.close()
+        runtime = await StoreRuntime.open(runtimeOptions)
+    }
+    return { runtime, fixture, query, response, restart }
 }
+
+test('queries expose committed commands and per-object version history',
+    async t => {
+        const initialData = '{"persons":[' +
+            '<object id="alice">{"name":"Alice","friend":<link>"bob"},' +
+            '<object id="bob">{"name":"Bob","gender":"secret",' +
+            '"profile":{"title":"friend"}}]}'
+        const commandsSource = `import JSONTag from ${JSON.stringify(
+            import.meta.resolve('@muze-nl/jsontag'))}
+        export default {
+            rename: (data, command) => {
+                data.persons[command.index].name = command.value
+            },
+            identify: (data, command) => {
+                JSONTag.setAttribute(data.persons[command.index], 'id',
+                    command.value)
+            },
+            noop: () => {}
+        }`
+        const { runtime, query, restart } = await open(t, {
+            initialData, commandsSource
+        })
+
+        assert.deepEqual(await query(`({
+            commands: meta.commands.all.length,
+            version: meta.versions.get(0).version,
+            objects: meta.versions.get(0).objects.map(x => x.name),
+            history: meta.history.get(data.persons[1]).map(x => ({
+                version: x.version,
+                command: x.command,
+                name: x.object.name
+            }))
+        })`), {
+            commands: 0,
+            version: 0,
+            objects: ['Alice', 'Bob'],
+            history: [{version: 0, command: null, name: 'Bob'}]
+        })
+
+        const rename = {
+            id: 'rename-bob', name: 'rename', index: 1, value: 'Robert',
+            author: 'Auke', message: 'Rename Bob'
+        }
+        await runtime.acceptCommand(JSONTag.stringify(rename))
+        await runtime.runQueuedCommands()
+        await runtime.acceptCommand(JSONTag.stringify({
+            id: 'failed', name: 'missing', author: 'Auke',
+            message: 'This command fails'
+        }))
+        await runtime.runQueuedCommands()
+        await runtime.acceptCommand(JSONTag.stringify({
+            id: 'noop', name: 'noop', author: 'Auke',
+            message: 'Record a no-op'
+        }))
+        await runtime.runQueuedCommands()
+        await runtime.acceptCommand(JSONTag.stringify({
+            id: 'remove-bob-id', name: 'identify', index: 1, value: '',
+            author: 'Auke', message: 'Remove Bob ID'
+        }))
+        await runtime.runQueuedCommands()
+        assert.deepEqual(await query(`({
+            byOldId: meta.history.get('bob'),
+            versions: meta.history.get(data.persons[1]).map(x => x.version),
+            peers: meta.versions.get(3).objects.map(x => x.name)
+        })`), {
+            versions: [0, 1, 3], peers: ['Robert']
+        })
+        await runtime.acceptCommand(JSONTag.stringify({
+            id: 'restore-bob-id', name: 'identify', index: 1, value: 'bob',
+            author: 'Auke', message: 'Restore Bob ID'
+        }))
+        await runtime.runQueuedCommands()
+
+        const expected = {
+            commands: [
+                ['rename-bob', 'Auke', 'Rename Bob', 1],
+                ['noop', 'Auke', 'Record a no-op', 2],
+                ['remove-bob-id', 'Auke', 'Remove Bob ID', 3],
+                ['restore-bob-id', 'Auke', 'Restore Bob ID', 4]
+            ],
+            versionOne: ['Robert'],
+            versionTwo: [],
+            history: [
+                [0, null, 'Bob'],
+                [1, 'rename-bob', 'Robert'],
+                [3, 'remove-bob-id', 'Robert'],
+                [4, 'restore-bob-id', 'Robert']
+            ],
+            oldLink: 'Bob',
+            current: 'Rename Bob',
+            nestedHistory: 4,
+            grantApplied: true,
+            timestamps: true,
+            hasInput: false
+        }
+        const historyQuery = `({
+            commands: meta.commands.all.map(command => [
+                command.id, command.author, command.message,
+                command.version
+            ]),
+            versionOne: meta.versions.get(1).objects.map(x => x.name),
+            versionTwo: meta.versions.get(2).objects.map(x => x.name),
+            history: meta.history.get('bob').map(entry => [
+                entry.version, entry.command && entry.command.id,
+                entry.object.name
+            ]),
+            oldLink: meta.history.get('alice')[0].object.friend.name,
+            current: meta.commands.get('rename-bob').message,
+            nestedHistory: meta.history.get(data.persons[1].profile).length,
+            grantApplied: meta.history.get('bob')[0].object.gender === undefined,
+            timestamps: meta.commands.all.every(command =>
+                typeof command.timestamp === 'string' &&
+                command.timestamp === meta.versions.get(command.version).timestamp
+            ),
+            hasInput: 'input' in meta.commands.all[0]
+        })`
+        assert.deepEqual(await query(historyQuery), expected)
+        await restart()
+        assert.deepEqual(await query(historyQuery), expected)
+    })
 
 test('isolated queries retain helpers, ID identity, tags and path browsing',
     async t => {

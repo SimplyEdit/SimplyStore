@@ -51,6 +51,14 @@ base/changeset sources with its parser. ID lookups use the complete record
 catalog, including objects not yet read. The parser retains at most 256 clean
 record bodies by default; evicted bodies are read again when needed.
 
+The ordered source catalog also defines query-visible versions: the base is
+version 0 and each committed command source is the next version. Per-source ID
+entries identify the objects written by that version. Historical reads choose
+the newest location for a record at or before the requested version and reuse
+the worker's open source descriptor; they do not copy or retain complete
+historical datasets. See [query execution](query-runtime.md#command-and-object-history)
+for the public `meta` interface.
+
 Canonical source files must remain immutable while the store is open. Opening a
 source checks its device, inode, size and modification/change timestamps against
 the hashed identity. Store ownership and immutable publication are still the
@@ -109,13 +117,14 @@ Custom worker implementations need to adopt these messages:
 | Boundary | Input/output |
 | --- | --- |
 | Loader result | `{ sources, meta }` |
-| Query initialization | `req.sources`, `req.meta`, `req.access` |
-| Query update | `req.source`, `req.meta` |
+| Query initialization | `req.sources`, `req.meta`, `req.access`, `req.history` |
+| Query update | `req.source`, `req.meta`, `req.historyCommand` |
 | Command initialization | `sources`, `meta`, existing command/configuration fields |
 | Successful command result | `source`, `meta`, existing result/status fields |
 
-A source contains `file`, `offsets`, `identity`, `size` and `digest`; it contains
-neither bytes nor an open descriptor. It is an internal trusted worker contract.
+A source contains `file`, `offsets`, `identity`, `size`, `digest`, and its
+per-source object/ID catalog; it contains neither bytes nor an open descriptor.
+It is an internal trusted worker contract.
 Use `loadDataSource()` to load persisted offsets (or `scanDataFile()` to
 explicitly reconstruct them) and `FileDataset` to own the parser and handles. Custom hook signatures are unchanged. Custom finalizers can still
 replace offset finalization; core ID publication always runs after them.

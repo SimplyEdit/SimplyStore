@@ -18,16 +18,32 @@ Project causal-graph namespace: `https://github.com/simplyedit/simplystore/spira
 
 Spiral core source: `.spiral-core/`, git submodule for `https://github.com/muze-labs/spiral-developer.git`, currently checked out at `8d4b2c738a413abd4cccca740ce958f486e5f7af`.
 
-Latest accepted cycle: CYC-20260926-TTZ7C-67, self-healing store ownership, on
-spiral/CYC-20260926-TTZ7C-67-self-healing-ownership, accepted on 2026-09-26 with
-SimplyStore 0.11.2. A server takes over the lock of a runtime owner whose
-liveness socket refuses connections (audited, serialized) and then applies the
-unchanged startup assessment; other locks still need administrator release;
-stops during startup release ownership. It revises DES-20260919-TTZ7C-24 by
-maintainer decision and was a deliberate deviation from the roadmap; object
-history remains the next roadmap target. EVD-20260926-TTZ7C-68 records 215
-passing tests and a Docker heal after SIGKILL. Integration is pending; no cycle
-is active.
+Latest accepted cycle: CYC-20261014-TTZ7C-73, queryable object and command
+history, on `spiral/CYC-20261014-TTZ7C-73-object-history` from master `7636fcc`,
+accepted on 2026-10-14 at `6de0ddc`. It continues ROADMAP.md section 3.
+SRC-20261014-TTZ7C-69 retains the maintainer's selection; UND-20261014-TTZ7C-70,
+revised REQ-20261014-TTZ7C-71 and revised DES-20261014-TTZ7C-72 define a query
+surface over compact successful-command metadata, global versions, per-record
+history and same-version entity peers. SRC-20261014-TTZ7C-75 records the
+decision that original command inputs remain outside the query worker for
+separate tooling.
+
+Implementation `e404a72` exposes committed commands, source versions,
+per-version changed objects and per-record history through query `meta`;
+historical links use selected-version records, while original inputs and direct
+command-log access are deliberately absent. EVD-20261014-TTZ7C-74 records the
+passing primary, ACID, durability, handler and recovery regressions plus a
+1,000-record/20-version probe. No persistent format changed. Complete historical
+dataset switching, UI and curriculum-store integration remain later work.
+Integration is pending; no cycle is active.
+
+Latest accepted and integrated cycle: CYC-20260926-TTZ7C-67, self-healing store
+ownership, accepted on 2026-09-26 with SimplyStore 0.11.2 and integrated through
+pull request #29 at `7636fcc`. A server takes over the lock of a runtime owner
+whose liveness socket refuses connections (audited, serialized) and then applies
+the unchanged startup assessment; other locks still need administrator release;
+stops during startup release ownership. EVD-20260926-TTZ7C-68 records 215 passing
+tests and a Docker heal after SIGKILL.
 
 CYC-20260926-TTZ7C-63, object identity across the query isolate, is accepted and
 integrated (pull request #28, SimplyStore 0.11.1).

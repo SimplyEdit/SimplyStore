@@ -177,6 +177,7 @@ export class StoreRuntime {
         this.meta = {}
         this.schema = null
         this.status = new Map()
+        this.historyCommands = []
         this.commandQueue = []
         this.serializeAcceptance = serialWriter()
         this.runner = Promise.resolve()
@@ -257,11 +258,32 @@ export class StoreRuntime {
         this.sources = loaded.sources
         this.meta = loaded.meta
         this.schema = loaded.schema
+        const commands = new Map(
+            inspection.commands.map(command => [command.id, command])
+        )
+        this.historyCommands = inspection.committed.map((id, index) => {
+            return this.historyCommand(
+                commands.get(id), index + 1, this.sources[index + 1]
+            )
+        })
         this.status = new Map(
             inspection.commands.map(command => {
                 return [command.id, command.history.at(-1)]
             })
         )
+    }
+
+    historyCommand(command, version, source) {
+        const modified = source.identity?.modified
+        return {
+            id: command.id,
+            name: command.command.name,
+            author: command.command.author,
+            message: command.command.message,
+            version,
+            timestamp: Number.isFinite(modified) ?
+                new Date(modified).toISOString() : null
+        }
     }
 
     startQueryWorkers() {
@@ -289,6 +311,9 @@ export class StoreRuntime {
                 sources: this.sources,
                 meta: this.meta,
                 schema: this.schema,
+                history: {
+                    commands: this.historyCommands
+                },
                 access: this.configuration.access,
                 limits: {
                     memoryLimit: this.configuration.queryMemoryLimit,
@@ -384,7 +409,11 @@ export class StoreRuntime {
         if (this.storageFailed) {
             throw new Error('Store failed during acceptance')
         }
-        this.commandQueue.push({ id: command.id, command: line })
+        this.commandQueue.push({
+            id: command.id,
+            command: line,
+            value: command
+        })
 
         return {
             accepted: true,
@@ -488,7 +517,7 @@ export class StoreRuntime {
 
         await this.synchronizeRequiredFiles()
         await this.markCommandDone(command)
-        this.publishCommandResult(result)
+        this.publishCommandResult(command, result)
     }
 
     async markCommandActive(command) {
@@ -583,15 +612,24 @@ export class StoreRuntime {
         )
     }
 
-    publishCommandResult(result) {
+    publishCommandResult(command, result) {
         if (!result.source) {
             return
         }
         this.sources.push(result.source)
         Object.assign(this.meta, result.meta)
+        const descriptor = this.historyCommand({
+            ...command,
+            command: command.value
+        }, this.sources.length - 1, result.source)
+        this.historyCommands.push(descriptor)
         const task = {
             name: 'update',
-            req: { source: result.source, meta: this.meta }
+            req: {
+                source: result.source,
+                meta: this.meta,
+                historyCommand: descriptor
+            }
         }
         this.queryWorkerPool.update(task)
         this.slowQueryWorkerPool.update(task)
