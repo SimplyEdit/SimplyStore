@@ -2,9 +2,48 @@
 
 SimplyStore runs each JavaScript query in a fresh V8 isolate using isolated-vm.
 It supplies `root`, path-selected `data`, `request`, `meta.index.id.get/has`,
-`meta.schema`, JSONTag and the existing JAQT helpers. Standard JavaScript objects
-and array methods remain available. Queries are synchronous; Promise results
-are rejected.
+`meta.schema`, version history, JSONTag and the existing JAQT helpers. Standard
+JavaScript objects and array methods remain available. Queries are synchronous;
+Promise results are rejected.
+
+## Command and object history
+
+Successful commands and the dataset versions they produced are available from
+the query `meta` object:
+
+```javascript
+meta.commands.all
+meta.commands.get('command-id')
+meta.versions.get(3)
+meta.history.get(data.persons[0])
+meta.history.get('person-id')
+```
+
+Version `0` is the base dataset. Every successfully completed command creates
+the next version, including a no-op command with no changed objects. Failed,
+pending and active commands are not exposed. A command has `id`, `name`,
+`author`, `message`, `timestamp`, `version`, and `input`. `input` is the exact
+parsed command submitted to the store. `author` and `message` are not separately
+authenticated or normalized.
+
+A version has `version`, `timestamp`, `command`, and `objects`. The base
+version's command is `null`; later commands use the same command view returned
+by `meta.commands`. `objects` contains the ID-bearing records written by that
+source. Internal records without IDs are omitted. A no-op has an empty object
+list.
+
+Object history is ordered oldest first. Each entry has `version`, `timestamp`,
+`command`, and `object`. Historical links and record references resolve against
+that entry's version, not against the current dataset. Nested views inherit the
+history of their owning record. String lookup uses the current ID index, so if
+an ID was reused it selects its current owner. Unknown command IDs, versions,
+object IDs and unsupported inputs return `undefined`.
+
+The only exposed timestamp is the modification time of the corresponding
+dataset source file, formatted as an ISO string. Copying or restoring files may
+therefore change it. Historical objects are read-only and use the same access
+module as current objects. This interface does not switch `data` or `root` to a
+complete historical dataset; that is reserved for a later version.
 
 Queries have no `import` resolver, `require`, `process`, `Buffer`, `fetch`,
 filesystem, database, or networking API. Both static and dynamic imports fail,
@@ -30,6 +69,12 @@ cycles. Each view reads a property from the host once per query. Tagged scalar
 values are copied into the guest once per property and query, so repeated reads
 return the same copy; changes to a copy do not modify stored data or reach the
 next query. Object and array mutations throw.
+
+Historical parsers are created only for versions touched by a query and share
+the worker's existing read-only file sources. Record bodies remain lazy. Command
+inputs are read on demand from their exact command-log byte range and checked
+against the digest established during inspection. A changed or unreadable range
+is a storage failure and stops mutation, like a committed dataset read failure.
 
 JSONTag responses link an object reached more than once by its `id`. A shared
 object without one gets an output id: `~<record>` for stored records, which

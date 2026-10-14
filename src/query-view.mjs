@@ -1,5 +1,8 @@
 import JSONTag from '@muze-nl/jsontag'
 import { getIndex } from '@muze-nl/od-jsontag/src/symbols.mjs'
+import fs from 'node:fs'
+import { createHash } from 'node:crypto'
+import { storageError } from './storage.mjs'
 
 // Only JSONTag's public metadata crosses the query boundary. Parser symbols
 // contain source/cache state and must never be discoverable by a query.
@@ -61,6 +64,76 @@ export class QueryView {
         this.dataset = dataset
         this.maxBytes = maxBytes
         this.schema = schemaHandles(dataset.parser.meta.schema)
+        this.versionParsers = new Map()
+        this.commandInputs = new Map()
+        this.commands = dataset.history?.commands || []
+        this.commandsById = new Map(
+            this.commands.map(command => [command.id, command])
+        )
+        if (dataset.history?.commandLog) {
+            try {
+                this.commandLog = fs.openSync(dataset.history.commandLog, 'r')
+            }
+            catch (error) {
+                throw this.failHistory(error)
+            }
+        }
+    }
+
+    close() {
+        if (this.commandLog !== undefined) {
+            fs.closeSync(this.commandLog)
+            this.commandLog = undefined
+        }
+    }
+
+    virtual(reference, array = false, length) {
+        return { reference, array, ...(array ? { length } : {}) }
+    }
+
+    commandInput(command) {
+        if (this.commandInputs.has(command.version)) {
+            return this.commandInputs.get(command.version)
+        }
+        if (this.commandLog === undefined) {
+            throw new Error('Command history is unavailable')
+        }
+        try {
+            const bytes = Buffer.alloc(command.end - command.start)
+            let offset = 0
+            while (offset < bytes.length) {
+                const count = fs.readSync(this.commandLog, bytes, offset,
+                    bytes.length - offset, command.start + offset)
+                if (!count) {
+                    throw new Error('Unable to read command history')
+                }
+                offset += count
+            }
+            const digest = createHash('sha256').update(bytes).digest('hex')
+            if (digest !== command.digest) {
+                throw new Error('Command history changed')
+            }
+            const input = JSONTag.parse(bytes.toString('utf8'))
+            this.commandInputs.set(command.version, input)
+            return input
+        }
+        catch (error) {
+            throw this.failHistory(error)
+        }
+    }
+
+    failHistory(error) {
+        const failure = storageError(error)
+        this.dataset.parser.readFailure = failure
+        return failure
+    }
+
+    versionParser(version) {
+        if (!this.versionParsers.has(version)) {
+            this.versionParsers.set(version,
+                this.dataset.versionParser(version))
+        }
+        return this.versionParsers.get(version)?.parser
     }
 
     resolve(reference) {
@@ -73,6 +146,31 @@ export class QueryView {
                 throw new Error('Invalid query reference')
             }
             value = this.schema.objects[handle]
+        }
+        else if (record === 'historical') {
+            const version = keys.shift()
+            const number = keys.shift()
+            const parser = this.versionParser(version)
+            if (!parser) {
+                throw new Error('Invalid dataset version')
+            }
+            value = parser.getLineProxy(number)
+        }
+        else if (record === 'command') {
+            const version = keys.shift()
+            const command = this.commands[version - 1]
+            if (!command) {
+                throw new Error('Invalid command version')
+            }
+            value = {
+                id: command.id,
+                name: command.name,
+                author: command.author,
+                message: command.message,
+                timestamp: command.timestamp,
+                version: command.version,
+                input: this.commandInput(command)
+            }
         }
         else {
             value = this.dataset.parser.getLineProxy(record)
@@ -108,7 +206,17 @@ export class QueryView {
         const record = value[getIndex]
         const handle = this.schema.handles.get(value)
         if (Number.isSafeInteger(record)) {
-            reference = [record]
+            const identified = JSONTag.getAttribute(value, 'id') !== undefined
+            if (!identified && reference.length > 1) {
+                // Inline objects inherit the history of their owning record.
+                // Keep the path needed to resolve that nested view.
+            }
+            else if (reference[0] === 'historical') {
+                reference = ['historical', reference[1], record]
+            }
+            else {
+                reference = [record]
+            }
         }
         else if (handle !== undefined) {
             reference = ['schema', handle]
@@ -121,6 +229,10 @@ export class QueryView {
     }
 
     read(operation, reference, key) {
+        const history = this.readHistory(operation, reference, key)
+        if (history !== undefined) {
+            return history
+        }
         if (operation === 'id') {
             const index = this.dataset.parser.meta.index?.id
             if (!index?.has(key)) {
@@ -171,5 +283,160 @@ export class QueryView {
             enumerable: descriptor.enumerable,
             entry: this.describe(value[name], [...reference, key])
         }
+    }
+
+    readHistory(operation, reference, key) {
+        if (operation === 'commands') {
+            return this.virtual(['commands'], true, this.commands.length)
+        }
+        if (operation === 'command') {
+            const command = this.commandsById.get(key)
+            return command ? this.virtual(['command', command.version]) :
+                { value: undefined }
+        }
+        if (operation === 'version') {
+            if (!Number.isSafeInteger(key) || key < 0 ||
+                key >= this.dataset.sources.length) {
+                return { value: undefined }
+            }
+            return this.virtual(['version', key])
+        }
+        if (operation === 'history') {
+            let record
+            if (Array.isArray(key)) {
+                if (typeof key[0] === 'number') {
+                    record = key[0]
+                }
+                else if (key[0] === 'historical') {
+                    record = key[2]
+                }
+            }
+            else if (typeof key === 'string' || typeof key === 'number') {
+                record = this.dataset.parser.meta.index?.id?.get(key)
+            }
+            if (!Number.isSafeInteger(record)) {
+                return { value: undefined }
+            }
+            return this.virtual(['history', record], true,
+                this.dataset.versions(record).length)
+        }
+        if (!reference || typeof reference[0] !== 'string') {
+            return undefined
+        }
+        const type = reference[0]
+        if (!['commands', 'version', 'versionObjects', 'history',
+            'historyEntry'].includes(type)) {
+            return undefined
+        }
+        if (operation === 'keys') {
+            if (type === 'commands' || type === 'versionObjects' ||
+                type === 'history') {
+                const length = type === 'commands' ? this.commands.length :
+                    type === 'versionObjects' ?
+                        (this.dataset.sources[reference[1]].objects || [])
+                            .length :
+                        this.dataset.versions(reference[1]).length
+                return [...Array(length).keys()].map(String).concat('length')
+            }
+            if (type === 'version') {
+                return ['version', 'timestamp', 'command', 'objects']
+            }
+            return ['version', 'timestamp', 'command', 'object']
+        }
+        if (operation === 'has') {
+            return this.readHistory('keys', reference).includes(String(key))
+        }
+        if (operation !== 'get') {
+            return undefined
+        }
+        const name = String(key)
+        if (type === 'commands') {
+            if (name === 'length') {
+                return this.entry(this.commands.length)
+            }
+            const index = Number(name)
+            if (String(index) === name && this.commands[index]) {
+                return this.entryDescription(
+                    this.virtual(['command', this.commands[index].version]))
+            }
+            return { present: false }
+        }
+        if (type === 'version') {
+            const version = reference[1]
+            const source = this.dataset.sources[version]
+            if (name === 'version') {
+                return this.entry(version)
+            }
+            if (name === 'timestamp') {
+                const timestamp = new Date(source.identity.modified)
+                    .toISOString()
+                return this.entry(timestamp)
+            }
+            if (name === 'command') {
+                return this.entryDescription(version === 0 ? { value: null } :
+                    this.virtual(['command', version]))
+            }
+            if (name === 'objects') {
+                return this.entryDescription(this.virtual(
+                    ['versionObjects', version], true,
+                    (source.objects || []).length
+                ))
+            }
+            return { present: false }
+        }
+        if (type === 'versionObjects') {
+            const version = reference[1]
+            const objects = this.dataset.sources[version].objects || []
+            if (name === 'length') {
+                return this.entry(objects.length)
+            }
+            const index = Number(name)
+            if (String(index) === name && objects[index]) {
+                return this.entryDescription(this.virtual([
+                    'historical', version, objects[index].record
+                ]))
+            }
+            return { present: false }
+        }
+        if (type === 'history') {
+            const versions = this.dataset.versions(reference[1])
+            if (name === 'length') {
+                return this.entry(versions.length)
+            }
+            const index = Number(name)
+            if (String(index) === name && versions[index]) {
+                return this.entryDescription(this.virtual([
+                    'historyEntry', reference[1], index
+                ]))
+            }
+            return { present: false }
+        }
+        const record = reference[1]
+        const version = this.dataset.versions(record)[reference[2]].version
+        const source = this.dataset.sources[version]
+        if (name === 'version') {
+            return this.entry(version)
+        }
+        if (name === 'timestamp') {
+            return this.entry(new Date(source.identity.modified).toISOString())
+        }
+        if (name === 'command') {
+            return this.entryDescription(version === 0 ? { value: null } :
+                this.virtual(['command', version]))
+        }
+        if (name === 'object') {
+            return this.entryDescription(this.virtual([
+                'historical', version, record
+            ]))
+        }
+        return { present: false }
+    }
+
+    entry(value) {
+        return this.entryDescription({ value })
+    }
+
+    entryDescription(entry) {
+        return { present: true, enumerable: true, entry }
     }
 }

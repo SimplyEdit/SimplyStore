@@ -30,9 +30,10 @@ export function isolatedQuery(dataset, request, {
     }
     let render
     let result
+    let view
     try {
         const context = isolate.createContextSync()
-        const view = new QueryView(dataset, maxResultBytes)
+        view = new QueryView(dataset, maxResultBytes)
         const initial = {
             root: view.describe(dataset.root, [0]),
             schema: view.describe(dataset.parser.meta.schema, ['schema']),
@@ -66,6 +67,7 @@ export function isolatedQuery(dataset, request, {
         return { jsontag: request.jsontag, body }
     }
     finally {
+        view?.close()
         result?.release()
         render?.release()
         if (!isolate.isDisposed) {

@@ -240,6 +240,7 @@ export function prepare(read, validURL, initial) {
     }
 
     const root = wrap(initial.root)
+    const validKey = id => typeof id === 'string' || typeof id === 'number'
     const meta = {
         index: {
             id: {
@@ -257,8 +258,36 @@ export function prepare(read, validURL, initial) {
                 }
             }
         },
-        schema: wrap(initial.schema)
+        schema: wrap(initial.schema),
+        commands: {
+            get(id) {
+                if (!validKey(id)) {
+                    return undefined
+                }
+                return wrap(read('command', null, id))
+            }
+        },
+        versions: {
+            get(version) {
+                return wrap(read('version', null, version))
+            }
+        },
+        history: {
+            get(value) {
+                const reference = weakGet(references, value)
+                if (!reference && !validKey(value)) {
+                    return undefined
+                }
+                return wrap(read('history', null, reference || value))
+            }
+        }
     }
+    Object.defineProperty(meta.commands, 'all', {
+        enumerable: true,
+        get() {
+            return wrap(read('commands'))
+        }
+    })
     const request = initial.request
     const taggedResponse = Boolean(request.jsontag)
     const browse = !request.body

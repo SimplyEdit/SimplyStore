@@ -156,6 +156,21 @@ export default async function runCommand(commandStr) {
             // index hook.
             await finalizeIndex(index, serialized, meta, task.id, prepared)
             response.source = loadDataSource(newfilename, meta, task.id)
+            const idsByRecord = new Map([...prepared.entries].map(
+                ([id, record]) => [record, id]
+            ))
+            const previousIds = new Map([...committedIds].map(
+                ([id, record]) => [record, id]
+            ))
+            response.source.ids = prepared.entries
+            response.source.objects = Object.keys(response.source.offsets)
+                .map(Number)
+                .sort((a, b) => a - b)
+                .map(record => ({
+                    record,
+                    id: idsByRecord.get(record) ?? previousIds.get(record)
+                }))
+                .filter(entry => entry.id !== undefined)
             if (response.source.digest !== expectedDigest ||
                 digestBuffer(serialized) !== expectedDigest) {
                 throw new Error('Changeset changed during finalization')

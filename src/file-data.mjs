@@ -8,7 +8,7 @@ import idIndex, {
 import offsetIndex from './index.offset.mjs'
 import { loadStoredIndex } from './index-files.mjs'
 import JSONTag from '@muze-nl/jsontag'
-import Parser from '@muze-nl/od-jsontag/src/node.mjs'
+import Parser, { fileSource } from '@muze-nl/od-jsontag/src/node.mjs'
 import { RecoveryIntegrityError, assertChangesetExists } from './recovery.mjs'
 import { getDefaultIntegrityFile, loadIntegrityManifest, verifyDigest }
     from './integrity.mjs'
@@ -225,13 +225,20 @@ export function scanDataFile(filename, recordIds = null) {
 
 // Keep read failure in host-owned state even when a handler/query catches it.
 export class FileParser extends Parser {
+    failRead(error) {
+        this.readFailure = storageError(error)
+        if (this.failureTarget) {
+            this.failureTarget.readFailure = this.readFailure
+        }
+        return this.readFailure
+    }
+
     firstParse(target) {
         try {
             return super.firstParse(target)
         }
         catch (error) {
-            this.readFailure = storageError(error)
-            throw this.readFailure
+            throw this.failRead(error)
         }
     }
 
@@ -240,9 +247,26 @@ export class FileParser extends Parser {
             return super.getLineProxy(index)
         }
         catch (error) {
-            this.readFailure = storageError(error)
-            throw this.readFailure
+            throw this.failRead(error)
         }
+    }
+}
+
+class VersionParser extends FileParser {
+    constructor(meta, locations) {
+        super(undefined, true)
+        this.meta = { ...meta, resultArray: [] }
+        this.locations = locations
+    }
+
+    getLineProxy(index) {
+        if (!this.records.has(index)) {
+            const location = this.locations.get(index)
+            if (location) {
+                this.installRecord(index, location)
+            }
+        }
+        return super.getLineProxy(index)
     }
 }
 
@@ -251,7 +275,9 @@ export class FileDataset {
         this.parser = new ParserType(undefined, immutable)
         this.parser.meta = { ...meta, resultArray: [] }
         this.handles = []
+        this.readers = []
         this.sources = []
+        this.recordVersions = new Map()
         this.root = undefined
     }
 
@@ -259,15 +285,55 @@ export class FileDataset {
         const fd = fs.openSync(source.file, 'r')
         try {
             assertIdentity(fd, source)
-            this.root = this.parser.parse(fd, source.offsets)
+            const reader = fileSource(fd)
+            this.root = this.parser.parse(reader, source.offsets)
             this.handles.push(fd)
+            this.readers.push(reader)
             this.sources.push(source)
+            const version = this.sources.length - 1
+            for (const [key, [start, end]] of
+                Object.entries(source.offsets)) {
+                const record = Number(key)
+                if (!this.recordVersions.has(record)) {
+                    this.recordVersions.set(record, [])
+                }
+                this.recordVersions.get(record).push({
+                    version, input: reader, start, end, indexed: true
+                })
+            }
             return this.root
         }
         catch (error) {
             fs.closeSync(fd)
             throw error
         }
+    }
+
+    versions(record) {
+        return this.recordVersions.get(record) || []
+    }
+
+    versionParser(version) {
+        if (!Number.isSafeInteger(version) || version < 0 ||
+            version >= this.sources.length) {
+            return null
+        }
+        const locations = new Map()
+        for (const [record, versions] of this.recordVersions) {
+            for (let index = versions.length - 1; index >= 0; index--) {
+                if (versions[index].version <= version) {
+                    locations.set(record, versions[index])
+                    break
+                }
+            }
+        }
+        const parser = new VersionParser(this.parser.meta, locations)
+        parser.failureTarget = this.parser
+        const root = parser.getLineProxy(0)
+        if (!root) {
+            throw new RangeError(`Missing root record at version ${version}`)
+        }
+        return { parser, root }
     }
 
     open(sources) {
@@ -305,6 +371,8 @@ export class FileDataset {
             fs.closeSync(fd)
         }
         this.sources = []
+        this.readers = []
+        this.recordVersions.clear()
         this.root = undefined
     }
 }
@@ -440,6 +508,19 @@ async function readFileData(files, manifest) {
                 throw new Error(`ID index does not match data: ${file}`)
             }
         }
+        const previousIds = new Map([...ids].map(([id, number]) => {
+            return [number, id]
+        }))
+        const newIds = new Map([...entries].map(([id, number]) => {
+            return [number, id]
+        }))
+        source.objects = [...records].sort((a, b) => a - b).map(number => {
+            return {
+                record: number,
+                id: newIds.get(number) ?? previousIds.get(number)
+            }
+        }).filter(entry => entry.id !== undefined)
+        source.ids = entries
         mergeIdIndex(ids, records, entries)
         return source
     })

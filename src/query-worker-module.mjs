@@ -31,6 +31,10 @@ export default {
             dataset.parser.meta.access = access.default
         }
         limits = task.req.limits
+        dataset.history = {
+            commandLog: task.req.history.commandLog,
+            commands: [...task.req.history.commands]
+        }
         dataset.open(task.req.sources)
         return true
     },
@@ -40,6 +44,9 @@ export default {
             dataset.parser.meta.index = task.req.meta.index
         }
         dataset.append(task.req.source)
+        if (task.req.historyCommand) {
+            dataset.history.commands.push(task.req.historyCommand)
+        }
         return true
     },
 

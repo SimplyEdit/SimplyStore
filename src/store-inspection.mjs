@@ -208,20 +208,30 @@ class StoreInspector {
     }
 
     async readRecords(file, kind) {
-        let text
+        let bytes
         try {
-            text = await fs.readFile(file, 'utf8')
+            bytes = await fs.readFile(file)
         }
         catch (error) {
             this.errors.push(`${kind}: ${error.message}`)
             return []
         }
-        if (text && !text.endsWith('\n')) {
+        if (bytes.length && bytes.at(-1) !== 10) {
             this.errors.push(`${kind}: incomplete final record in ${file}`)
         }
         const result = []
-        for (const [index, line] of text.split('\n').entries()) {
+        let start = 0
+        let lineNumber = 0
+        while (start < bytes.length) {
+            lineNumber++
+            let end = bytes.indexOf(10, start)
+            if (end === -1) {
+                end = bytes.length
+            }
+            const lineBytes = bytes.subarray(start, end)
+            const line = lineBytes.toString('utf8')
             if (!line) {
+                start = end + 1
                 continue
             }
             try {
@@ -233,13 +243,17 @@ class StoreInspector {
                 ) {
                     throw new Error('record is not an object')
                 }
-                result.push({ value, line, lineNumber: index + 1 })
+                result.push({
+                    value, line, lineNumber, start, end,
+                    digest: hash(lineBytes)
+                })
             }
             catch (error) {
                 this.errors.push(
-                    `${kind} ${file}:${index + 1}: ${error.message}`
+                    `${kind} ${file}:${lineNumber}: ${error.message}`
                 )
             }
+            start = end + 1
         }
         return result
     }
@@ -268,6 +282,9 @@ class StoreInspector {
                 position: this.commands.length,
                 command: record.value,
                 line: record.line,
+                start: record.start,
+                end: record.end,
+                digest: record.digest,
                 history: [],
                 accepted: false,
                 status: null,
