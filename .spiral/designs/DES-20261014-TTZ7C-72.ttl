@@ -1,0 +1,34 @@
+@prefix sd: <https://muze.nl/ns/spiral-developer#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix project: <https://github.com/simplyedit/simplystore/spiral#> .
+
+project:DES-20261014-TTZ7C-72
+    a sd:Design ;
+    dcterms:identifier "DES-20261014-TTZ7C-72" ;
+    sd:repositoryPath ".spiral/designs/DES-20261014-TTZ7C-72.md" ;
+    sd:status sd:Active ;
+    sd:satisfies [
+        a sd:ArtifactReference ;
+        sd:artifact project:REQ-20261014-TTZ7C-71 ;
+        sd:gitCommit "1366d06276dc7ad1cb990ec00b235c4e7f84998b"
+    ] ;
+    sd:constrainedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260923-TTZ7C-47 ;
+        sd:gitCommit "83edb03bc406b9e651ef93bed69b87ece17dcf47"
+    ] ;
+    sd:constrainedBy [
+        a sd:ArtifactReference ;
+        sd:artifact project:DES-20260924-TTZ7C-59 ;
+        sd:gitCommit "832afc19533e730013c43491a23d8cb41bba97f8"
+    ] ;
+    sd:shapedBy [
+        a sd:ArtifactReference ;
+        sd:artifact <https://muze.nl/ns/spiral-developer/culture/CUL-MUZE-001> ;
+        sd:gitCommit "8d4b2c738a413abd4cccca740ce958f486e5f7af"
+    ] ;
+    sd:shapedBy [
+        a sd:ArtifactReference ;
+        sd:artifact <https://muze.nl/ns/spiral-developer/culture/CUL-MUZE-LIB-001> ;
+        sd:gitCommit "8d4b2c738a413abd4cccca740ce958f486e5f7af"
+    ] .
