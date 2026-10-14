@@ -22,9 +22,10 @@ meta.history.get('person-id')
 Version `0` is the base dataset. Every successfully completed command creates
 the next version, including a no-op command with no changed objects. Failed,
 pending and active commands are not exposed. A command has `id`, `name`,
-`author`, `message`, `timestamp`, `version`, and `input`. `input` is the exact
-parsed command submitted to the store. `author` and `message` are not separately
-authenticated or normalized.
+`author`, `message`, `timestamp`, and `version`. `author` and `message` are not
+separately authenticated or normalized. Original command inputs remain in the
+command log for dedicated administrative tooling; they are not copied into
+query workers.
 
 A version has `version`, `timestamp`, `command`, and `objects`. The base
 version's command is `null`; later commands use the same command view returned
@@ -71,10 +72,9 @@ return the same copy; changes to a copy do not modify stored data or reach the
 next query. Object and array mutations throw.
 
 Historical parsers are created only for versions touched by a query and share
-the worker's existing read-only file sources. Record bodies remain lazy. Command
-inputs are read on demand from their exact command-log byte range and checked
-against the digest established during inspection. A changed or unreadable range
-is a storage failure and stops mutation, like a committed dataset read failure.
+the worker's existing read-only file sources. Record bodies remain lazy. Query
+workers receive only the compact successful-command catalogue, not original
+command payloads or command-log access.
 
 JSONTag responses link an object reached more than once by its `id`. A shared
 object without one gets an output id: `~<record>` for stored records, which

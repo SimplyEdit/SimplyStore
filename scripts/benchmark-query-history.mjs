@@ -120,7 +120,7 @@ try {
             history: meta.history.get('item-${records}').map(entry =>
                 entry.object.value),
             peers: meta.versions.get(${versions}).objects.length,
-            input: meta.commands.get('edit-${versions}').input.value
+            message: meta.commands.get('edit-${versions}').message
         })`
     })
     const queryMs = performance.now() - querying
@@ -130,7 +130,7 @@ try {
     const result = JSON.parse(response.body)
     if (result.history.length !== versions + 1 ||
         result.history.at(-1) !== versions || result.peers !== 1 ||
-        result.input !== versions) {
+        result.message !== `Edit ${versions}`) {
         throw new Error(`Unexpected history result: ${response.body}`)
     }
     const after = await runtime.queryWorkerPool.run('historyStats', {})

@@ -1,8 +1,5 @@
 import JSONTag from '@muze-nl/jsontag'
 import { getIndex } from '@muze-nl/od-jsontag/src/symbols.mjs'
-import fs from 'node:fs'
-import { createHash } from 'node:crypto'
-import { storageError } from './storage.mjs'
 
 // Only JSONTag's public metadata crosses the query boundary. Parser symbols
 // contain source/cache state and must never be discoverable by a query.
@@ -65,67 +62,14 @@ export class QueryView {
         this.maxBytes = maxBytes
         this.schema = schemaHandles(dataset.parser.meta.schema)
         this.versionParsers = new Map()
-        this.commandInputs = new Map()
         this.commands = dataset.history?.commands || []
         this.commandsById = new Map(
             this.commands.map(command => [command.id, command])
         )
-        if (dataset.history?.commandLog) {
-            try {
-                this.commandLog = fs.openSync(dataset.history.commandLog, 'r')
-            }
-            catch (error) {
-                throw this.failHistory(error)
-            }
-        }
-    }
-
-    close() {
-        if (this.commandLog !== undefined) {
-            fs.closeSync(this.commandLog)
-            this.commandLog = undefined
-        }
     }
 
     virtual(reference, array = false, length) {
         return { reference, array, ...(array ? { length } : {}) }
-    }
-
-    commandInput(command) {
-        if (this.commandInputs.has(command.version)) {
-            return this.commandInputs.get(command.version)
-        }
-        if (this.commandLog === undefined) {
-            throw new Error('Command history is unavailable')
-        }
-        try {
-            const bytes = Buffer.alloc(command.end - command.start)
-            let offset = 0
-            while (offset < bytes.length) {
-                const count = fs.readSync(this.commandLog, bytes, offset,
-                    bytes.length - offset, command.start + offset)
-                if (!count) {
-                    throw new Error('Unable to read command history')
-                }
-                offset += count
-            }
-            const digest = createHash('sha256').update(bytes).digest('hex')
-            if (digest !== command.digest) {
-                throw new Error('Command history changed')
-            }
-            const input = JSONTag.parse(bytes.toString('utf8'))
-            this.commandInputs.set(command.version, input)
-            return input
-        }
-        catch (error) {
-            throw this.failHistory(error)
-        }
-    }
-
-    failHistory(error) {
-        const failure = storageError(error)
-        this.dataset.parser.readFailure = failure
-        return failure
     }
 
     versionParser(version) {
@@ -168,8 +112,7 @@ export class QueryView {
                 author: command.author,
                 message: command.message,
                 timestamp: command.timestamp,
-                version: command.version,
-                input: this.commandInput(command)
+                version: command.version
             }
         }
         else {

@@ -132,10 +132,10 @@ test('queries expose committed commands and per-object version history',
 
         const expected = {
             commands: [
-                ['rename-bob', 'Auke', 'Rename Bob', 1, 'Robert'],
-                ['noop', 'Auke', 'Record a no-op', 2, null],
-                ['remove-bob-id', 'Auke', 'Remove Bob ID', 3, null],
-                ['restore-bob-id', 'Auke', 'Restore Bob ID', 4, 'bob']
+                ['rename-bob', 'Auke', 'Rename Bob', 1],
+                ['noop', 'Auke', 'Record a no-op', 2],
+                ['remove-bob-id', 'Auke', 'Remove Bob ID', 3],
+                ['restore-bob-id', 'Auke', 'Restore Bob ID', 4]
             ],
             versionOne: ['Robert'],
             versionTwo: [],
@@ -146,15 +146,16 @@ test('queries expose committed commands and per-object version history',
                 [4, 'restore-bob-id', 'Robert']
             ],
             oldLink: 'Bob',
-            current: 'Robert',
+            current: 'Rename Bob',
             nestedHistory: 4,
             grantApplied: true,
-            timestamps: true
+            timestamps: true,
+            hasInput: false
         }
         const historyQuery = `({
             commands: meta.commands.all.map(command => [
                 command.id, command.author, command.message,
-                command.version, command.input.value || null
+                command.version
             ]),
             versionOne: meta.versions.get(1).objects.map(x => x.name),
             versionTwo: meta.versions.get(2).objects.map(x => x.name),
@@ -163,34 +164,18 @@ test('queries expose committed commands and per-object version history',
                 entry.object.name
             ]),
             oldLink: meta.history.get('alice')[0].object.friend.name,
-            current: meta.commands.get('rename-bob').input.value,
+            current: meta.commands.get('rename-bob').message,
             nestedHistory: meta.history.get(data.persons[1].profile).length,
             grantApplied: meta.history.get('bob')[0].object.gender === undefined,
             timestamps: meta.commands.all.every(command =>
                 typeof command.timestamp === 'string' &&
                 command.timestamp === meta.versions.get(command.version).timestamp
-            )
+            ),
+            hasInput: 'input' in meta.commands.all[0]
         })`
         assert.deepEqual(await query(historyQuery), expected)
         await restart()
         assert.deepEqual(await query(historyQuery), expected)
-    })
-
-test('a changed command-log range fails historical queries and the store',
-    async t => {
-        const { runtime, fixture, response } = await open(t)
-        await runtime.acceptCommand(JSON.stringify({
-            id: 'added', name: 'addPerson', author: 'Auke',
-            message: 'Add a person', value: {name: 'New'}
-        }))
-        await runtime.runQueuedCommands()
-        const log = await fs.readFile(fixture.commandLog)
-        log[0] = log[0] === 123 ? 91 : 123
-        await fs.writeFile(fixture.commandLog, log)
-
-        const result = await response('meta.commands.all[0].input')
-        assert.equal(result.code, 500, result.body)
-        assert.equal(runtime.storageFailed, true)
     })
 
 test('isolated queries retain helpers, ID identity, tags and path browsing',

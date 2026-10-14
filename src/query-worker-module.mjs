@@ -32,7 +32,6 @@ export default {
         }
         limits = task.req.limits
         dataset.history = {
-            commandLog: task.req.history.commandLog,
             commands: [...task.req.history.commands]
         }
         dataset.open(task.req.sources)

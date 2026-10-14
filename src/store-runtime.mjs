@@ -1,5 +1,4 @@
 import path from 'node:path'
-import fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import JSONTag from '@muze-nl/jsontag'
 import { from, _, anyOf, not } from '@muze-nl/jaqt'
@@ -16,7 +15,6 @@ import {
 import { serialWriter, syncFile } from './storage.mjs'
 import {
     inspectStore,
-    hash,
     storePaths,
     mutableDirectories,
     validCommandId
@@ -284,10 +282,7 @@ export class StoreRuntime {
             message: command.command.message,
             version,
             timestamp: Number.isFinite(modified) ?
-                new Date(modified).toISOString() : null,
-            start: command.start,
-            end: command.end,
-            digest: command.digest
+                new Date(modified).toISOString() : null
         }
     }
 
@@ -317,7 +312,6 @@ export class StoreRuntime {
                 meta: this.meta,
                 schema: this.schema,
                 history: {
-                    commandLog: this.configuration.store.commandLog,
                     commands: this.historyCommands
                 },
                 access: this.configuration.access,
@@ -404,11 +398,6 @@ export class StoreRuntime {
             this.configuration.store.commandLog,
             line
         )
-        const size = (await fs.stat(
-            this.configuration.store.commandLog
-        )).size
-        const end = size - 1
-        const start = end - Buffer.byteLength(line)
         await this.mechanisms.faultPoint(
             'after-command-log-before-accepted-status'
         )
@@ -423,10 +412,7 @@ export class StoreRuntime {
         this.commandQueue.push({
             id: command.id,
             command: line,
-            value: command,
-            start,
-            end,
-            digest: hash(Buffer.from(line))
+            value: command
         })
 
         return {
